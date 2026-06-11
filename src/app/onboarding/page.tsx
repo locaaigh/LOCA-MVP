@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useStore, emptyBusiness } from "@/lib/store";
@@ -18,7 +18,7 @@ import {
   foundingYearOptions,
 } from "@/lib/constants";
 import type { Business, ProductService, ProductServiceType, WebsiteAnalysis } from "@/lib/types";
-import { Button, Card, ChipSelect, Field, Input, Select, Textarea, useToast } from "@/components/ui";
+import { Button, Card, ChipSelect, Field, Input, Modal, Select, Textarea, useToast } from "@/components/ui";
 import {
   HelpField,
   SearchableCountrySelect,
@@ -34,7 +34,7 @@ import {
   ProductServiceImporter,
 } from "@/components/product-service";
 import { BrandKitEditor } from "@/components/brand-kit";
-import { OnboardingSummary } from "@/components/onboarding-summary";
+import { OnboardingSummary, type SummarySectionKey } from "@/components/onboarding-summary";
 import { Logo, EvaAvatar } from "@/components/brand";
 import { EvaChatBubble } from "@/components/eva-chat";
 import { getFieldExample } from "@/lib/examples";
@@ -68,6 +68,28 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(0);
   const [b, setB] = useState<Business>(() => emptyBusiness(user?.id || "anon"));
   const [missing, setMissing] = useState<Set<string>>(new Set());
+  // Edición de una sección desde el resumen final
+  const [editSection, setEditSection] = useState<SummarySectionKey | null>(null);
+  const [draftBackup, setDraftBackup] = useState<Business | null>(null);
+
+  function openSection(key: SummarySectionKey) {
+    setDraftBackup(b);
+    setEditSection(key);
+  }
+  function saveSection() {
+    setDraftBackup(null);
+    setEditSection(null);
+  }
+  function cancelSection() {
+    if (draftBackup) setB(draftBackup);
+    setDraftBackup(null);
+    setEditSection(null);
+  }
+
+  // Al cambiar de paso, siempre empezar arriba (especialmente en mobile).
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [step]);
 
   // set normal: si el usuario edita un campo que Eva había marcado, pasa a "Editado por vos".
   const set = (patch: Partial<Business>) =>
@@ -186,17 +208,28 @@ export default function OnboardingPage() {
   return (
     <main className="min-h-screen bg-zinc-50 pb-28">
       {node}
-      <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3 sm:px-6">
-          <Link href="/">
-            <Logo className="text-xl" />
-          </Link>
-          <span className="text-sm text-zinc-400">Paso {step + 1} de {STEPS.length}</span>
+      {/* Header sticky con progreso */}
+      <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto max-w-3xl px-4 py-2.5 sm:px-6">
+          <div className="flex items-center justify-between">
+            <Link href="/">
+              <Logo className="text-xl" />
+            </Link>
+            <span className="text-sm font-medium text-zinc-500">
+              Paso {step + 1} de {STEPS.length} · {STEPS[step]}
+            </span>
+          </div>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-100">
+            <div
+              className="h-full rounded-full bg-loca-500 transition-all duration-300"
+              style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
+            />
+          </div>
         </div>
       </header>
 
       <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
-        {/* Stepper */}
+        {/* Stepper de puntos (navegable) */}
         <div className="mb-5 flex items-center">
           {STEPS.map((s, i) => (
             <div key={s} className="flex flex-1 items-center">
@@ -234,9 +267,29 @@ export default function OnboardingPage() {
           {step === 4 && <StepProducts b={b} set={set} show={show} />}
           {step === 5 && <StepAudience b={b} set={set} missing={missing} />}
           {step === 6 && <StepGoals b={b} set={set} missing={missing} />}
-          {step === 7 && <OnboardingSummary business={b} onConfirm={finish} onEdit={() => setStep(1)} />}
+          {step === 7 && (
+            <OnboardingSummary
+              business={b}
+              onConfirm={finish}
+              onEdit={() => setStep(1)}
+              onEditSection={openSection}
+            />
+          )}
         </div>
       </div>
+
+      {/* Edición enfocada de una sección desde el resumen */}
+      <Modal open={!!editSection} onClose={cancelSection} title={sectionTitle(editSection)}>
+        <SectionEditor section={editSection} b={b} set={set} subcats={subcats} show={show} />
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+          <Button variant="success" size="lg" className="flex-1" onClick={saveSection}>
+            Guardar cambios
+          </Button>
+          <Button variant="ghost" size="lg" className="flex-1" onClick={cancelSection}>
+            Cancelar
+          </Button>
+        </div>
+      </Modal>
 
       {/* Sticky bottom CTA (oculto en el resumen, que tiene sus propios botones) */}
       {!onSummary && (
@@ -284,7 +337,89 @@ function StepIntro({ step }: { step: number }) {
 function StepBrandKit({ b, set }: { b: Business; set: (p: Partial<Business>) => void }) {
   const bk = b.brandKit || emptyBrandKit();
   return (
-    <BrandKitEditor brandKit={bk} onChange={(patch) => set({ brandKit: { ...bk, ...patch } })} />
+    <BrandKitEditor business={b} brandKit={bk} onChange={(patch) => set({ brandKit: { ...bk, ...patch } })} />
+  );
+}
+
+// ── Edición de una sección desde el resumen ──────────────────
+const SECTION_TITLES: Record<SummarySectionKey, string> = {
+  basicos: "Datos básicos del negocio",
+  productos: "Productos y servicios",
+  audiencia: "Audiencia",
+  propuesta: "Propuesta de valor",
+  canales: "Canales y marketing actual",
+  objetivos: "Objetivos",
+  brandkit: "Identidad visual",
+  comerciales: "Datos comerciales",
+  keywords: "Palabras clave y a evitar",
+};
+
+function sectionTitle(s: SummarySectionKey | null): string {
+  return s ? SECTION_TITLES[s] : "";
+}
+
+function SectionEditor({
+  section,
+  b,
+  set,
+  subcats,
+  show,
+}: {
+  section: SummarySectionKey | null;
+  b: Business;
+  set: (p: Partial<Business>) => void;
+  subcats: string[];
+  show: (m: string) => void;
+}) {
+  if (!section) return null;
+  const noMissing = new Set<string>();
+  const noStatus = () => undefined;
+  switch (section) {
+    case "basicos":
+      return <StepBasic b={b} set={set} subcats={subcats} missing={noMissing} statusOf={noStatus} />;
+    case "productos":
+      return <StepProducts b={b} set={set} show={show} />;
+    case "audiencia":
+      return <StepAudience b={b} set={set} missing={noMissing} />;
+    case "propuesta":
+    case "canales":
+      return <StepBrand b={b} set={set} missing={noMissing} statusOf={noStatus} />;
+    case "objetivos":
+      return <StepGoals b={b} set={set} missing={noMissing} />;
+    case "brandkit":
+    case "keywords":
+      return <StepBrandKit b={b} set={set} />;
+    case "comerciales":
+      return <CommercialEditor b={b} set={set} />;
+    default:
+      return null;
+  }
+}
+
+// Editor simple de datos comerciales (Business Intelligence · contactInfo)
+function CommercialEditor({ b, set }: { b: Business; set: (p: Partial<Business>) => void }) {
+  const bi = b.businessIntelligence || { socialLinks: [], contactInfo: {}, conversionPaths: {}, valuePropositions: [] };
+  const ci = bi.contactInfo || {};
+  const setCi = (patch: Partial<typeof ci>) =>
+    set({ businessIntelligence: { ...bi, contactInfo: { ...ci, ...patch } } });
+  return (
+    <div className="space-y-3">
+      <Field label="WhatsApp">
+        <Input value={ci.whatsapp || ""} onChange={(e) => setCi({ whatsapp: e.target.value })} placeholder="https://wa.me/549..." />
+      </Field>
+      <Field label="Email">
+        <Input value={ci.email || ""} onChange={(e) => setCi({ email: e.target.value })} placeholder="hola@tunegocio.com" />
+      </Field>
+      <Field label="Teléfono">
+        <Input value={ci.phone || ""} onChange={(e) => setCi({ phone: e.target.value })} placeholder="+54 11 ..." />
+      </Field>
+      <Field label="Dirección">
+        <Input value={ci.address || ""} onChange={(e) => setCi({ address: e.target.value })} placeholder="Calle 123, Ciudad" />
+      </Field>
+      <Field label="Horarios">
+        <Input value={ci.openingHours || ""} onChange={(e) => setCi({ openingHours: e.target.value })} placeholder="Lun a Vie 9 a 18h" />
+      </Field>
+    </div>
   );
 }
 
@@ -444,7 +579,7 @@ function StepBasic({
             ))}
           </Select>
         </HelpField>
-        <HelpField label="Subcategoría" help="Elegí la opción más parecida. No tiene que ser perfecta." status={statusOf("subcategory")}>
+        <HelpField label="Subcategoría" required error={missing.has("subcategory")} id="subcategory" help="Elegí la opción más parecida. No tiene que ser perfecta." status={statusOf("subcategory")}>
           {subcats.length ? (
             <Select value={b.subcategory} onChange={(e) => set({ subcategory: e.target.value })}>
               <option value="">Elegí una subcategoría</option>
@@ -477,14 +612,14 @@ function StepBasic({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <HelpField label="Año de fundación">
+        <HelpField label="Año de fundación" required error={missing.has("yearFounded")} id="yearFounded">
           <Select value={b.yearFounded} onChange={(e) => set({ yearFounded: e.target.value })}>
             {foundingYearOptions(CURRENT_YEAR).map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </Select>
         </HelpField>
-        <HelpField label="Cantidad de empleados">
+        <HelpField label="Cantidad de empleados" required error={missing.has("employees")} id="employees">
           <Select value={b.employees} onChange={(e) => set({ employees: e.target.value })}>
             <option value="">Elegí</option>
             {["Solo yo", "1-10", "11-50", "51-200", "200+"].map((e) => (
@@ -502,10 +637,10 @@ function StepBasic({
             error={missing.has("country")}
           />
         </HelpField>
-        <HelpField label="Provincia / Estado">
+        <HelpField label="Provincia / Estado" required error={missing.has("state")} id="state">
           <SearchableRegionSelect country={b.country} value={b.state} onChange={(v) => set({ state: v })} />
         </HelpField>
-        <HelpField label="Ciudad">
+        <HelpField label="Ciudad" required error={missing.has("city")} id="city">
           <Input value={b.city} onChange={(e) => set({ city: e.target.value })} placeholder="Buenos Aires" />
         </HelpField>
       </div>
@@ -553,7 +688,7 @@ function StepBrand({
         </div>
       </HelpField>
 
-      <HelpField label="Descripción completa" help="Mientras más claro seas, mejores contenidos va a generar Eva." status={statusOf("fullDescription")}>
+      <HelpField label="Descripción completa" required error={missing.has("fullDescription")} id="fullDescription" help="Mientras más claro seas, mejores contenidos va a generar Eva." status={statusOf("fullDescription")}>
         <div className="space-y-2">
           <Textarea
             value={b.fullDescription}
@@ -564,7 +699,7 @@ function StepBrand({
         </div>
       </HelpField>
 
-      <HelpField label="Valores de marca (hasta 5)">
+      <HelpField label="Valores de marca (hasta 5)" required error={missing.has("values")} id="values">
         <ChipSelect options={VALUE_SUGGESTIONS} value={b.values} onChange={(v) => set({ values: v.slice(0, 5) })} allowCustom />
       </HelpField>
 
@@ -814,16 +949,16 @@ function StepAudience({
             <option value="global">En todo el mundo</option>
           </Select>
         </HelpField>
-        <HelpField label="Ubicaciones objetivo">
+        <HelpField label="Ubicaciones objetivo" required error={missing.has("locations")} id="locations">
           <ChipSelect options={[]} value={a.locations} onChange={(v) => setA({ locations: v })} allowCustom />
         </HelpField>
       </div>
 
-      <HelpField label="¿Qué problema le resolvés?" help={getFieldExample("painPoint", b.industry)}>
+      <HelpField label="¿Qué problema le resolvés?" required error={missing.has("painPoints")} id="painPoints" help={getFieldExample("painPoint", b.industry)}>
         <ChipSelect options={[]} value={a.painPoints} onChange={(v) => setA({ painPoints: v })} allowCustom />
       </HelpField>
 
-      <HelpField label="¿Cómo se comporta tu cliente?">
+      <HelpField label="¿Cómo se comporta tu cliente?" required error={missing.has("behavior")} id="behavior">
         <Textarea
           value={a.behavior}
           onChange={(e) => setA({ behavior: e.target.value })}
@@ -831,7 +966,7 @@ function StepAudience({
         />
       </HelpField>
 
-      <HelpField label="Segmentos de audiencia">
+      <HelpField label="Segmentos de audiencia" required error={missing.has("segments")} id="segments">
         <ChipSelect options={[]} value={a.segments} onChange={(v) => setA({ segments: v })} allowCustom />
       </HelpField>
     </Card>
@@ -881,7 +1016,7 @@ function StepGoals({
         </HelpField>
       )}
 
-      <HelpField label="¿Qué querés lograr con tu negocio?">
+      <HelpField label="¿Qué querés lograr con tu negocio?" required error={missing.has("businessObjectives")} id="businessObjectives">
         <Textarea
           value={g.businessObjectives}
           onChange={(e) => setG({ businessObjectives: e.target.value })}
@@ -889,7 +1024,7 @@ function StepGoals({
         />
       </HelpField>
 
-      <HelpField label="¿Cómo vas a medir el éxito?">
+      <HelpField label="¿Cómo vas a medir el éxito?" required error={missing.has("successMetrics")} id="successMetrics">
         <ChipSelect
           options={["Ventas", "Alcance", "Seguidores", "Visitas al local", "Mensajes", "Conversión"]}
           value={g.successMetrics}
@@ -898,7 +1033,7 @@ function StepGoals({
         />
       </HelpField>
 
-      <HelpField label="¿Qué querés lograr con tu marketing?">
+      <HelpField label="¿Qué querés lograr con tu marketing?" required error={missing.has("marketingObjectives")} id="marketingObjectives">
         <Textarea
           value={g.marketingObjectives}
           onChange={(e) => setG({ marketingObjectives: e.target.value })}

@@ -25,7 +25,13 @@ export type ContentStatus =
   | "generado"
   | "aprobado"
   | "rechazado"
-  | "publicado_manualmente";
+  | "publicado_manualmente"
+  // Estados extendidos (flujo de revisión / publicación)
+  | "pending_review"
+  | "needs_changes"
+  | "scheduled"
+  | "published"
+  | "archived";
 
 export type CalendarStatus =
   | "borrador"
@@ -299,6 +305,61 @@ export interface AdStrategy {
   meta?: MetaAdsStrategy;
   google?: GoogleAdsStrategy;
   createdAt: string;
+}
+
+// ── Métricas de redes (preparado para APIs reales) ───────────
+export interface ContentPerformance {
+  id: ID;
+  contentId?: ID;
+  title: string;
+  channel: string;
+  format: string;
+  date: string; // ISO
+  reach: number;
+  impressions: number;
+  interactions: number;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  clicks: number;
+  ctr?: number;
+  videoViews?: number;
+  avgWatchTimeSec?: number;
+  engagementRate: number; // 0..1
+  leads?: number;
+}
+
+export interface ChannelMetrics {
+  channel: string;
+  posts: number;
+  reach: number;
+  impressions: number;
+  interactions: number;
+  engagementRate: number;
+}
+
+export interface PerformanceInsight {
+  kind: "win" | "learning" | "repeat" | "avoid" | "recommendation";
+  title: string;
+  detail: string;
+}
+
+export interface MetricsSnapshot {
+  isDemo: boolean;
+  totals: {
+    reach: number;
+    impressions: number;
+    interactions: number;
+    engagementRate: number;
+  };
+  byChannel: ChannelMetrics[];
+  bestChannel?: string;
+  bestFormat?: string;
+  bestDay?: string;
+  bestContentTitle?: string;
+  topContent: ContentPerformance[];
+  insights: PerformanceInsight[];
 }
 
 // ── Resultado de IA estándar ─────────────────────────────────

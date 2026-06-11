@@ -13,6 +13,7 @@ import {
   CalendarDays,
   LayoutGrid,
   Megaphone,
+  BarChart3,
   Settings,
   LogOut,
   Plus,
@@ -24,6 +25,7 @@ const NAV = [
   { href: "/strategy", label: "Estrategia", icon: Sparkles },
   { href: "/calendar", label: "Calendario", icon: CalendarDays },
   { href: "/content", label: "Estudio de contenidos", icon: LayoutGrid },
+  { href: "/metrics", label: "Métricas", icon: BarChart3 },
   { href: "/ads", label: "Ads", icon: Megaphone },
   { href: "/settings", label: "Configuración", icon: Settings },
 ];

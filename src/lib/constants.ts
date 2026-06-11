@@ -287,6 +287,11 @@ export const CONTENT_STATUS_LABELS: Record<string, string> = {
   aprobado: "Aprobado",
   rechazado: "Rechazado",
   publicado_manualmente: "Publicado manualmente",
+  pending_review: "Pendiente de revisión",
+  needs_changes: "Necesita cambios",
+  scheduled: "Programado",
+  published: "Publicado",
+  archived: "Archivado",
 };
 
 export const PUBLISH_STATUS_LABELS: Record<string, string> = {

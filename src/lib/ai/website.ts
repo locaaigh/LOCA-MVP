@@ -547,15 +547,36 @@ export function buildBasicAnalysis(raw: RawWebContent, url: string): WebsiteAnal
   if (industry) setSuggested("industry", industry, "medium");
   if (channels.length) setFound("marketingChannels", channels);
 
-  // Campos que quedan para que el usuario complete
+  // Todos los campos esperados del onboarding: lo que no se encontró/sugirió
+  // queda como "Falta completar" para que el usuario lo vea claramente.
   const missing: string[] = [];
-  const need = ["industry", "subcategory", "businessType", "country", "competitiveAdvantages", "marketingActivities"];
+  const need = [
+    "name",
+    "industry",
+    "subcategory",
+    "businessType",
+    "businessModel",
+    "country",
+    "state",
+    "city",
+    "shortDescription",
+    "fullDescription",
+    "values",
+    "competitiveAdvantages",
+    "marketingChannels",
+    "marketingActivities",
+    "seasonalityTags",
+    "specialDates",
+    "productsServices",
+    "audience",
+    "goals",
+  ];
   for (const k of need) {
-    if (!(found as any)[k] || (Array.isArray((found as any)[k]) && (found as any)[k].length === 0)) {
-      if (!fieldStatuses[k]) {
-        fieldStatuses[k] = { status: "missing" };
-        missing.push(k);
-      }
+    const v = (found as any)[k];
+    const empty = v == null || v === "" || (Array.isArray(v) && v.length === 0);
+    if (empty && !fieldStatuses[k]) {
+      fieldStatuses[k] = { status: "missing" };
+      missing.push(k);
     }
   }
 

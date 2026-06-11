@@ -9,7 +9,7 @@ import { exportCalendarCsv } from "@/lib/exports";
 import { Badge, Button, Card, EmptyState, EvaLoading, Modal, PageHeader, Select, useToast } from "@/components/ui";
 import { ApprovalActions, FeedbackPanel, ProgressTracker, StickyApproveBar, buildFlowSteps } from "@/components/flow";
 import { CALENDAR_FEEDBACK, applyStructuredFeedback } from "@/lib/feedback";
-import { CalendarDays, Download, FileText, Lock, Sparkles } from "lucide-react";
+import { CalendarDays, Download, FileText, Lock, Sparkles, List as ListIcon, Grid3x3 } from "lucide-react";
 import { FORMAT_LABELS, CHANNELS, CONTENT_FORMATS } from "@/lib/constants";
 import { formatDateShort, weekdayEs } from "@/lib/utils";
 import type { CalendarItem } from "@/lib/types";
@@ -32,6 +32,7 @@ export default function CalendarPage() {
   const [fChannel, setFChannel] = useState("");
   const [fFormat, setFFormat] = useState("");
   const [showFeedback, setShowFeedback] = useState(false);
+  const [view, setView] = useState<"lista" | "calendario">("lista");
   const autoTriggered = useRef(false);
 
   const filtered = useMemo(
@@ -161,21 +162,45 @@ export default function CalendarPage() {
 
       {calendar.length > 0 && (
         <>
-          <div className="flex flex-wrap gap-2">
-            <Select value={fChannel} onChange={(e) => setFChannel(e.target.value)} className="h-9 w-40">
-              <option value="">Todos los canales</option>
-              {CHANNELS.map((c) => (
-                <option key={c} value={c}>{c}</option>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Select value={fChannel} onChange={(e) => setFChannel(e.target.value)} className="h-9 w-40">
+                <option value="">Todos los canales</option>
+                {CHANNELS.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </Select>
+              <Select value={fFormat} onChange={(e) => setFFormat(e.target.value)} className="h-9 w-44">
+                <option value="">Todos los formatos</option>
+                {CONTENT_FORMATS.map((f) => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                ))}
+              </Select>
+            </div>
+            {/* Toggle Lista / Calendario */}
+            <div className="inline-flex rounded-xl border border-zinc-200 bg-white p-1">
+              {(["lista", "calendario"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                    view === v ? "bg-loca-600 text-white shadow-sm" : "text-zinc-600 hover:text-zinc-900"
+                  }`}
+                >
+                  {v === "lista" ? <ListIcon className="h-4 w-4" /> : <Grid3x3 className="h-4 w-4" />}
+                  {v === "lista" ? "Lista" : "Calendario"}
+                </button>
               ))}
-            </Select>
-            <Select value={fFormat} onChange={(e) => setFFormat(e.target.value)} className="h-9 w-44">
-              <option value="">Todos los formatos</option>
-              {CONTENT_FORMATS.map((f) => (
-                <option key={f.value} value={f.value}>{f.label}</option>
-              ))}
-            </Select>
+            </div>
           </div>
 
+          {view === "calendario" ? (
+            <CalendarMonthView
+              items={filtered}
+              contentByItem={contentByItem}
+              onItemClick={genContent}
+            />
+          ) : (
           <div className="space-y-2">
             {filtered.map((it) => {
               const content = contentByItem.get(it.id);
@@ -217,6 +242,7 @@ export default function CalendarPage() {
               );
             })}
           </div>
+          )}
         </>
       )}
 
@@ -246,6 +272,114 @@ export default function CalendarPage() {
           loading={loading}
         />
       </Modal>
+    </div>
+  );
+}
+
+// ── Vista calendario (grilla mensual en desktop, agenda en mobile) ──
+const WEEKDAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+const MONTHS = [
+  "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
+
+function CalendarMonthView({
+  items,
+  contentByItem,
+  onItemClick,
+}: {
+  items: CalendarItem[];
+  contentByItem: Map<string | undefined, any>;
+  onItemClick: (it: CalendarItem) => void;
+}) {
+  // Agrupar por mes (yyyy-mm)
+  const byMonth: Record<string, CalendarItem[]> = {};
+  for (const it of items) {
+    const key = it.date.slice(0, 7);
+    (byMonth[key] ||= []).push(it);
+  }
+  const monthKeys = Object.keys(byMonth).sort();
+
+  return (
+    <div className="space-y-6">
+      {monthKeys.map((mk) => {
+        const [y, m] = mk.split("-").map(Number);
+        const first = new Date(y, m - 1, 1);
+        const daysInMonth = new Date(y, m, 0).getDate();
+        const startOffset = (first.getDay() + 6) % 7; // lunes primero
+        const cells: (number | null)[] = [
+          ...Array(startOffset).fill(null),
+          ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+        ];
+        const itemsByDay: Record<number, CalendarItem[]> = {};
+        for (const it of byMonth[mk]) {
+          const d = Number(it.date.slice(8, 10));
+          (itemsByDay[d] ||= []).push(it);
+        }
+
+        return (
+          <div key={mk}>
+            <h3 className="mb-2 font-semibold capitalize text-zinc-800">
+              {MONTHS[m - 1]} {y}
+            </h3>
+
+            {/* Grilla mensual (desktop) */}
+            <div className="hidden rounded-2xl border border-zinc-200 bg-white p-2 sm:block">
+              <div className="grid grid-cols-7 gap-1">
+                {WEEKDAYS.map((d) => (
+                  <div key={d} className="py-1 text-center text-xs font-medium text-zinc-400">{d}</div>
+                ))}
+                {cells.map((day, i) => (
+                  <div key={i} className="min-h-[88px] rounded-lg border border-zinc-100 p-1">
+                    {day && (
+                      <>
+                        <div className="mb-1 text-xs font-medium text-zinc-400">{day}</div>
+                        <div className="space-y-1">
+                          {(itemsByDay[day] || []).map((it) => (
+                            <button
+                              key={it.id}
+                              onClick={() => onItemClick(it)}
+                              className="block w-full truncate rounded-md bg-loca-50 px-1.5 py-1 text-left text-[11px] text-loca-700 hover:bg-loca-100"
+                              title={`${it.channel} · ${it.topic}`}
+                            >
+                              <span className="font-semibold">{it.channel.slice(0, 2)}</span> {it.topic}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Agenda por día (mobile) */}
+            <div className="space-y-2 sm:hidden">
+              {Object.keys(itemsByDay)
+                .map(Number)
+                .sort((a, b) => a - b)
+                .map((day) => (
+                  <div key={day} className="rounded-xl border border-zinc-200 bg-white p-3">
+                    <p className="mb-1.5 text-sm font-semibold text-zinc-700">{day} de {MONTHS[m - 1]}</p>
+                    <div className="space-y-1.5">
+                      {itemsByDay[day].map((it) => (
+                        <button
+                          key={it.id}
+                          onClick={() => onItemClick(it)}
+                          className="flex w-full items-center gap-2 rounded-lg bg-zinc-50 px-2 py-1.5 text-left text-sm hover:bg-loca-50"
+                        >
+                          <Badge tone="pink">{it.channel}</Badge>
+                          <span className="min-w-0 flex-1 truncate text-zinc-700">{it.topic}</span>
+                          {contentByItem.get(it.id) && <FileText className="h-3.5 w-3.5 shrink-0 text-loca-500" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

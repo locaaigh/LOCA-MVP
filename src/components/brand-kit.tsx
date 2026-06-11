@@ -4,8 +4,9 @@ import * as React from "react";
 import { Badge, Button, Card, ChipSelect, Field, Input, Select, Textarea } from "@/components/ui";
 import { OptionCards } from "@/components/inputs";
 import { uid } from "@/lib/utils";
-import type { BrandColor, BrandKit, BrandLogo } from "@/lib/types";
-import { Star, Trash2, Plus, Upload, Palette, Type, ImageIcon, Sparkles } from "lucide-react";
+import { suggestBrandKit } from "@/lib/brand-suggest";
+import type { BrandColor, BrandKit, BrandLogo, Business } from "@/lib/types";
+import { Star, Trash2, Plus, Upload, Palette, Type, ImageIcon, Sparkles, Wand2 } from "lucide-react";
 
 const MOOD_OPTIONS = [
   "moderno", "minimalista", "premium", "cálido", "cercano", "divertido",
@@ -41,11 +42,20 @@ const ROLE_LABELS: Record<BrandColor["role"], string> = {
 export function BrandKitEditor({
   brandKit,
   onChange,
+  business,
 }: {
   brandKit: BrandKit;
   onChange: (patch: Partial<BrandKit>) => void;
+  business: Business;
 }) {
   const bk = brandKit;
+  const [chooseOpen, setChooseOpen] = React.useState(false);
+  const hasDetectedColors = bk.colors.palette.some((c) => c.source === "detected");
+
+  const applyEvaSuggestion = () => {
+    onChange(suggestBrandKit(business, bk));
+    setChooseOpen(false);
+  };
 
   const updateColor = (i: number, patch: Partial<BrandColor>) => {
     const palette = bk.colors.palette.map((c, idx) => (idx === i ? { ...c, ...patch, source: "user" as const } : c));
@@ -113,6 +123,35 @@ export function BrandKitEditor({
 
   return (
     <div className="space-y-4">
+      {/* Que Eva elija por mí */}
+      <Card className="space-y-3 bg-loca-50/60">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-loca-600">
+            <Wand2 className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="font-semibold text-zinc-900">¿No tenés una identidad visual clara?</p>
+            <p className="text-sm text-zinc-600">
+              Eva puede proponerte una identidad visual inicial para que no tengas que elegir desde cero. Después editás todo.
+            </p>
+          </div>
+        </div>
+        {chooseOpen && hasDetectedColors ? (
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button variant="outline" className="flex-1" onClick={() => setChooseOpen(false)}>
+              Usar colores detectados
+            </Button>
+            <Button variant="primary" className="flex-1" onClick={applyEvaSuggestion}>
+              <Sparkles className="h-4 w-4" /> Que Eva proponga una paleta nueva
+            </Button>
+          </div>
+        ) : (
+          <Button variant="primary" onClick={() => (hasDetectedColors ? setChooseOpen(true) : applyEvaSuggestion())}>
+            <Wand2 className="h-4 w-4" /> Que Eva elija por mí
+          </Button>
+        )}
+      </Card>
+
       {/* Colores */}
       <Card className="space-y-3">
         <SectionTitle icon={Palette} title="Colores" hint="Tocá un color para cambiarlo. Marcá el principal con la estrella." />
