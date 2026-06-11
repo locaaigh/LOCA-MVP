@@ -14,9 +14,18 @@ export async function POST(req: NextRequest) {
     const result = await extractBusinessInfoFromWebsite(url.trim());
     return NextResponse.json(result);
   } catch (e: any) {
-    // Nunca rompemos el flujo: devolvemos data vacía con aviso amable.
+    // Nunca rompemos el flujo: devolvemos un análisis vacío válido con aviso amable.
     return NextResponse.json({
-      data: {},
+      data: {
+        confidence: 0,
+        summary: { whatEvaUnderstood: "", completedFieldsCount: 0, missingFieldsCount: 0, reviewFieldsCount: 0 },
+        foundFields: {},
+        fieldStatuses: {},
+        missingFields: [],
+        lowConfidenceFields: [],
+        notes: ["No se pudo leer la web."],
+        mode: "basic",
+      },
       meta: {
         provider: "mock",
         warning: "Eva no pudo leer la web, pero podés completar el formulario manualmente.",

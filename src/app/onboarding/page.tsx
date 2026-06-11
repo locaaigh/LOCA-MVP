@@ -17,7 +17,7 @@ import {
   GENDER_OPTIONS,
   foundingYearOptions,
 } from "@/lib/constants";
-import type { Business, ProductService, ProductServiceType } from "@/lib/types";
+import type { Business, ProductService, ProductServiceType, WebsiteAnalysis } from "@/lib/types";
 import { Button, Card, ChipSelect, Field, Input, Select, Textarea, useToast } from "@/components/ui";
 import {
   HelpField,
@@ -33,16 +33,30 @@ import {
   ProductServiceForm,
   ProductServiceImporter,
 } from "@/components/product-service";
+import { BrandKitEditor } from "@/components/brand-kit";
+import { OnboardingSummary } from "@/components/onboarding-summary";
 import { Logo, EvaAvatar } from "@/components/brand";
 import { EvaChatBubble } from "@/components/eva-chat";
 import { getFieldExample } from "@/lib/examples";
 import { getMissingRequiredFields } from "@/lib/onboarding-validation";
+import { emptyBrandKit } from "@/lib/store";
 import { api } from "@/lib/api";
 import { uid } from "@/lib/utils";
 import { Check, Globe, Sparkles, ArrowRight, Plus } from "lucide-react";
+import type { FieldStatusKind } from "@/lib/types";
 
-const STEPS = ["Empecemos fácil", "Negocio", "Marca", "Productos / Servicios", "Audiencia", "Objetivos"];
+const STEPS = [
+  "Empecemos fácil",
+  "Negocio",
+  "Marca",
+  "Identidad visual",
+  "Productos / Servicios",
+  "Audiencia",
+  "Objetivos",
+  "Resumen",
+];
 const CURRENT_YEAR = 2026;
+const SUMMARY_STEP = STEPS.length - 1; // 7
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -55,7 +69,79 @@ export default function OnboardingPage() {
   const [b, setB] = useState<Business>(() => emptyBusiness(user?.id || "anon"));
   const [missing, setMissing] = useState<Set<string>>(new Set());
 
-  const set = (patch: Partial<Business>) => setB((prev) => ({ ...prev, ...patch }));
+  // set normal: si el usuario edita un campo que Eva había marcado, pasa a "Editado por vos".
+  const set = (patch: Partial<Business>) =>
+    setB((prev) => {
+      const next = { ...prev, ...patch };
+      if (prev.fieldStatuses) {
+        const fs = { ...prev.fieldStatuses };
+        let changed = false;
+        for (const k of Object.keys(patch)) {
+          if (fs[k] && fs[k].status !== "user") {
+            fs[k] = { status: "user" };
+            changed = true;
+          }
+        }
+        if (changed) next.fieldStatuses = fs;
+      }
+      return next;
+    });
+
+  const statusOf = (f: string): FieldStatusKind | undefined => b.fieldStatuses?.[f]?.status;
+
+  // Aplica el análisis de la web (sin marcar como editado).
+  function applyAnalysis(a: WebsiteAnalysis) {
+    const ff = a.foundFields;
+    setB((prev) => {
+      const next: Business = { ...prev };
+      if (ff.name) next.name = ff.name;
+      if (ff.industry) next.industry = ff.industry;
+      if (ff.subcategory) next.subcategory = ff.subcategory;
+      if (ff.businessType) next.businessType = ff.businessType;
+      if (ff.businessModel && ["B2B", "B2C", "Ambos"].includes(ff.businessModel))
+        next.businessModel = ff.businessModel as any;
+      if (ff.country) next.country = ff.country;
+      if (ff.state) next.state = ff.state;
+      if (ff.city) next.city = ff.city;
+      if (ff.shortDescription) next.shortDescription = ff.shortDescription;
+      if (ff.fullDescription) next.fullDescription = ff.fullDescription;
+      if (ff.values?.length) next.values = ff.values;
+      if (ff.competitiveAdvantages?.length) next.competitiveAdvantages = ff.competitiveAdvantages;
+      if (ff.marketingChannels?.length) next.marketingChannels = ff.marketingChannels;
+      if (ff.marketingActivities?.length) next.marketingActivities = ff.marketingActivities;
+      if (ff.productsServices?.length) {
+        next.productsServices = ff.productsServices.map((p) => ({
+          ...emptyPS(p.type),
+          name: p.name,
+          category: p.category || "",
+          shortDescription: p.shortDescription || "",
+          priceMin: p.price,
+          currency: p.currency || "ARS",
+          isTopSeller: !!p.isTopSeller,
+          saved: true,
+          importSource: "website",
+        }));
+      }
+      if (ff.audience) {
+        next.audience = {
+          ...prev.audience,
+          ageRanges: ff.audience.ageRanges?.length ? ff.audience.ageRanges : prev.audience.ageRanges,
+          gender: (ff.audience.gender as any) || prev.audience.gender,
+          socioeconomicLevel: (ff.audience.socioeconomicLevel as any) || prev.audience.socioeconomicLevel,
+          segments: ff.audience.segments?.length ? ff.audience.segments : prev.audience.segments,
+          painPoints: ff.audience.painPoints?.length ? ff.audience.painPoints : prev.audience.painPoints,
+          behavior: ff.audience.behavior || prev.audience.behavior,
+        };
+      }
+      if (ff.brandKit) next.brandKit = ff.brandKit;
+      if (ff.businessIntelligence) next.businessIntelligence = ff.businessIntelligence;
+      next.fieldStatuses = { ...prev.fieldStatuses, ...a.fieldStatuses };
+      next.websiteExtractionStatus = "done";
+      next.websiteExtractionConsent = true;
+      return next;
+    });
+  }
+
   const subcats = useMemo(() => SUBCATEGORIES[b.industry] || [], [b.industry]);
 
   function tryNext() {
@@ -68,8 +154,7 @@ export default function OnboardingPage() {
       return;
     }
     setMissing(new Set());
-    if (step < STEPS.length - 1) setStep(step + 1);
-    else finish();
+    if (step < SUMMARY_STEP) setStep(step + 1);
   }
 
   function finish() {
@@ -78,8 +163,16 @@ export default function OnboardingPage() {
       login(`negocio_${Date.now()}@loca.app`);
       uid_ = useStore.getState().user?.id;
     }
+    // Compatibilidad: si el Brand Kit tiene colores, los reflejamos en brandColors
+    // (que usan las previews y cards de contenido).
+    const bkColors = b.brandKit?.colors;
+    const brandColors = bkColors?.primary
+      ? [bkColors.primary, bkColors.accent || bkColors.secondary || "#84cc16", bkColors.background || "#ffffff"]
+      : b.brandColors;
+
     const finalBiz: Business = {
       ...b,
+      brandColors,
       productsServices: b.productsServices.map((p) => ({ ...p, saved: true })),
       userId: uid_ || b.userId,
       onboardingComplete: true,
@@ -87,6 +180,8 @@ export default function OnboardingPage() {
     upsertBusiness(finalBiz);
     router.push("/strategy?generate=1");
   }
+
+  const onSummary = step === SUMMARY_STEP;
 
   return (
     <main className="min-h-screen bg-zinc-50 pb-28">
@@ -124,40 +219,48 @@ export default function OnboardingPage() {
           ))}
         </div>
 
-        <h1 className="text-2xl font-bold">{STEPS[step]}</h1>
-        <StepIntro step={step} />
+        {!onSummary && (
+          <>
+            <h1 className="text-2xl font-bold">{STEPS[step]}</h1>
+            <StepIntro step={step} />
+          </>
+        )}
 
         <div className="mt-4">
-          {step === 0 && <StepWebsite b={b} set={set} onSkip={() => setStep(1)} onDone={() => setStep(1)} show={show} />}
-          {step === 1 && <StepBasic b={b} set={set} subcats={subcats} missing={missing} />}
-          {step === 2 && <StepBrand b={b} set={set} missing={missing} />}
-          {step === 3 && <StepProducts b={b} set={set} show={show} />}
-          {step === 4 && <StepAudience b={b} set={set} missing={missing} />}
-          {step === 5 && <StepGoals b={b} set={set} missing={missing} />}
+          {step === 0 && <StepWebsite b={b} set={set} applyAnalysis={applyAnalysis} onSkip={() => setStep(1)} onDone={() => setStep(1)} show={show} />}
+          {step === 1 && <StepBasic b={b} set={set} subcats={subcats} missing={missing} statusOf={statusOf} />}
+          {step === 2 && <StepBrand b={b} set={set} missing={missing} statusOf={statusOf} />}
+          {step === 3 && <StepBrandKit b={b} set={set} />}
+          {step === 4 && <StepProducts b={b} set={set} show={show} />}
+          {step === 5 && <StepAudience b={b} set={set} missing={missing} />}
+          {step === 6 && <StepGoals b={b} set={set} missing={missing} />}
+          {step === 7 && <OnboardingSummary business={b} onConfirm={finish} onEdit={() => setStep(1)} />}
         </div>
       </div>
 
-      {/* Sticky bottom CTA */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <Button variant="ghost" onClick={() => (step === 0 ? router.push("/") : setStep(step - 1))}>
-            {step === 0 ? "Cancelar" : "Atrás"}
-          </Button>
-          {step === 0 ? (
-            <Button onClick={() => setStep(1)}>
-              Continuar <ArrowRight className="h-4 w-4" />
+      {/* Sticky bottom CTA (oculto en el resumen, que tiene sus propios botones) */}
+      {!onSummary && (
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 backdrop-blur">
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+            <Button variant="ghost" onClick={() => (step === 0 ? router.push("/") : setStep(step - 1))}>
+              {step === 0 ? "Cancelar" : "Atrás"}
             </Button>
-          ) : step < STEPS.length - 1 ? (
-            <Button onClick={tryNext}>
-              Siguiente <ArrowRight className="h-4 w-4" />
-            </Button>
-          ) : (
-            <Button variant="lima" onClick={tryNext}>
-              <Sparkles className="h-4 w-4" /> Finalizar y generar con Eva
-            </Button>
-          )}
+            {step === 0 ? (
+              <Button onClick={() => setStep(1)}>
+                Continuar <ArrowRight className="h-4 w-4" />
+              </Button>
+            ) : step === SUMMARY_STEP - 1 ? (
+              <Button onClick={tryNext}>
+                Ver resumen <ArrowRight className="h-4 w-4" />
+              </Button>
+            ) : (
+              <Button onClick={tryNext}>
+                Siguiente <ArrowRight className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <EvaChatBubble raised />
     </main>
@@ -169,6 +272,7 @@ function StepIntro({ step }: { step: number }) {
     "Si tu negocio tiene una web, Eva puede leerla y completar gran parte del formulario por vos.",
     "Lo básico de tu negocio. No tiene que ser perfecto, podés cambiar todo después.",
     "Contanos cómo es tu marca y qué venís haciendo. Si no sabés algo, Eva te ayuda.",
+    "Así Eva interpretó tu identidad visual. Revisá colores, tipografías y logos.",
     "Cargá tus productos o servicios más importantes. No hace falta todo el catálogo.",
     "¿A quién le hablás? Esto ayuda a Eva a afinar el contenido.",
     "Por último, qué querés lograr. Con esto Eva arma tu estrategia.",
@@ -176,21 +280,32 @@ function StepIntro({ step }: { step: number }) {
   return <p className="mt-1 text-sm text-zinc-500">{intros[step]}</p>;
 }
 
+// ── Paso 3: Identidad visual (Brand Kit) ─────────────────────
+function StepBrandKit({ b, set }: { b: Business; set: (p: Partial<Business>) => void }) {
+  const bk = b.brandKit || emptyBrandKit();
+  return (
+    <BrandKitEditor brandKit={bk} onChange={(patch) => set({ brandKit: { ...bk, ...patch } })} />
+  );
+}
+
 // ── Paso 0: Web ──────────────────────────────────────────────
 function StepWebsite({
   b,
   set,
+  applyAnalysis,
   onSkip,
   onDone,
   show,
 }: {
   b: Business;
   set: (p: Partial<Business>) => void;
+  applyAnalysis: (a: WebsiteAnalysis) => void;
   onSkip: () => void;
   onDone: () => void;
   show: (m: string) => void;
 }) {
   const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<WebsiteAnalysis | null>(null);
 
   async function autocomplete() {
     if (!b.websiteUrl?.trim()) {
@@ -201,38 +316,12 @@ function StepWebsite({
     set({ websiteExtractionStatus: "loading" });
     try {
       const res = await api.extractWebsite(b.websiteUrl.trim());
-      const d = res.data;
-      const products: ProductService[] = (d.products || []).map((p) => ({
-        ...emptyPS(p.type),
-        name: p.name,
-        shortDescription: p.shortDescription || "",
-        saved: true,
-        importSource: "website",
-      }));
-      set({
-        name: d.name || b.name,
-        industry: d.industry || b.industry,
-        subcategory: d.subcategory || b.subcategory,
-        shortDescription: d.shortDescription || b.shortDescription,
-        fullDescription: d.fullDescription || b.fullDescription,
-        country: d.country || b.country,
-        city: d.city || b.city,
-        competitiveAdvantages: d.competitiveAdvantages?.length
-          ? d.competitiveAdvantages
-          : b.competitiveAdvantages,
-        marketingChannels: d.socialChannels?.length ? d.socialChannels : b.marketingChannels,
-        productsServices: products.length ? products : b.productsServices,
-        websiteExtractionStatus: "done",
-        websiteExtractionConsent: true,
-      });
-      show(
-        res.meta?.warning ||
-          "Listo. Eva completó algunos campos. Revisalos y cambiá lo que quieras."
-      );
-      onDone();
+      applyAnalysis(res.data);
+      setResult(res.data);
+      show(res.meta?.warning || "Listo. Eva completó algunos datos. Revisalos y completá lo que falte.");
     } catch {
       set({ websiteExtractionStatus: "error" });
-      show("Eva no pudo leer toda la web, pero podés completar el formulario manualmente.");
+      show("Eva no pudo leer la web. Podés completar el formulario manualmente o probar con otra URL.");
     } finally {
       setLoading(false);
     }
@@ -276,6 +365,33 @@ function StepWebsite({
               Prefiero completarlo manualmente
             </button>
           </div>
+
+          {/* Resultado del análisis */}
+          {result && (
+            <div className="space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
+              <div className="flex items-center justify-between">
+                <p className="font-semibold text-zinc-800">
+                  Eva pudo entender tu negocio en un {Math.round((result.confidence || 0) * 100)}%
+                </p>
+                <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-500">
+                  {result.mode === "ai" ? "Análisis con IA" : "Modo demo · extracción básica"}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <MiniCount label="Completados" value={result.summary.completedFieldsCount} tone="emerald" />
+                <MiniCount label="Para revisar" value={result.summary.reviewFieldsCount} tone="amber" />
+                <MiniCount label="Faltan" value={result.summary.missingFieldsCount} tone="red" />
+              </div>
+              {result.foundFields.brandKit?.colors?.palette?.length ? (
+                <p className="text-xs text-zinc-500">
+                  También detectó una identidad visual inicial para tu marca 🎨
+                </p>
+              ) : null}
+              <Button variant="lima" className="w-full" onClick={onDone}>
+                Revisar lo que completó Eva <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </>
       )}
 
@@ -288,26 +404,39 @@ function StepWebsite({
   );
 }
 
+function MiniCount({ label, value, tone }: { label: string; value: number; tone: "emerald" | "amber" | "red" }) {
+  const cls =
+    tone === "emerald" ? "text-emerald-700" : tone === "amber" ? "text-amber-700" : "text-red-600";
+  return (
+    <div className="rounded-lg bg-white p-2">
+      <div className={`text-xl font-bold ${cls}`}>{value}</div>
+      <div className="text-[11px] text-zinc-500">{label}</div>
+    </div>
+  );
+}
+
 // ── Paso 1: Negocio ──────────────────────────────────────────
 function StepBasic({
   b,
   set,
   subcats,
   missing,
+  statusOf,
 }: {
   b: Business;
   set: (p: Partial<Business>) => void;
   subcats: string[];
   missing: Set<string>;
+  statusOf: (f: string) => FieldStatusKind | undefined;
 }) {
   return (
     <Card className="space-y-5">
-      <HelpField label="Nombre de la empresa" required error={missing.has("name")} id="name">
+      <HelpField label="Nombre de la empresa" required error={missing.has("name")} id="name" status={statusOf("name")}>
         <Input value={b.name} onChange={(e) => set({ name: e.target.value })} placeholder="Café Bruma" />
       </HelpField>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <HelpField label="Industria" required error={missing.has("industry")} id="industry">
+        <HelpField label="Industria" required error={missing.has("industry")} id="industry" status={statusOf("industry")}>
           <Select value={b.industry} onChange={(e) => set({ industry: e.target.value, subcategory: "" })}>
             <option value="">Elegí una industria</option>
             {INDUSTRIES.map((i) => (
@@ -315,7 +444,7 @@ function StepBasic({
             ))}
           </Select>
         </HelpField>
-        <HelpField label="Subcategoría" help="Elegí la opción más parecida. No tiene que ser perfecta.">
+        <HelpField label="Subcategoría" help="Elegí la opción más parecida. No tiene que ser perfecta." status={statusOf("subcategory")}>
           {subcats.length ? (
             <Select value={b.subcategory} onChange={(e) => set({ subcategory: e.target.value })}>
               <option value="">Elegí una subcategoría</option>
@@ -330,7 +459,7 @@ function StepBasic({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <HelpField label="Tipo de negocio" required error={missing.has("businessType")} id="businessType">
+        <HelpField label="Tipo de negocio" required error={missing.has("businessType")} id="businessType" status={statusOf("businessType")}>
           <Select value={b.businessType} onChange={(e) => set({ businessType: e.target.value })}>
             <option value="">Elegí</option>
             {BUSINESS_TYPES.map((t) => (
@@ -366,7 +495,7 @@ function StepBasic({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <HelpField label="País" required error={missing.has("country")} id="country">
+        <HelpField label="País" required error={missing.has("country")} id="country" status={statusOf("country")}>
           <SearchableCountrySelect
             value={b.country}
             onChange={(v) => set({ country: v, state: "" })}
@@ -389,10 +518,12 @@ function StepBrand({
   b,
   set,
   missing,
+  statusOf,
 }: {
   b: Business;
   set: (p: Partial<Business>) => void;
   missing: Set<string>;
+  statusOf: (f: string) => FieldStatusKind | undefined;
 }) {
   const suggest = (field: "shortDescription" | "fullDescription") =>
     set({ [field]: getFieldExample(field, b.industry) } as any);
@@ -408,6 +539,7 @@ function StepBrand({
         required
         error={missing.has("shortDescription")}
         id="shortDescription"
+        status={statusOf("shortDescription")}
         hint={`${b.shortDescription.length}/280`}
       >
         <div className="space-y-2">
@@ -421,7 +553,7 @@ function StepBrand({
         </div>
       </HelpField>
 
-      <HelpField label="Descripción completa" help="Mientras más claro seas, mejores contenidos va a generar Eva.">
+      <HelpField label="Descripción completa" help="Mientras más claro seas, mejores contenidos va a generar Eva." status={statusOf("fullDescription")}>
         <div className="space-y-2">
           <Textarea
             value={b.fullDescription}
@@ -441,6 +573,7 @@ function StepBrand({
         required
         error={missing.has("competitiveAdvantages")}
         id="competitiveAdvantages"
+        status={statusOf("competitiveAdvantages")}
         help={getFieldExample("competitiveAdvantage", b.industry)}
       >
         <ChipSelect
@@ -456,6 +589,7 @@ function StepBrand({
         required
         error={missing.has("marketingChannels")}
         id="marketingChannels"
+        status={statusOf("marketingChannels")}
         help="¿Dónde está hoy tu negocio? Elegí los que uses (o “Ninguno”)."
       >
         <ChannelSelector value={b.marketingChannels} onChange={(v) => set({ marketingChannels: v })} />

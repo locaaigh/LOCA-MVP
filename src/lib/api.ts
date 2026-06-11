@@ -5,13 +5,13 @@ import type {
   Business,
   CalendarItem,
   ContentItem,
-  ExtractedBusinessInfo,
   GoogleAdsStrategy,
   ImageFormat,
   MetaAdsStrategy,
   ProductDescriptionSuggestion,
   ProductService,
   Strategy,
+  WebsiteAnalysis,
 } from "./types";
 
 async function post<T>(url: string, body: unknown): Promise<T> {
@@ -55,7 +55,7 @@ export const api = {
   googleAds: (business: Business) =>
     post<R<GoogleAdsStrategy>>("/api/ads", { business, platform: "google" }),
   extractWebsite: (url: string) =>
-    post<R<ExtractedBusinessInfo>>("/api/extract", { url }),
+    post<R<WebsiteAnalysis>>("/api/extract", { url }),
   productDescription: (business: Business, draft: ProductService) =>
     post<R<ProductDescriptionSuggestion>>("/api/product-description", { business, draft }),
 };

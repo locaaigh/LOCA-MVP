@@ -18,8 +18,9 @@ function isEmpty(v: unknown): boolean {
 }
 
 /**
- * Índices de paso del onboarding (el paso 0 "web" es opcional, no valida).
- * 1 Negocio · 2 Marca · 3 Productos · 4 Audiencia · 5 Objetivos
+ * Índices de paso del onboarding (los pasos 0 "web", 3 "identidad visual"
+ * y 7 "resumen" no validan campos requeridos).
+ * 1 Negocio · 2 Marca · 4 Productos · 5 Audiencia · 6 Objetivos
  */
 export function getMissingRequiredFields(step: number, b: Business): MissingField[] {
   const missing: MissingField[] = [];
@@ -43,19 +44,18 @@ export function getMissingRequiredFields(step: number, b: Business): MissingFiel
     need(b.hasSpecialDates === undefined, "hasSpecialDates", "¿Hay fechas especiales?");
   }
 
-  if (step === 3) {
+  if (step === 4) {
     need(isEmpty(b.productsServices), "products", "Al menos un producto o servicio");
-    // todos los productos cargados deben tener nombre
     b.productsServices.forEach((p, i) => {
       need(isEmpty(p.name), `product_${i}`, `Nombre del ${p.type} #${i + 1}`);
     });
   }
 
-  if (step === 4) {
+  if (step === 5) {
     need(isEmpty(b.audience.ageRanges), "ageRanges", "Rango de edad");
   }
 
-  if (step === 5) {
+  if (step === 6) {
     need(isEmpty(b.goals.primaryContentGoal), "primaryContentGoal", "Objetivo principal");
     need(isEmpty(b.goals.timeline), "timeline", "Plazo (timeline)");
   }

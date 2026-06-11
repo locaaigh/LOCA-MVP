@@ -5,6 +5,26 @@ import { cn } from "@/lib/utils";
 import { COUNTRIES, regionsFor } from "@/lib/geo";
 import { Check, ChevronDown, Search, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui";
+import type { FieldStatusKind } from "@/lib/types";
+
+// ── Badge de estado por campo (origen / confianza) ───────────
+const STATUS_META: Record<FieldStatusKind, { label: string; cls: string }> = {
+  found: { label: "Encontrado en tu web", cls: "bg-emerald-50 text-emerald-700 ring-emerald-100" },
+  suggested: { label: "Sugerido por Eva", cls: "bg-loca-50 text-loca-700 ring-loca-100" },
+  review: { label: "Revisar", cls: "bg-amber-50 text-amber-700 ring-amber-100" },
+  missing: { label: "Falta completar", cls: "bg-red-50 text-red-600 ring-red-100" },
+  user: { label: "Editado por vos", cls: "bg-zinc-100 text-zinc-600 ring-zinc-200" },
+};
+
+export function FieldStatusBadge({ status }: { status?: FieldStatusKind }) {
+  if (!status) return null;
+  const m = STATUS_META[status];
+  return (
+    <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset", m.cls)}>
+      {m.label}
+    </span>
+  );
+}
 
 // ── Field con ayuda contextual + marca de requerido/error ────
 export function HelpField({
@@ -14,6 +34,7 @@ export function HelpField({
   error,
   required,
   id,
+  status,
   children,
 }: {
   label: string;
@@ -22,15 +43,19 @@ export function HelpField({
   error?: boolean;
   required?: boolean;
   id?: string;
+  status?: FieldStatusKind;
   children: React.ReactNode;
 }) {
   return (
     <div id={id} className="scroll-mt-24">
-      <div className="mb-1 flex items-center justify-between">
+      <div className="mb-1 flex items-center justify-between gap-2">
         <label className={cn("text-sm font-medium", error ? "text-red-600" : "text-zinc-700")}>
           {label} {required && <span className="text-loca-500">*</span>}
         </label>
-        {hint && <span className="text-xs text-zinc-400">{hint}</span>}
+        <div className="flex items-center gap-2">
+          <FieldStatusBadge status={status} />
+          {hint && <span className="text-xs text-zinc-400">{hint}</span>}
+        </div>
       </div>
       {children}
       {help && <p className="mt-1 text-xs text-zinc-400">{help}</p>}

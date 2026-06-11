@@ -349,15 +349,28 @@ function visualConceptFor(item: CalendarItem, b: Business): string {
 
 export function imagePromptFor(item: CalendarItem, b: Business): string {
   const adv = b.competitiveAdvantages[0] || "calidad";
+  const bk = b.brandKit;
+  const palette = bk?.colors?.palette?.length
+    ? `Paleta de marca: ${bk.colors.palette.map((c) => c.hex).join(", ")}.`
+    : "Paleta acorde a la marca.";
+  const mood = bk?.visualStyle?.mood?.length ? `Estilo: ${bk.visualStyle.mood.join(", ")}.` : "";
+  const imgStyle = bk?.visualStyle?.imageStyle ? `${bk.visualStyle.imageStyle}.` : "";
+  const avoid = bk?.avoidList?.length ? `Evitar: ${bk.avoidList.join("; ")}.` : "";
   return [
     `Fotografía profesional de marketing para "${b.name}", un negocio de ${b.industry}${
       b.subcategory ? ` (${b.subcategory})` : ""
     }.`,
     `Tema: ${item.topic}.`,
-    `Mostrar ${topSeller(b)} de forma atractiva, iluminación natural y suave, composición limpia y moderna,`,
-    `paleta acorde a la marca, estilo aspiracional pero cercano que transmita ${adv.toLowerCase()}.`,
+    `Mostrar ${topSeller(b)} de forma atractiva, iluminación natural y suave, composición limpia y moderna.`,
+    palette,
+    mood,
+    imgStyle,
+    `Estilo aspiracional pero cercano que transmita ${adv.toLowerCase()}.`,
+    avoid,
     `Sin texto incrustado en la imagen. Foto realista, alta calidad, apta para redes sociales.`,
-  ].join(" ");
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 // ── Ads ──────────────────────────────────────────────────────

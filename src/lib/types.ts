@@ -152,6 +152,11 @@ export interface Business {
   productsServices: ProductService[];
   audience: Audience;
   goals: Goals;
+  // Identidad visual + inteligencia de negocio (autocompletado desde la web)
+  brandKit?: BrandKit;
+  businessIntelligence?: BusinessIntelligence;
+  // Estado por campo tras el autocompletado (found/suggested/review/missing/user)
+  fieldStatuses?: Record<string, FieldStatus>;
   onboardingComplete: boolean;
   isDemo?: boolean;
   createdAt: string;
@@ -321,6 +326,173 @@ export interface ExtractedBusinessInfo {
   country?: string;
   city?: string;
   competitiveAdvantages?: string[];
+}
+
+// ── Estados de campo (origen / confianza) ────────────────────
+export type FieldStatusKind = "found" | "suggested" | "review" | "missing" | "user";
+export type Confidence = "high" | "medium" | "low";
+
+export interface FieldStatus {
+  status: FieldStatusKind;
+  confidence?: Confidence;
+  source?: string;
+}
+
+// ── Brand Kit (identidad visual) ─────────────────────────────
+export type AssetOrigin = "detected" | "inferred" | "user" | "uploaded";
+
+export interface BrandColor {
+  name: string;
+  hex: string;
+  role: "primary" | "secondary" | "accent" | "background" | "text" | "other";
+  source: "detected" | "inferred" | "user";
+  confidence: Confidence;
+}
+
+export interface BrandFont {
+  family: string;
+  source: "detected" | "inferred" | "user";
+  confidence: Confidence;
+}
+
+export interface BrandLogo {
+  id: string;
+  type: "primary" | "horizontal" | "vertical" | "icon" | "light" | "dark" | "favicon" | "other";
+  url?: string;
+  dataUrl?: string;
+  source: "detected" | "uploaded";
+  selected: boolean;
+}
+
+export interface BrandKit {
+  colors: {
+    primary?: string;
+    secondary?: string;
+    accent?: string;
+    background?: string;
+    text?: string;
+    palette: BrandColor[];
+  };
+  typography: {
+    heading?: BrandFont;
+    body?: BrandFont;
+    button?: BrandFont;
+  };
+  logos: BrandLogo[];
+  visualStyle: {
+    mood: string[];
+    shapes?: string;
+    buttonStyle?: string;
+    imageStyle?: string;
+    designNotes?: string;
+  };
+  voiceTone: {
+    toneTags: string[];
+    formality?: "informal" | "neutral" | "formal";
+    commonWords?: string[];
+    messagingNotes?: string;
+  };
+  brandKeywords?: string[];
+  avoidList?: string[];
+}
+
+// ── Business Intelligence Snapshot ───────────────────────────
+export interface SocialLink {
+  platform: string;
+  url: string;
+  source: "detected" | "user";
+  confidence: Confidence;
+}
+
+export interface BusinessIntelligence {
+  socialLinks: SocialLink[];
+  contactInfo: {
+    whatsapp?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    openingHours?: string;
+    deliveryZones?: string[];
+  };
+  conversionPaths: {
+    hasEcommerce?: boolean;
+    hasWhatsappSales?: boolean;
+    hasReservations?: boolean;
+    hasPhysicalStore?: boolean;
+    hasContactForm?: boolean;
+  };
+  primaryConversion?: {
+    type: string;
+    source: "detected" | "suggested" | "user";
+    confidence: Confidence;
+  };
+  valuePropositions: {
+    text: string;
+    source: "detected" | "suggested" | "user";
+    confidence: Confidence;
+  }[];
+  recommendedGoal?: {
+    goal: string;
+    reason: string;
+    source: "suggested" | "user";
+    confidence: Confidence;
+  };
+  analysisConfidence?: number;
+}
+
+// ── Resultado del análisis de web ────────────────────────────
+export interface WebsiteFoundFields {
+  name?: string;
+  websiteUrl?: string;
+  industry?: string;
+  subcategory?: string;
+  businessType?: string;
+  businessModel?: string;
+  country?: string;
+  state?: string;
+  city?: string;
+  shortDescription?: string;
+  fullDescription?: string;
+  values?: string[];
+  competitiveAdvantages?: string[];
+  marketingChannels?: string[];
+  marketingActivities?: string[];
+  seasonalityTags?: string[];
+  specialDates?: string[];
+  productsServices?: {
+    name: string;
+    type: ProductServiceType;
+    category?: string;
+    shortDescription?: string;
+    price?: number;
+    currency?: string;
+    source?: string;
+    confidence?: Confidence;
+    shouldReview?: boolean;
+    isTopSeller?: boolean;
+  }[];
+  audience?: Partial<Audience>;
+  goals?: Partial<Goals>;
+  brandKit?: BrandKit;
+  businessIntelligence?: BusinessIntelligence;
+  toneOfVoice?: string;
+}
+
+export interface WebsiteAnalysis {
+  confidence: number;
+  summary: {
+    whatEvaUnderstood: string;
+    completedFieldsCount: number;
+    missingFieldsCount: number;
+    reviewFieldsCount: number;
+  };
+  foundFields: WebsiteFoundFields;
+  fieldStatuses: Record<string, FieldStatus>;
+  missingFields: string[];
+  lowConfidenceFields: string[];
+  notes: string[];
+  // Indica si se usó IA real o extracción básica
+  mode: "ai" | "basic";
 }
 
 // Sugerencia generada por Eva para un producto/servicio

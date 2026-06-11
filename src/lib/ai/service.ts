@@ -8,8 +8,8 @@ import type {
   AiMeta,
   Business,
   CalendarItem,
+  Confidence,
   ContentItem,
-  ExtractedBusinessInfo,
   GoogleAdsStrategy,
   ImageFormat,
   MetaAdsStrategy,
@@ -18,7 +18,9 @@ import type {
   Strategy,
   Channel,
   ContentFormat,
+  WebsiteAnalysis,
 } from "../types";
+import { fetchWebsite, buildBasicAnalysis, type RawWebContent } from "./website";
 import { nowIso, uid } from "../utils";
 import { brandedPlaceholder, openAiSize } from "../placeholder";
 import {
@@ -33,12 +35,12 @@ import {
   SYSTEM_EVA,
   calendarPrompt,
   contentPrompt,
-  extractWebsitePrompt,
   feedbackPrompt,
   googleAdsPrompt,
   metaAdsPrompt,
   productDescriptionPrompt,
   strategyPrompt,
+  websiteAnalysisPrompt,
 } from "./prompts";
 
 type Result<T> = { data: T; meta: AiMeta };
@@ -393,106 +395,176 @@ export async function generateMetaAdsStrategy(
 }
 
 // ── Extracción de info desde la web ──────────────────────────
-function domainToName(url: string): string {
-  try {
-    const host = new URL(url.startsWith("http") ? url : `https://${url}`).hostname.replace(
-      /^www\./,
-      ""
-    );
-    const base = host.split(".")[0] || host;
-    return base
-      .replace(/[-_]/g, " ")
-      .replace(/\b\w/g, (m) => m.toUpperCase())
-      .trim();
-  } catch {
-    return "";
-  }
+// IA real: convierte el contenido extraído en campos estructurados (soft).
+async function analyzeWebsiteContentWithAI(raw: RawWebContent): Promise<Record<string, unknown>> {
+  return (await chatJson(
+    SYSTEM_EVA,
+    websiteAnalysisPrompt({
+      url: raw.url,
+      title: raw.title,
+      description: raw.metaDescription || raw.ogDescription,
+      headings: raw.headings,
+      paragraphs: raw.paragraphs,
+      buttons: raw.buttons,
+      socials: raw.socialLinks.map((s) => s.platform),
+      text: raw.text,
+    })
+  )) as Record<string, unknown>;
 }
 
-// Trae el HTML y lo convierte a texto plano (rápido y sin dependencias).
-async function fetchPageText(url: string): Promise<string> {
-  const full = url.startsWith("http") ? url : `https://${url}`;
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 7000);
-  try {
-    const res = await fetch(full, {
-      signal: ctrl.signal,
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; LOCA-Eva/1.0)" },
-    });
-    const html = await res.text();
-    return html
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-  } finally {
-    clearTimeout(t);
+// Mezcla los campos inferidos por IA sobre el análisis básico (determinístico).
+function mergeAiIntoAnalysis(basic: WebsiteAnalysis, j: Record<string, unknown>): WebsiteAnalysis {
+  const ff = basic.foundFields;
+  const fs = basic.fieldStatuses;
+  const suggest = (key: string, val: any, conf: Confidence = "medium") => {
+    if (val == null || (Array.isArray(val) && !val.length) || val === "") return;
+    if (fs[key]?.status === "found") return; // no pisar lo detectado real
+    (ff as any)[key] = val;
+    fs[key] = { status: "suggested", confidence: conf, source: "eva" };
+    const idx = basic.missingFields.indexOf(key);
+    if (idx >= 0) basic.missingFields.splice(idx, 1);
+  };
+
+  suggest("industry", asString(j.industry));
+  suggest("subcategory", asString(j.subcategory));
+  suggest("businessType", asString(j.businessType));
+  suggest("businessModel", asString(j.businessModel));
+  suggest("country", asString(j.country));
+  suggest("state", asString(j.state));
+  suggest("city", asString(j.city));
+  if (asString(j.shortDescription) && fs.shortDescription?.status !== "found")
+    suggest("shortDescription", asString(j.shortDescription));
+  suggest("fullDescription", asString(j.fullDescription));
+  suggest("values", asArray(j.values));
+  suggest("competitiveAdvantages", asArray(j.competitiveAdvantages));
+  suggest("marketingActivities", asArray(j.marketingActivities));
+
+  // Productos
+  if (Array.isArray(j.products) && j.products.length) {
+    ff.productsServices = (j.products as any[])
+      .map((p) => ({
+        name: asString(p?.name),
+        type: p?.type === "servicio" ? ("servicio" as const) : ("producto" as const),
+        category: asString(p?.category),
+        shortDescription: asString(p?.shortDescription),
+        price: Number(p?.price) || undefined,
+        currency: asString(p?.currency) || undefined,
+        source: "suggested",
+        confidence: "medium" as Confidence,
+        shouldReview: true,
+        isTopSeller: !!p?.isTopSeller,
+      }))
+      .filter((p) => p.name);
+    if (ff.productsServices.length) fs.productsServices = { status: "suggested", confidence: "medium", source: "eva" };
   }
+
+  // Audiencia
+  const aud = j.audience as any;
+  if (aud && typeof aud === "object") {
+    ff.audience = {
+      ageRanges: asArray(aud.ageRanges),
+      gender: (asString(aud.gender) || "todos") as any,
+      socioeconomicLevel: (asString(aud.socioeconomicLevel) || "medio") as any,
+      segments: asArray(aud.segments),
+      painPoints: asArray(aud.painPoints),
+      behavior: asString(aud.behavior),
+    } as any;
+    fs.audience = { status: "suggested", confidence: "low", source: "eva" };
+  }
+
+  // Brand kit: estilo visual + tono (lo visual/color ya vino determinístico)
+  if (ff.brandKit) {
+    const mood = asArray(j.visualMood);
+    if (mood.length) ff.brandKit.visualStyle.mood = mood;
+    if (asString(j.imageStyle)) ff.brandKit.visualStyle.imageStyle = asString(j.imageStyle);
+    if (asString(j.designNotes)) ff.brandKit.visualStyle.designNotes = asString(j.designNotes);
+    const tone = asArray(j.toneTags);
+    if (tone.length) ff.brandKit.voiceTone.toneTags = tone;
+    const formality = asString(j.formality);
+    if (["informal", "neutral", "formal"].includes(formality)) ff.brandKit.voiceTone.formality = formality as any;
+    const kw = asArray(j.brandKeywords);
+    if (kw.length) ff.brandKit.brandKeywords = kw;
+  }
+
+  // Business intelligence: propuestas de valor + objetivo recomendado
+  if (ff.businessIntelligence) {
+    const vps = asArray(j.valuePropositions);
+    if (vps.length) {
+      ff.businessIntelligence.valuePropositions = vps.map((t) => ({
+        text: t,
+        source: "suggested" as const,
+        confidence: "medium" as Confidence,
+      }));
+    }
+    const goal = asString(j.recommendedGoal);
+    if (goal) {
+      ff.businessIntelligence.recommendedGoal = {
+        goal,
+        reason: asString(j.recommendedGoalReason, "Recomendado por Eva según tu web."),
+        source: "suggested",
+        confidence: "medium",
+      };
+    }
+    const conv = asString(j.primaryConversion);
+    if (conv && ff.businessIntelligence.primaryConversion?.confidence !== "high") {
+      ff.businessIntelligence.primaryConversion = { type: conv, source: "suggested", confidence: "medium" };
+    }
+  }
+
+  // Recalcular resumen + confianza
+  const completed = Object.values(fs).filter((f) => f.status === "found").length;
+  const suggested = Object.values(fs).filter((f) => f.status === "suggested").length;
+  const review = Object.values(fs).filter((f) => f.status === "review").length;
+  const missing = Object.values(fs).filter((f) => f.status === "missing").length;
+  const confidence = Math.min(0.95, basic.confidence + 0.15 + suggested * 0.02);
+  if (ff.businessIntelligence) ff.businessIntelligence.analysisConfidence = confidence;
+
+  return {
+    ...basic,
+    mode: "ai",
+    confidence,
+    summary: {
+      whatEvaUnderstood: asString(j.whatEvaUnderstood, basic.summary.whatEvaUnderstood),
+      completedFieldsCount: completed,
+      missingFieldsCount: missing,
+      reviewFieldsCount: review + suggested,
+    },
+  };
 }
 
 export async function extractBusinessInfoFromWebsite(
   url: string
-): Promise<Result<ExtractedBusinessInfo>> {
-  const name = domainToName(url);
-  const fallback: ExtractedBusinessInfo = { name };
+): Promise<Result<WebsiteAnalysis>> {
+  const raw = await fetchWebsite(url);
+  const basic = buildBasicAnalysis(raw, url);
 
-  let pageText = "";
-  try {
-    pageText = await fetchPageText(url);
-  } catch {
-    // No se pudo leer la web → devolvemos lo mínimo (nombre del dominio).
+  if (!raw.reachable) {
     return {
-      data: fallback,
+      data: basic,
       meta: {
         provider: "mock",
-        warning: "Eva no pudo leer toda la web, pero podés completar el formulario manualmente.",
+        warning:
+          "Eva no pudo leer la web. Podés completar el formulario manualmente o probar con otra URL.",
       },
     };
   }
 
-  if (!hasOpenAI() || !pageText) {
-    // Sin IA: derivamos lo básico del texto/dominio.
+  if (!hasOpenAI()) {
     return {
-      data: {
-        ...fallback,
-        shortDescription: pageText ? pageText.slice(0, 160) : "",
+      data: basic,
+      meta: {
+        provider: "mock",
+        warning: "Modo demo: Eva solo puede extraer información básica de la web.",
       },
-      meta: { provider: "mock" },
     };
   }
 
   try {
-    const j = (await chatJson(SYSTEM_EVA, extractWebsitePrompt(url, pageText))) as Record<
-      string,
-      unknown
-    >;
-    const products = Array.isArray(j.products)
-      ? j.products
-          .map((p: any) => ({
-            type: p?.type === "servicio" ? ("servicio" as const) : ("producto" as const),
-            name: asString(p?.name),
-            shortDescription: asString(p?.shortDescription),
-          }))
-          .filter((p) => p.name)
-      : [];
-    const data: ExtractedBusinessInfo = {
-      name: asString(j.name, name),
-      industry: asString(j.industry),
-      subcategory: asString(j.subcategory),
-      shortDescription: asString(j.shortDescription),
-      fullDescription: asString(j.fullDescription),
-      products,
-      socialChannels: asArray(j.socialChannels),
-      tone: asString(j.tone),
-      country: asString(j.country),
-      city: asString(j.city),
-      competitiveAdvantages: asArray(j.competitiveAdvantages),
-    };
-    return { data, meta: { provider: "openai" } };
-  } catch (e: any) {
+    const ai = await analyzeWebsiteContentWithAI(raw);
+    return { data: mergeAiIntoAnalysis(basic, ai), meta: { provider: "openai" } };
+  } catch {
     return {
-      data: fallback,
+      data: basic,
       meta: {
         provider: "mock",
         warning: "Eva leyó la web pero no pudo estructurar todo. Revisá y completá lo que falte.",

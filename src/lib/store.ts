@@ -5,12 +5,35 @@ import { persist } from "zustand/middleware";
 import type {
   AdStrategy,
   ApprovalStatus,
+  BrandKit,
   Business,
+  BusinessIntelligence,
   CalendarItem,
   ContentItem,
   Strategy,
   User,
 } from "./types";
+
+export function emptyBrandKit(): BrandKit {
+  return {
+    colors: { palette: [] },
+    typography: {},
+    logos: [],
+    visualStyle: { mood: [] },
+    voiceTone: { toneTags: [] },
+    brandKeywords: [],
+    avoidList: [],
+  };
+}
+
+export function emptyBusinessIntelligence(): BusinessIntelligence {
+  return {
+    socialLinks: [],
+    contactInfo: {},
+    conversionPaths: {},
+    valuePropositions: [],
+  };
+}
 
 // Estado del flujo guiado por negocio: Estrategia → Calendario → Contenidos
 export interface FlowState {
@@ -58,6 +81,9 @@ export function emptyBusiness(userId: string): Business {
     websiteExtractionConsent: false,
     websiteExtractionStatus: "idle",
     brandColors: ["#ec4899", "#84cc16", "#ffffff"],
+    brandKit: emptyBrandKit(),
+    businessIntelligence: emptyBusinessIntelligence(),
+    fieldStatuses: {},
     productsServices: [],
     audience: {
       ageRanges: [],

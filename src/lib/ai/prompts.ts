@@ -103,7 +103,7 @@ Devolvé EXACTAMENTE este JSON:
 }
 
 export function contentPrompt(b: Business, s: Strategy, item: CalendarItem): string {
-  return `${businessContext(b)}
+  return `${businessContext(b)}${brandContext(b)}
 
 ESTRATEGIA: tono = ${s.toneOfVoice}; CTA recomendado = ${s.recommendedCta}.
 PIEZA A GENERAR:
@@ -136,7 +136,7 @@ export function feedbackPrompt(
   item: ContentItem,
   feedbackText: string
 ): string {
-  return `${businessContext(b)}
+  return `${businessContext(b)}${brandContext(b)}
 
 PIEZA ACTUAL (JSON):
 ${JSON.stringify(
@@ -190,6 +190,84 @@ Devolvé EXACTAMENTE este JSON:
   "budgetRecommendation": string,
   "destination": string
 }`;
+}
+
+// Análisis estructurado de la web (IA real). Recibe contenido ya extraído.
+export function websiteAnalysisPrompt(input: {
+  url: string;
+  title: string;
+  description: string;
+  headings: string[];
+  paragraphs: string[];
+  buttons: string[];
+  socials: string[];
+  text: string;
+}): string {
+  return `Analizá la web de un negocio y devolvé info ESTRUCTURADA para prellenar un formulario de marketing.
+URL: ${input.url}
+TÍTULO: ${input.title}
+DESCRIPCIÓN: ${input.description}
+TITULARES: ${input.headings.slice(0, 20).join(" | ")}
+PÁRRAFOS: ${input.paragraphs.slice(0, 12).join(" ")}
+BOTONES: ${input.buttons.slice(0, 15).join(" | ")}
+REDES DETECTADAS: ${input.socials.join(", ") || "(ninguna)"}
+TEXTO (parcial):
+"""
+${input.text.slice(0, 5000)}
+"""
+
+Reglas:
+- En español rioplatense (vos).
+- NO inventes datos como seguros. Si inferís algo, está bien, pero debe ser razonable según la web.
+- Dejá "" o [] lo que no puedas inferir.
+
+Devolvé EXACTAMENTE este JSON:
+{
+  "industry": string,
+  "subcategory": string,
+  "businessType": string,            // Local físico | Online | Híbrido (físico + online) | Servicios a domicilio | Marca personal
+  "businessModel": string,           // B2B | B2C | Ambos
+  "country": string,
+  "state": string,
+  "city": string,
+  "shortDescription": string,        // 1 frase clara
+  "fullDescription": string,         // 2-3 frases
+  "values": string[],
+  "competitiveAdvantages": string[],
+  "marketingActivities": string[],
+  "products": [{ "name": string, "type": "producto" | "servicio", "category": string, "shortDescription": string, "price": number, "currency": string, "isTopSeller": boolean }],
+  "audience": { "ageRanges": string[], "gender": string, "socioeconomicLevel": string, "segments": string[], "painPoints": string[], "behavior": string },
+  "toneTags": string[],              // ej: cercana, premium, divertida, profesional…
+  "formality": string,               // informal | neutral | formal
+  "visualMood": string[],            // ej: moderno, cálido, minimalista
+  "imageStyle": string,
+  "designNotes": string,
+  "valuePropositions": string[],     // 3 a 5: ¿por qué elegir esta marca?
+  "primaryConversion": string,       // Compra ecommerce | Mensaje por WhatsApp | Reserva | Visita al local | Formulario | Lead magnet | Consulta por DM
+  "recommendedGoal": string,
+  "recommendedGoalReason": string,
+  "brandKeywords": string[],
+  "whatEvaUnderstood": string        // 1-2 frases: qué entendió Eva del negocio
+}`;
+}
+
+// Contexto de marca para generación de contenido/imágenes (Brand Kit + BI).
+export function brandContext(b: Business): string {
+  const bk = b.brandKit;
+  const bi = b.businessIntelligence;
+  if (!bk && !bi) return "";
+  const parts: string[] = ["\nIDENTIDAD DE MARCA:"];
+  if (bk?.colors?.palette?.length) {
+    parts.push(`Colores: ${bk.colors.palette.map((c) => `${c.name} ${c.hex}`).join(", ")}.`);
+  }
+  if (bk?.visualStyle?.mood?.length) parts.push(`Estilo visual: ${bk.visualStyle.mood.join(", ")}.`);
+  if (bk?.visualStyle?.imageStyle) parts.push(`Estilo de imágenes: ${bk.visualStyle.imageStyle}.`);
+  if (bk?.voiceTone?.toneTags?.length) parts.push(`Tono de voz: ${bk.voiceTone.toneTags.join(", ")}.`);
+  if (bk?.brandKeywords?.length) parts.push(`Palabras clave de marca: ${bk.brandKeywords.join(", ")}.`);
+  if (bk?.avoidList?.length) parts.push(`EVITAR (no usar): ${bk.avoidList.join("; ")}.`);
+  if (bi?.primaryConversion?.type) parts.push(`Conversión principal: ${bi.primaryConversion.type}.`);
+  if (bi?.recommendedGoal?.goal) parts.push(`Objetivo recomendado: ${bi.recommendedGoal.goal}.`);
+  return parts.join("\n");
 }
 
 export function extractWebsitePrompt(url: string, pageText: string): string {
