@@ -5,7 +5,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Button, Card } from "@/components/ui";
 import type { FeedbackOption } from "@/lib/feedback";
-import { Check, Circle, Loader2, ThumbsUp, Wand2, MessageSquarePlus } from "lucide-react";
+import { Check, Circle, Loader2, ThumbsUp, Wand2, Pencil, MessageSquarePlus } from "lucide-react";
 
 export type StepStatus = "pendiente" | "en_progreso" | "aprobado";
 
@@ -101,36 +101,66 @@ export function ProgressTracker({ steps }: { steps: FlowStep[] }) {
 }
 
 // ── Aprobar / Modificar ──────────────────────────────────────
+// Jerarquía: aprobar = verde, grande, protagonista. Modificar = secundario,
+// chico, ghost, con ícono de lápiz. El camino natural es aprobar.
 export function ApprovalActions({
   onApprove,
   onModify,
   approved,
   approveLabel,
+  approvedLabel = "Aprobado",
   modifyLabel,
   approveLoading,
+  nextLabel,
+  onNext,
 }: {
   onApprove: () => void;
   onModify: () => void;
   approved?: boolean;
   approveLabel: string;
+  approvedLabel?: string;
   modifyLabel: string;
   approveLoading?: boolean;
+  nextLabel?: string;
+  onNext?: () => void;
 }) {
+  if (approved) {
+    return (
+      <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-100">
+          <Check className="h-4 w-4" /> {approvedLabel}
+        </span>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={onModify}>
+            <Pencil className="h-3.5 w-3.5" /> {modifyLabel}
+          </Button>
+          {nextLabel && onNext && (
+            <Button variant="primary" size="lg" onClick={onNext}>
+              {nextLabel}
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
   return (
-    <div className="flex flex-col gap-2 sm:flex-row">
-      <Button
-        variant={approved ? "outline" : "lima"}
-        size="lg"
-        className="flex-1"
-        onClick={onApprove}
-        loading={approveLoading}
-      >
+    <div className="flex items-center gap-2">
+      <Button variant="success" size="lg" className="flex-1" onClick={onApprove} loading={approveLoading}>
         {!approveLoading && <ThumbsUp className="h-4 w-4" />}
-        {approved ? "Aprobado ✓" : approveLabel}
+        {approveLabel}
       </Button>
-      <Button variant="outline" size="lg" className="flex-1" onClick={onModify}>
-        <Wand2 className="h-4 w-4" /> {modifyLabel}
+      <Button variant="ghost" size="md" onClick={onModify}>
+        <Pencil className="h-4 w-4" /> {modifyLabel}
       </Button>
+    </div>
+  );
+}
+
+// ── Barra sticky de aprobación (mobile-first, offset del sidebar) ─
+export function StickyApproveBar({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-white/90 backdrop-blur md:left-64">
+      <div className="mx-auto max-w-6xl px-4 py-3 sm:px-8">{children}</div>
     </div>
   );
 }

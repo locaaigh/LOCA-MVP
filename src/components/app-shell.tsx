@@ -52,6 +52,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!user) return null;
 
   const active = businesses.find((b) => b.id === activeId);
+  // En las pantallas de revisión hay una barra sticky de aprobación abajo:
+  // elevamos la burbuja de Eva para que no la tape (mobile).
+  const isReviewPage =
+    pathname.startsWith("/strategy") ||
+    pathname.startsWith("/calendar") ||
+    pathname.startsWith("/content");
 
   return (
     <div className="flex min-h-screen bg-zinc-50">
@@ -167,7 +173,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
 
-      <EvaChatBubble />
+      <EvaChatBubble raised={isReviewPage} />
     </div>
   );
 }

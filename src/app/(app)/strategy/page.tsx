@@ -6,7 +6,7 @@ import { useStore, useFlow } from "@/lib/store";
 import { useGenerators } from "@/lib/generators";
 import { exportStrategyHtml } from "@/lib/exports";
 import { Badge, Button, Card, EmptyState, EvaLoading, Modal, PageHeader, useToast } from "@/components/ui";
-import { ApprovalActions, FeedbackPanel, ProgressTracker, buildFlowSteps } from "@/components/flow";
+import { ApprovalActions, FeedbackPanel, ProgressTracker, StickyApproveBar, buildFlowSteps } from "@/components/flow";
 import { STRATEGY_FEEDBACK, applyStructuredFeedback } from "@/lib/feedback";
 import {
   Sparkles,
@@ -83,7 +83,7 @@ export default function StrategyPage() {
   const approved = flow.strategy === "approved";
 
   return (
-    <div className="space-y-5">
+    <div className={strategy ? "space-y-5 pb-24" : "space-y-5"}>
       {node}
       <ProgressTracker steps={buildFlowSteps(flow, true)} />
 
@@ -171,34 +171,35 @@ export default function StrategyPage() {
               ))}
             </ol>
           </Card>
-
-          {/* Aprobar / Modificar */}
-          {!showFeedback ? (
-            <Card className="space-y-3">
-              <p className="text-sm text-zinc-500">
-                {approved
-                  ? "Ya aprobaste esta estrategia. Podés seguir con el calendario o modificarla."
-                  : "¿Te gusta cómo quedó? Aprobala y Eva arma tu calendario. Si querés, pedile cambios."}
-              </p>
-              <ApprovalActions
-                approved={approved}
-                onApprove={approve}
-                onModify={() => setShowFeedback(true)}
-                approveLabel="Aprobar estrategia"
-                modifyLabel="Modificar estrategia"
-              />
-            </Card>
-          ) : (
-            <FeedbackPanel
-              title="¿Qué querés cambiar de la estrategia?"
-              options={STRATEGY_FEEDBACK}
-              onApply={applyFeedback}
-              onCancel={() => setShowFeedback(false)}
-              loading={loading}
-            />
-          )}
         </>
       )}
+
+      {/* Barra sticky de aprobación */}
+      {strategy && (
+        <StickyApproveBar>
+          <ApprovalActions
+            approved={approved}
+            onApprove={approve}
+            onModify={() => setShowFeedback(true)}
+            approveLabel="Aprobar estrategia"
+            approvedLabel="Estrategia aprobada"
+            modifyLabel="Modificar"
+            nextLabel="Ir al calendario →"
+            onNext={() => router.push("/calendar?generate=1")}
+          />
+        </StickyApproveBar>
+      )}
+
+      {/* Modificar estrategia (modal) */}
+      <Modal open={showFeedback} onClose={() => setShowFeedback(false)} title="Modificar estrategia">
+        <FeedbackPanel
+          title="¿Qué querés cambiar?"
+          options={STRATEGY_FEEDBACK}
+          onApply={applyFeedback}
+          onCancel={() => setShowFeedback(false)}
+          loading={loading}
+        />
+      </Modal>
 
       {/* Vista completa en modal */}
       <Modal open={showFull} onClose={() => setShowFull(false)} title="Estrategia completa">

@@ -45,9 +45,8 @@ export const CONTENT_FEEDBACK: FeedbackOption[] = [
   { value: "mas_vendedor", label: "Más vendedor", instruction: "Hacelo más vendedor." },
   { value: "mas_emocional", label: "Más emocional", instruction: "Hacelo más emocional." },
   { value: "mas_premium", label: "Más premium", instruction: "Dale un tono más premium." },
-  { value: "mas_divertido", label: "Más divertido", instruction: "Hacelo más divertido." },
-  { value: "mas_profesional", label: "Más profesional", instruction: "Hacelo más profesional." },
-  { value: "agregar_urgencia", label: "Agregar urgencia", instruction: "Agregale urgencia." },
+  { value: "mas_simple", label: "Más simple", instruction: "Hacelo más simple y fácil de entender." },
+  { value: "cambiar_tono", label: "Cambiar tono", instruction: "Cambiá el tono del texto." },
   { value: "cambiar_cta", label: "Cambiar el CTA", instruction: "Cambiá el llamado a la acción (CTA)." },
 ];
 

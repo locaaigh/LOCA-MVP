@@ -5,11 +5,13 @@ import { Loader2, X } from "lucide-react";
 import * as React from "react";
 
 // ── Button ───────────────────────────────────────────────────
-type Variant = "primary" | "secondary" | "ghost" | "outline" | "danger" | "lima";
+type Variant = "primary" | "secondary" | "ghost" | "outline" | "danger" | "lima" | "success";
 type Size = "sm" | "md" | "lg" | "xl";
 
 const VARIANTS: Record<Variant, string> = {
   primary: "bg-loca-600 text-white hover:bg-loca-700 shadow-sm hover:shadow-lift active:scale-[0.98]",
+  // Verde = aprobar. Protagonista, claro y positivo.
+  success: "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm hover:shadow-[0_8px_30px_-10px_rgba(5,150,105,0.45)] active:scale-[0.98]",
   lima: "bg-lima-400 text-ink hover:bg-lima-500 shadow-sm active:scale-[0.98]",
   secondary: "bg-zinc-900 text-white hover:bg-zinc-800 active:scale-[0.98]",
   outline: "border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50 hover:border-zinc-300",

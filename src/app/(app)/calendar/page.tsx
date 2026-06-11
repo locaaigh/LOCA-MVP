@@ -6,8 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useStore, useFlow } from "@/lib/store";
 import { useGenerators } from "@/lib/generators";
 import { exportCalendarCsv } from "@/lib/exports";
-import { Badge, Button, Card, EmptyState, EvaLoading, PageHeader, Select, useToast } from "@/components/ui";
-import { ApprovalActions, FeedbackPanel, ProgressTracker, buildFlowSteps } from "@/components/flow";
+import { Badge, Button, Card, EmptyState, EvaLoading, Modal, PageHeader, Select, useToast } from "@/components/ui";
+import { ApprovalActions, FeedbackPanel, ProgressTracker, StickyApproveBar, buildFlowSteps } from "@/components/flow";
 import { CALENDAR_FEEDBACK, applyStructuredFeedback } from "@/lib/feedback";
 import { CalendarDays, Download, FileText, Lock, Sparkles } from "lucide-react";
 import { FORMAT_LABELS, CHANNELS, CONTENT_FORMATS } from "@/lib/constants";
@@ -128,7 +128,7 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className={calendar.length > 0 ? "space-y-5 pb-24" : "space-y-5"}>
       {node}
       <ProgressTracker steps={buildFlowSteps(flow, true)} />
 
@@ -217,34 +217,35 @@ export default function CalendarPage() {
               );
             })}
           </div>
-
-          {/* Aprobar / Modificar */}
-          {!showFeedback ? (
-            <Card className="space-y-3">
-              <p className="text-sm text-zinc-500">
-                {approved
-                  ? "Calendario aprobado. Ya podés generar los contenidos del mes."
-                  : "¿Te sirve este calendario? Aprobalo y Eva genera los contenidos. Si querés, pedile ajustes."}
-              </p>
-              <ApprovalActions
-                approved={approved}
-                onApprove={approve}
-                onModify={() => setShowFeedback(true)}
-                approveLabel="Aprobar calendario"
-                modifyLabel="Modificar calendario"
-              />
-            </Card>
-          ) : (
-            <FeedbackPanel
-              title="¿Qué querés cambiar del calendario?"
-              options={CALENDAR_FEEDBACK}
-              onApply={applyFeedback}
-              onCancel={() => setShowFeedback(false)}
-              loading={loading}
-            />
-          )}
         </>
       )}
+
+      {/* Barra sticky de aprobación */}
+      {calendar.length > 0 && (
+        <StickyApproveBar>
+          <ApprovalActions
+            approved={approved}
+            onApprove={approve}
+            onModify={() => setShowFeedback(true)}
+            approveLabel="Aprobar calendario"
+            approvedLabel="Calendario aprobado"
+            modifyLabel="Modificar"
+            nextLabel="Ver contenidos →"
+            onNext={() => router.push("/content?generate=1")}
+          />
+        </StickyApproveBar>
+      )}
+
+      {/* Modificar calendario (modal) */}
+      <Modal open={showFeedback} onClose={() => setShowFeedback(false)} title="Modificar calendario">
+        <FeedbackPanel
+          title="¿Qué querés cambiar?"
+          options={CALENDAR_FEEDBACK}
+          onApply={applyFeedback}
+          onCancel={() => setShowFeedback(false)}
+          loading={loading}
+        />
+      </Modal>
     </div>
   );
 }

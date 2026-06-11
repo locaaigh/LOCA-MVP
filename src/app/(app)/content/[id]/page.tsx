@@ -97,9 +97,10 @@ export default function ContentDetailPage() {
       {node}
       <div className="flex items-center justify-between">
         <Link href="/content" className="flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800">
-          <ArrowLeft className="h-4 w-4" /> Estudio de contenidos
+          <ArrowLeft className="h-4 w-4" /> Volver a contenidos
         </Link>
         <div className="flex items-center gap-2">
+          <Badge tone="default">Detalle interno</Badge>
           <Badge tone="pink">{c.channel}</Badge>
           <Badge>{FORMAT_LABELS[c.format]}</Badge>
         </div>
