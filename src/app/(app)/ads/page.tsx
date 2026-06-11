@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useStore } from "@/lib/store";
 import { useGenerators } from "@/lib/generators";
-import { Badge, Button, Card, EvaLoading, useToast } from "@/components/ui";
+import { Badge, Button, Card, EvaLoading, PageHeader, useToast } from "@/components/ui";
 import { copyToClipboard } from "@/lib/utils";
 import { Megaphone, RefreshCw, Copy } from "lucide-react";
 
@@ -34,12 +34,10 @@ export default function AdsPage() {
   return (
     <div className="space-y-6">
       {node}
-      <div>
-        <h1 className="text-2xl font-bold">Ads</h1>
-        <p className="text-sm text-zinc-500">
-          Estrategia de anuncios para {business.name}. No se publican campañas reales.
-        </p>
-      </div>
+      <PageHeader
+        title="Ads"
+        subtitle={`Estrategia de anuncios para ${business.name}. No se publican campañas reales.`}
+      />
 
       {/* Meta */}
       <Card className="space-y-4">

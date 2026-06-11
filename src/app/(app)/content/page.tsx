@@ -2,15 +2,17 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useStore, useFlow } from "@/lib/store";
 import { useGenerators } from "@/lib/generators";
 import { exportContentsCsv } from "@/lib/exports";
-import { Badge, Button, Card, EvaLoading, Select, useToast } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, EvaLoading, PageHeader, Select, useToast } from "@/components/ui";
 import { ContentPreview } from "@/components/content-preview";
 import { ProgressTracker, buildFlowSteps } from "@/components/flow";
 import { CHANNELS, CONTENT_FORMATS, FORMAT_LABELS, CONTENT_STATUS_LABELS } from "@/lib/constants";
-import { Download, FileText, Lock, Sparkles } from "lucide-react";
+import { copyToClipboard } from "@/lib/utils";
+import { Check, Copy, Download, Eye, FileText, Lock, Sparkles, Wand2 } from "lucide-react";
+import type { ContentItem } from "@/lib/types";
 
 const STATUS_TONE: Record<string, any> = {
   borrador: "default",
@@ -59,7 +61,7 @@ export default function ContentStudioPage() {
     try {
       const n = await gen.generateAllContent(business, (d, t) => setProgress(`Generando ${d}/${t}…`));
       setFlow(business.id, { content: "pending_review" });
-      show(n > 0 ? "Contenidos generados 🎉" : "Ya están todos generados");
+      show(n > 0 ? "Contenidos listos 🎉" : "Ya están todos generados");
     } catch (e: any) {
       show(e?.message || "Error");
     } finally {
@@ -79,24 +81,20 @@ export default function ContentStudioPage() {
 
   if (!business) return null;
 
-  // Gate: calendario no aprobado
   if (!calendarApproved) {
     return (
       <div className="space-y-5">
         {node}
         <ProgressTracker steps={buildFlowSteps(flow, true)} />
-        <Card className="mx-auto max-w-md text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100">
-            <Lock className="h-5 w-5 text-zinc-400" />
-          </div>
-          <h2 className="mt-3 font-semibold">Primero aprobá el calendario</h2>
-          <p className="mt-1 text-sm text-zinc-500">
-            Así Eva genera los contenidos en orden y con coherencia.
-          </p>
+        <EmptyState
+          icon={Lock}
+          title="Primero aprobá el calendario"
+          description="Así Eva genera los contenidos en orden y con coherencia."
+        >
           <Link href="/calendar">
-            <Button className="mt-4">Ir al calendario</Button>
+            <Button>Ir al calendario</Button>
           </Link>
-        </Card>
+        </EmptyState>
       </div>
     );
   }
@@ -106,32 +104,27 @@ export default function ContentStudioPage() {
       {node}
       <ProgressTracker steps={buildFlowSteps(flow, true)} />
 
-      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Estudio de contenidos</h1>
-          <p className="text-sm text-zinc-500">{contents.length} piezas para {business.name}.</p>
-        </div>
+      <PageHeader title="Estudio de contenidos" subtitle={`${contents.length} piezas para ${business.name}.`}>
         {contents.length > 0 && (
           <Button variant="outline" onClick={() => exportContentsCsv(business, filtered)}>
             <Download className="h-4 w-4" /> Exportar CSV
           </Button>
         )}
-      </div>
+      </PageHeader>
 
       {loading && contents.length === 0 && <EvaLoading text="Eva está creando tus contenidos…" />}
       {progress && <p className="text-sm font-medium text-loca-600">{progress}</p>}
 
       {contents.length === 0 && !loading ? (
-        <Card className="text-center">
-          <FileText className="mx-auto h-8 w-8 text-loca-500" />
-          <h2 className="mt-3 font-semibold">Generá los contenidos del mes</h2>
-          <p className="mt-1 text-sm text-zinc-500">
-            Eva crea el texto de cada publicación de tu calendario.
-          </p>
-          <Button className="mt-4" onClick={generateAll} loading={loading}>
+        <EmptyState
+          icon={FileText}
+          title="Generá los contenidos del mes"
+          description="Eva crea el texto de cada publicación de tu calendario."
+        >
+          <Button onClick={generateAll} loading={loading}>
             <Sparkles className="h-4 w-4" /> Generar contenidos del mes
           </Button>
-        </Card>
+        </EmptyState>
       ) : contents.length > 0 ? (
         <>
           <div className="flex flex-wrap items-center gap-2">
@@ -160,22 +153,73 @@ export default function ContentStudioPage() {
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((c) => (
-              <Link key={c.id} href={`/content/${c.id}`}>
-                <Card className="flex h-full flex-col gap-3 p-3 transition hover:border-loca-300">
-                  <ContentPreview content={c} business={business} className="!shadow-none" />
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge tone="pink">{c.channel}</Badge>
-                    <Badge>{FORMAT_LABELS[c.format]}</Badge>
-                    <Badge tone={STATUS_TONE[c.status]}>{CONTENT_STATUS_LABELS[c.status]}</Badge>
-                  </div>
-                  <p className="line-clamp-2 text-sm font-medium text-zinc-800">{c.title}</p>
-                  <p className="line-clamp-2 text-xs text-zinc-500">{c.hook}</p>
-                </Card>
-              </Link>
+              <ContentCard key={c.id} content={c} businessName={business.name} onToast={show} />
             ))}
           </div>
         </>
       ) : null}
     </div>
+  );
+}
+
+function ContentCard({
+  content: c,
+  businessName,
+  onToast,
+}: {
+  content: ContentItem;
+  businessName: string;
+  onToast: (m: string) => void;
+}) {
+  const router = useRouter();
+  const business = useStore((s) => s.businesses.find((b) => b.id === c.businessId) || null);
+  const updateContent = useStore((s) => s.updateContent);
+  const approved = c.status === "aprobado";
+
+  return (
+    <Card className="flex h-full flex-col gap-3 p-3 transition hover:-translate-y-0.5 hover:shadow-pop">
+      <Link href={`/content/${c.id}`} className="block">
+        {business && <ContentPreview content={c} business={business} className="!shadow-none" />}
+      </Link>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Badge tone="pink">{c.channel}</Badge>
+        <Badge>{FORMAT_LABELS[c.format]}</Badge>
+        <Badge tone={STATUS_TONE[c.status]}>{CONTENT_STATUS_LABELS[c.status]}</Badge>
+      </div>
+      <Link href={`/content/${c.id}`} className="block">
+        <p className="line-clamp-1 text-sm font-semibold text-zinc-900">{c.title}</p>
+        <p className="line-clamp-2 text-xs text-zinc-500">{c.caption || c.hook}</p>
+      </Link>
+
+      {/* Acciones rápidas */}
+      <div className="mt-auto grid grid-cols-2 gap-1.5 pt-1">
+        <Button size="sm" variant="outline" onClick={() => router.push(`/content/${c.id}`)}>
+          <Eye className="h-3.5 w-3.5" /> Ver
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => router.push(`/content/${c.id}#modificar-contenido`)}>
+          <Wand2 className="h-3.5 w-3.5" /> Modificar
+        </Button>
+        <Button
+          size="sm"
+          variant={approved ? "outline" : "lima"}
+          onClick={() => {
+            updateContent(c.id, { status: approved ? "generado" : "aprobado" });
+            onToast(approved ? "Marcado como pendiente" : "Aprobado ✓");
+          }}
+        >
+          <Check className="h-3.5 w-3.5" /> {approved ? "Aprobado" : "Aprobar"}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={async () => {
+            const ok = await copyToClipboard(`${c.caption}\n\n${c.hashtags.join(" ")}`);
+            onToast(ok ? "Caption copiado" : "No se pudo copiar");
+          }}
+        >
+          <Copy className="h-3.5 w-3.5" /> Copiar
+        </Button>
+      </div>
+    </Card>
   );
 }

@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useStore, useFlow } from "@/lib/store";
 import { useGenerators } from "@/lib/generators";
 import { exportCalendarCsv } from "@/lib/exports";
-import { Badge, Button, Card, EvaLoading, Select, useToast } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, EvaLoading, PageHeader, Select, useToast } from "@/components/ui";
 import { ApprovalActions, FeedbackPanel, ProgressTracker, buildFlowSteps } from "@/components/flow";
 import { CALENDAR_FEEDBACK, applyStructuredFeedback } from "@/lib/feedback";
 import { CalendarDays, Download, FileText, Lock, Sparkles } from "lucide-react";
@@ -114,18 +114,15 @@ export default function CalendarPage() {
       <div className="space-y-5">
         {node}
         <ProgressTracker steps={buildFlowSteps(flow, true)} />
-        <Card className="mx-auto max-w-md text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100">
-            <Lock className="h-5 w-5 text-zinc-400" />
-          </div>
-          <h2 className="mt-3 font-semibold">Primero aprobá la estrategia</h2>
-          <p className="mt-1 text-sm text-zinc-500">
-            Para que Eva pueda armar un calendario coherente, necesitamos tu estrategia aprobada.
-          </p>
+        <EmptyState
+          icon={Lock}
+          title="Primero aprobá la estrategia"
+          description="Para armar un calendario coherente, Eva necesita tu estrategia aprobada."
+        >
           <Link href="/strategy">
-            <Button className="mt-4">Ir a la estrategia</Button>
+            <Button>Ir a la estrategia</Button>
           </Link>
-        </Card>
+        </EmptyState>
       </div>
     );
   }
@@ -135,36 +132,31 @@ export default function CalendarPage() {
       {node}
       <ProgressTracker steps={buildFlowSteps(flow, true)} />
 
-      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Tu calendario</h1>
-          <p className="text-sm text-zinc-500">Las publicaciones del mes para {business.name}.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={count} onChange={(e) => setCount(Number(e.target.value))} className="h-10 w-28">
-            <option value={8}>8 posts</option>
-            <option value={16}>16 posts</option>
-            <option value={30}>30 posts</option>
-          </Select>
-          {calendar.length > 0 && (
-            <Button variant="outline" onClick={() => exportCalendarCsv(business, calendar)}>
-              <Download className="h-4 w-4" /> CSV
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader title="Tu calendario" subtitle={`Las publicaciones del mes para ${business.name}.`}>
+        <Select value={count} onChange={(e) => setCount(Number(e.target.value))} className="h-10 w-28">
+          <option value={8}>8 posts</option>
+          <option value={16}>16 posts</option>
+          <option value={30}>30 posts</option>
+        </Select>
+        {calendar.length > 0 && (
+          <Button variant="outline" onClick={() => exportCalendarCsv(business, calendar)}>
+            <Download className="h-4 w-4" /> CSV
+          </Button>
+        )}
+      </PageHeader>
 
       {loading && !calendar.length && <EvaLoading text="Eva está armando tu calendario…" />}
 
       {!calendar.length && !loading && (
-        <Card className="text-center">
-          <CalendarDays className="mx-auto h-8 w-8 text-loca-500" />
-          <h2 className="mt-3 font-semibold">Generá tu primer mes</h2>
-          <p className="mt-1 text-sm text-zinc-500">Eva distribuye las publicaciones por vos.</p>
-          <Button className="mt-4" onClick={() => generate()} loading={loading}>
+        <EmptyState
+          icon={CalendarDays}
+          title="Generá tu primer mes"
+          description="Eva distribuye las publicaciones por vos."
+        >
+          <Button onClick={() => generate()} loading={loading}>
             <Sparkles className="h-4 w-4" /> Generar calendario
           </Button>
-        </Card>
+        </EmptyState>
       )}
 
       {calendar.length > 0 && (

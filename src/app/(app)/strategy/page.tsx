@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useStore, useFlow } from "@/lib/store";
 import { useGenerators } from "@/lib/generators";
 import { exportStrategyHtml } from "@/lib/exports";
-import { Badge, Button, Card, EvaLoading, Modal, useToast } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, EvaLoading, Modal, PageHeader, useToast } from "@/components/ui";
 import { ApprovalActions, FeedbackPanel, ProgressTracker, buildFlowSteps } from "@/components/flow";
 import { STRATEGY_FEEDBACK, applyStructuredFeedback } from "@/lib/feedback";
 import {
@@ -87,34 +87,31 @@ export default function StrategyPage() {
       {node}
       <ProgressTracker steps={buildFlowSteps(flow, true)} />
 
-      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Tu estrategia</h1>
-          <p className="text-sm text-zinc-500">El plan de marketing de {business.name}, listo para revisar.</p>
-        </div>
+      <PageHeader title="Tu estrategia" subtitle={`El plan de marketing de ${business.name}, listo para revisar.`}>
         {strategy && (
-          <div className="flex gap-2">
+          <>
             <Button variant="outline" onClick={() => exportStrategyHtml(business, strategy)}>
               <Download className="h-4 w-4" /> Exportar
             </Button>
             <Button variant="outline" onClick={() => setShowFull(true)}>
-              Ver estrategia completa
+              Ver completa
             </Button>
-          </div>
+          </>
         )}
-      </div>
+      </PageHeader>
 
       {loading && !strategy && <EvaLoading text="Eva está preparando tu estrategia…" />}
 
       {!strategy && !loading && (
-        <Card className="text-center">
-          <Sparkles className="mx-auto h-8 w-8 text-loca-500" />
-          <h2 className="mt-3 font-semibold">Generá tu estrategia</h2>
-          <p className="mt-1 text-sm text-zinc-500">Eva la arma en segundos a partir de tu negocio.</p>
-          <Button className="mt-4" onClick={() => generate()} loading={loading}>
+        <EmptyState
+          icon={Sparkles}
+          title="Generá tu estrategia"
+          description="Eva la arma en segundos a partir de tu negocio."
+        >
+          <Button onClick={() => generate()} loading={loading}>
             <Sparkles className="h-4 w-4" /> Generar estrategia
           </Button>
-        </Card>
+        </EmptyState>
       )}
 
       {strategy && (

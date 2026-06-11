@@ -6,20 +6,21 @@ import * as React from "react";
 
 // ── Button ───────────────────────────────────────────────────
 type Variant = "primary" | "secondary" | "ghost" | "outline" | "danger" | "lima";
-type Size = "sm" | "md" | "lg";
+type Size = "sm" | "md" | "lg" | "xl";
 
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-loca-600 text-white hover:bg-loca-700 shadow-sm",
-  lima: "bg-lima-400 text-ink hover:bg-lima-500 shadow-sm",
-  secondary: "bg-zinc-900 text-white hover:bg-zinc-800",
-  outline: "border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50",
-  ghost: "text-zinc-700 hover:bg-zinc-100",
-  danger: "bg-red-600 text-white hover:bg-red-700",
+  primary: "bg-loca-600 text-white hover:bg-loca-700 shadow-sm hover:shadow-lift active:scale-[0.98]",
+  lima: "bg-lima-400 text-ink hover:bg-lima-500 shadow-sm active:scale-[0.98]",
+  secondary: "bg-zinc-900 text-white hover:bg-zinc-800 active:scale-[0.98]",
+  outline: "border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50 hover:border-zinc-300",
+  ghost: "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900",
+  danger: "bg-red-600 text-white hover:bg-red-700 active:scale-[0.98]",
 };
 const SIZES: Record<Size, string> = {
-  sm: "h-8 px-3 text-xs",
-  md: "h-10 px-4 text-sm",
-  lg: "h-12 px-6 text-base",
+  sm: "h-9 px-3.5 text-xs",
+  md: "h-11 px-5 text-sm",
+  lg: "h-12 px-6 text-[15px]",
+  xl: "h-14 px-7 text-base",
 };
 
 export function Button({
@@ -37,7 +38,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100",
         VARIANTS[variant],
         SIZES[size],
         className
@@ -58,13 +59,13 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
 
 // ── Badge ────────────────────────────────────────────────────
 const BADGE_TONES: Record<string, string> = {
-  default: "bg-zinc-100 text-zinc-700",
-  pink: "bg-loca-100 text-loca-700",
-  lima: "bg-lima-100 text-lima-700",
-  green: "bg-emerald-100 text-emerald-700",
-  yellow: "bg-amber-100 text-amber-700",
-  red: "bg-red-100 text-red-700",
-  blue: "bg-blue-100 text-blue-700",
+  default: "bg-zinc-100 text-zinc-600",
+  pink: "bg-loca-50 text-loca-700 ring-1 ring-inset ring-loca-100",
+  lima: "bg-lima-50 text-lima-700 ring-1 ring-inset ring-lima-200",
+  green: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100",
+  yellow: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-100",
+  red: "bg-red-50 text-red-600 ring-1 ring-inset ring-red-100",
+  blue: "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-100",
 };
 export function Badge({
   tone = "default",
@@ -235,15 +236,69 @@ export function Modal({
 }
 
 // ── Spinner de Eva ───────────────────────────────────────────
-export function EvaLoading({ text = "Eva está trabajando…" }: { text?: string }) {
+export function EvaLoading({ text = "Eva está preparando todo…" }: { text?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+    <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
       <div className="relative">
-        <div className="h-14 w-14 rounded-full bg-gradient-to-br from-loca-500 to-loca-700" />
+        <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-loca-300/50" />
+        <div className="h-16 w-16 rounded-full bg-gradient-to-br from-loca-500 to-loca-700 shadow-lift" />
         <Loader2 className="absolute inset-0 m-auto h-7 w-7 animate-spin text-white" />
       </div>
       <p className="text-sm font-medium text-zinc-600">{text}</p>
+      <p className="text-xs text-zinc-400">Esto tarda solo unos segundos.</p>
     </div>
+  );
+}
+
+// ── Header de página (título + subtítulo + acciones) ─────────
+export function PageHeader({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-zinc-900">{title}</h1>
+        {subtitle && <p className="mt-1 text-sm text-zinc-500">{subtitle}</p>}
+      </div>
+      {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
+    </div>
+  );
+}
+
+// ── Label de sección (uppercase sutil) ───────────────────────
+export function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">{children}</p>
+  );
+}
+
+// ── Estado vacío reutilizable ────────────────────────────────
+export function EmptyState({
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <Card className="flex flex-col items-center px-6 py-12 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-loca-50 text-loca-600">
+        <Icon className="h-6 w-6" />
+      </div>
+      <h2 className="mt-4 text-lg font-semibold text-zinc-900">{title}</h2>
+      {description && <p className="mt-1 max-w-sm text-sm text-zinc-500">{description}</p>}
+      {children && <div className="mt-5 flex flex-wrap items-center justify-center gap-2">{children}</div>}
+    </Card>
   );
 }
 

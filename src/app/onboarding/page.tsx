@@ -159,7 +159,7 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      <EvaChatBubble />
+      <EvaChatBubble raised />
     </main>
   );
 }

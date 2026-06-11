@@ -16,21 +16,37 @@ body {
   background: #fafafa;
   color: #18181b;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 * {
   box-sizing: border-box;
 }
 
+::selection {
+  background: #fbcfe8;
+  color: #831843;
+}
+
+@layer base {
+  h1, h2, h3 {
+    letter-spacing: -0.015em;
+  }
+}
+
 @layer components {
   .loca-input {
-    @apply w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-loca-500 focus:ring-2 focus:ring-loca-200;
+    @apply w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-loca-400 focus:ring-4 focus:ring-loca-100;
   }
   .loca-label {
-    @apply mb-1 block text-sm font-medium text-zinc-700;
+    @apply mb-1.5 block text-sm font-medium text-zinc-700;
   }
   .loca-card {
-    @apply rounded-2xl border border-zinc-200 bg-white shadow-soft;
+    @apply rounded-2xl border border-zinc-200/70 bg-white shadow-card;
+  }
+  /* Fondo suave reutilizable para heros / bloques destacados */
+  .loca-soft-bg {
+    background: radial-gradient(120% 120% at 100% 0%, #fdf2f8 0%, #ffffff 45%);
   }
 }
 

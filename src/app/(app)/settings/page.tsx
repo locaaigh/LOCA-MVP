@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { AiStatusBadge, useAiStatus } from "@/components/ai-status";
-import { Badge, Button, Card, Field, Input, useToast } from "@/components/ui";
+import { Badge, Button, Card, Field, Input, PageHeader, useToast } from "@/components/ui";
 import { Trash2 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -19,9 +19,10 @@ export default function SettingsPage() {
   const { show, node } = useToast();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {node}
-      <h1 className="text-2xl font-bold">Configuración</h1>
+      <PageHeader title="Configuración" subtitle="Tu cuenta, la IA y tus negocios." />
+
 
       <Card className="space-y-2">
         <h2 className="font-semibold">Cuenta</h2>

@@ -112,7 +112,7 @@ interface Msg {
   text: string;
 }
 
-export function EvaChatBubble() {
+export function EvaChatBubble({ raised = false }: { raised?: boolean }) {
   const pathname = usePathname() || "";
   const ctx = React.useMemo(() => contextFor(pathname), [pathname]);
   const [open, setOpen] = React.useState(false);
@@ -135,20 +135,32 @@ export function EvaChatBubble() {
     }
   };
 
+  // Se eleva sobre los bottom-bars sticky (onboarding) para no tapar CTAs en mobile.
+  const btnPos = raised ? "bottom-24 sm:bottom-6" : "bottom-5 sm:bottom-6";
+  const panelPos = raised ? "bottom-40 sm:bottom-24" : "bottom-20 sm:bottom-24";
+
   return (
     <>
       {/* Botón flotante */}
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label="Abrir asistente Eva"
-        className="fixed bottom-4 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lg transition hover:scale-105 active:scale-95"
+        className={cn(
+          "fixed right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift ring-4 ring-white/60 transition hover:scale-105 active:scale-95 sm:right-6",
+          btnPos
+        )}
       >
         {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
       </button>
 
       {/* Panel */}
       {open && (
-        <div className="fixed bottom-20 right-4 z-50 flex max-h-[70vh] w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl">
+        <div
+          className={cn(
+            "fixed right-4 z-40 flex max-h-[70vh] w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-pop animate-fade-in-up sm:right-6",
+            panelPos
+          )}
+        >
           <div className="flex items-center gap-2 border-b border-zinc-100 bg-gradient-to-r from-loca-600 to-loca-700 px-4 py-3 text-white">
             <EvaAvatar size={32} />
             <div className="min-w-0">
