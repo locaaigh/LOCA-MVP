@@ -39,6 +39,54 @@ export function useGenerators() {
     return content;
   }
 
+  // Flujo nuevo: tras aprobar estrategia, generar el PAQUETE completo de
+  // contenidos. El calendario de ideas se arma internamente (auto-aprobado) y
+  // no se le muestra al cliente como paso previo.
+  async function generateMonthContents(
+    business: Business,
+    count = 16,
+    onProgress?: (done: number, total: number) => void
+  ) {
+    const st = () => useStore.getState();
+
+    // 1) Estrategia (si no existe)
+    let strategy = st().strategies[business.id];
+    if (!strategy) {
+      const s = await api.strategy(business);
+      st().setStrategy(business.id, { ...s.data, status: "pending_review" });
+      strategy = s.data;
+    }
+
+    // 2) Calendario interno (si no existe) — auto-aprobado, no es un paso del cliente
+    let cal = st().calendars[business.id] || [];
+    if (!cal.length) {
+      const res = await api.calendar(business, strategy, count);
+      st().setCalendar(business.id, res.data);
+      st().setFlow(business.id, { calendar: "approved" });
+      cal = res.data;
+    }
+
+    // 3) Contenidos completos para cada item sin pieza
+    const existing = new Set(
+      st().contents.filter((c) => c.businessId === business.id).map((c) => c.calendarItemId)
+    );
+    const pending = cal.filter((it) => !existing.has(it.id));
+    let done = 0;
+    for (const item of pending) {
+      try {
+        const res = await api.content(business, strategy, item);
+        st().upsertContent(res.data);
+        st().updateCalendarItem({ ...item, status: "generado" });
+      } catch {
+        /* continúa */
+      }
+      done++;
+      onProgress?.(done, pending.length);
+    }
+    st().setFlow(business.id, { content: "pending_review" });
+    return pending.length;
+  }
+
   // Genera contenido para todos los items que aún no tienen pieza.
   async function generateAllContent(
     business: Business,
@@ -110,6 +158,7 @@ export function useGenerators() {
   return {
     generateStrategy,
     generateCalendar,
+    generateMonthContents,
     generateContentForItem,
     generateAllContent,
     generateImage,

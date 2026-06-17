@@ -23,8 +23,8 @@ import {
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/strategy", label: "Estrategia", icon: Sparkles },
-  { href: "/calendar", label: "Calendario", icon: CalendarDays },
   { href: "/content", label: "Estudio de contenidos", icon: LayoutGrid },
+  { href: "/calendar", label: "Calendario", icon: CalendarDays },
   { href: "/metrics", label: "Métricas", icon: BarChart3 },
   { href: "/ads", label: "Ads", icon: Megaphone },
   { href: "/settings", label: "Configuración", icon: Settings },

@@ -1,29 +1,25 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useGenerators } from "@/lib/generators";
-import { Badge, Button, Card, Modal } from "@/components/ui";
+import { Badge, Button, Card, Field, Input, Modal, Textarea } from "@/components/ui";
 import { ContentPreview } from "@/components/content-preview";
-import { CONTENT_FEEDBACK, applyStructuredFeedback } from "@/lib/feedback";
 import { FORMAT_LABELS } from "@/lib/constants";
-import { formatDate, cn } from "@/lib/utils";
+import { bucketOf } from "@/lib/content-status";
+import { formatDate, nowIso } from "@/lib/utils";
 import type { Business, ContentItem } from "@/lib/types";
 import {
   Check,
-  Pencil,
   ChevronLeft,
   ChevronRight,
-  CalendarDays,
+  CalendarClock,
   PartyPopper,
   ImageIcon,
-  CalendarClock,
-  MessageSquarePlus,
+  PencilLine,
 } from "lucide-react";
 
-const PENDING = (c: ContentItem) => c.status !== "aprobado";
-
-// Tag de tipo de pieza legible (Feed / Reel / Story / Carrusel…)
 function typeTag(format: string): string {
   if (format === "reel") return "Reel";
   if (format === "story") return "Story";
@@ -33,8 +29,78 @@ function typeTag(format: string): string {
   return "Feed";
 }
 
-// ── Modal de "Modificar contenido" ───────────────────────────
-export function ContentModifyModal({
+function contentDate(c: ContentItem, calendars: Record<string, any[]>): string {
+  if (c.scheduledDate) return c.scheduledDate;
+  const items = calendars[c.businessId] || [];
+  return items.find((it) => it.id === c.calendarItemId)?.date || c.createdAt.slice(0, 10);
+}
+
+// ── Editar copy y fecha (manual, SIN IA) ─────────────────────
+export function ContentManualEditModal({
+  content,
+  open,
+  onClose,
+  onToast,
+}: {
+  content: ContentItem;
+  open: boolean;
+  onClose: () => void;
+  onToast: (m: string) => void;
+}) {
+  const updateContent = useStore((s) => s.updateContent);
+  const [caption, setCaption] = React.useState(content.caption);
+  const [date, setDate] = React.useState(content.scheduledDate || "");
+  const [time, setTime] = React.useState(content.scheduledTime || "");
+
+  React.useEffect(() => {
+    if (open) {
+      setCaption(content.caption);
+      setDate(content.scheduledDate || "");
+      setTime(content.scheduledTime || "");
+    }
+  }, [open, content.id]);
+
+  function save() {
+    const edited: string[] = [];
+    if (caption !== content.caption) edited.push("caption");
+    if (date !== (content.scheduledDate || "")) edited.push("scheduledDate");
+    if (time !== (content.scheduledTime || "")) edited.push("scheduledTime");
+    updateContent(content.id, {
+      caption,
+      scheduledDate: date || undefined,
+      scheduledTime: time || undefined,
+      lastManualEditAt: nowIso(),
+      manuallyEditedFields: Array.from(new Set([...(content.manuallyEditedFields || []), ...edited])),
+    });
+    onToast("Cambios guardados (sin usar IA) ✏️");
+    onClose();
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Editar copy y fecha">
+      <div className="space-y-3">
+        <p className="text-sm text-zinc-500">Editás vos, sin usar IA ni gastar créditos. La pieza sigue aprobada.</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Fecha de publicación">
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </Field>
+          <Field label="Horario">
+            <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+          </Field>
+        </div>
+        <Field label="Copy / caption">
+          <Textarea value={caption} onChange={(e) => setCaption(e.target.value)} className="min-h-[140px]" />
+        </Field>
+        <Button variant="success" size="lg" className="w-full" onClick={save}>
+          <Check className="h-4 w-4" /> Guardar cambios
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Cambiar imagen/video o concepto visual (puede usar IA) ───
+export function ContentVisualEditModal({
   business,
   content,
   open,
@@ -48,122 +114,75 @@ export function ContentModifyModal({
   onToast: (m: string) => void;
 }) {
   const gen = useGenerators();
-  const calendars = useStore((s) => s.calendars);
-  const updateCalendarItem = useStore((s) => s.updateCalendarItem);
+  const updateContent = useStore((s) => s.updateContent);
+  const [prompt, setPrompt] = React.useState(content.imagePrompt);
+  const [concept, setConcept] = React.useState(content.visualConcept);
+  const [imgLoading, setImgLoading] = React.useState(false);
+  const [regenerated, setRegenerated] = React.useState(false);
 
-  const [selected, setSelected] = React.useState<string[]>([]);
-  const [changeImage, setChangeImage] = React.useState(false);
-  const [changeDate, setChangeDate] = React.useState(false);
-  const [newDate, setNewDate] = React.useState("");
-  const [showCustom, setShowCustom] = React.useState(false);
-  const [custom, setCustom] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
-
-  // Reset al abrir otra pieza
   React.useEffect(() => {
     if (open) {
-      setSelected([]);
-      setChangeImage(false);
-      setChangeDate(false);
-      setNewDate("");
-      setShowCustom(false);
-      setCustom("");
+      setPrompt(content.imagePrompt);
+      setConcept(content.visualConcept);
+      setRegenerated(false);
     }
-  }, [open, content?.id]);
+  }, [open, content.id]);
 
-  const toggle = (v: string) =>
-    setSelected((s) => (s.includes(v) ? s.filter((x) => x !== v) : [...s, v]));
-
-  const canApply =
-    selected.length > 0 || changeImage || (changeDate && !!newDate) || custom.trim().length > 0;
-
-  async function apply() {
-    setLoading(true);
+  async function regenerate() {
+    setImgLoading(true);
     try {
-      if (changeImage) {
-        await gen.generateImage(content, business);
-      }
-      if (changeDate && newDate && content.calendarItemId) {
-        const items = calendars[business.id] || [];
-        const item = items.find((it) => it.id === content.calendarItemId);
-        if (item) updateCalendarItem({ ...item, date: newDate });
-      }
-      const instruction = applyStructuredFeedback(CONTENT_FEEDBACK, selected, custom);
-      if (instruction.trim()) {
-        await gen.applyFeedback(business, content, instruction);
-      }
-      onToast("Listo. Eva aplicó tus cambios ✨");
-      onClose();
+      // Aplicar el prompt editado antes de generar
+      updateContent(content.id, { imagePrompt: prompt });
+      const res = await gen.generateImage({ ...content, imagePrompt: prompt }, business);
+      setRegenerated(true);
+      onToast(res.provider === "mock" ? "Imagen simulada (modo demo)" : "Imagen generada ✨");
     } catch (e: any) {
-      onToast(e?.message || "No se pudo aplicar. Probá de nuevo.");
+      onToast(e?.message || "No se pudo generar la imagen");
     } finally {
-      setLoading(false);
+      setImgLoading(false);
     }
   }
 
-  const Chip = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) => (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition",
-        active
-          ? "border-loca-500 bg-loca-50 text-loca-700"
-          : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
-      )}
-    >
-      {children}
-    </button>
-  );
+  function save() {
+    const changed = prompt !== content.imagePrompt || concept !== content.visualConcept || regenerated;
+    updateContent(content.id, {
+      imagePrompt: prompt,
+      visualConcept: concept,
+      // Cambiar el visual hace que vuelva a revisión si estaba aprobado.
+      ...(changed && content.status === "aprobado" ? { status: "needs_changes" as const } : {}),
+    });
+    if (changed && content.status === "aprobado") onToast("Cambiaste el visual: la pieza volvió a revisión.");
+    else onToast("Cambios guardados ✨");
+    onClose();
+  }
 
   return (
-    <Modal open={open} onClose={onClose} title="Modificar contenido">
-      <div className="space-y-4">
-        <p className="text-sm text-zinc-500">Elegí qué cambiar. Eva lo aplica por vos.</p>
-        <div className="flex flex-wrap gap-2">
-          {CONTENT_FEEDBACK.map((o) => (
-            <Chip key={o.value} active={selected.includes(o.value)} onClick={() => toggle(o.value)}>
-              {o.label}
-            </Chip>
-          ))}
-          <Chip active={changeImage} onClick={() => setChangeImage((v) => !v)}>
-            <ImageIcon className="h-3.5 w-3.5" /> Cambiar imagen
-          </Chip>
-          <Chip active={changeDate} onClick={() => setChangeDate((v) => !v)}>
-            <CalendarClock className="h-3.5 w-3.5" /> Cambiar fecha
-          </Chip>
-          <Chip active={showCustom} onClick={() => setShowCustom((v) => !v)}>
-            <MessageSquarePlus className="h-3.5 w-3.5" /> Dar feedback personalizado
-          </Chip>
+    <Modal open={open} onClose={onClose} title="Cambiar imagen/video">
+      <div className="space-y-3">
+        <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          ⚡ Regenerar la imagen puede usar IA (y créditos). Si cambiás el visual, la pieza vuelve a revisión.
         </div>
-
-        {changeDate && (
-          <input
-            type="date"
-            value={newDate}
-            onChange={(e) => setNewDate(e.target.value)}
-            className="loca-input"
-          />
-        )}
-
-        {showCustom && (
-          <textarea
-            value={custom}
-            onChange={(e) => setCustom(e.target.value)}
-            placeholder="Contale a Eva con tus palabras qué querés cambiar…"
-            className="loca-input min-h-[80px]"
-          />
-        )}
-
-        <Button className="w-full" size="lg" disabled={!canApply} loading={loading} onClick={apply}>
-          Aplicar cambios con Eva
-        </Button>
+        <ContentPreview content={content} business={business} className="!shadow-none" />
+        <Field label="Concepto visual">
+          <Textarea value={concept} onChange={(e) => setConcept(e.target.value)} className="min-h-[70px] text-sm" />
+        </Field>
+        <Field label="Prompt de imagen (interno)">
+          <Textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} className="min-h-[80px] text-xs" />
+        </Field>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button variant="outline" className="flex-1" onClick={regenerate} loading={imgLoading}>
+            {!imgLoading && <ImageIcon className="h-4 w-4" />} Regenerar imagen (IA)
+          </Button>
+          <Button variant="primary" className="flex-1" onClick={save}>
+            <Check className="h-4 w-4" /> Guardar
+          </Button>
+        </div>
       </div>
     </Modal>
   );
 }
 
-// ── Deck de revisión (una pieza por vez, modo presentación) ──
+// ── Deck de revisión ─────────────────────────────────────────
 export function ContentReviewDeck({
   business,
   contents,
@@ -173,34 +192,27 @@ export function ContentReviewDeck({
   contents: ContentItem[];
   onToast: (m: string) => void;
 }) {
+  const router = useRouter();
   const updateContent = useStore((s) => s.updateContent);
   const calendars = useStore((s) => s.calendars);
 
   const [index, setIndex] = React.useState(0);
-  const [modifyOpen, setModifyOpen] = React.useState(false);
+  const [manualOpen, setManualOpen] = React.useState(false);
+  const [visualOpen, setVisualOpen] = React.useState(false);
 
-  // Orden estable por fecha de calendario (si existe), luego por creación.
-  const dateOf = React.useCallback(
-    (c: ContentItem) => {
-      const items = calendars[business.id] || [];
-      return items.find((it) => it.id === c.calendarItemId)?.date || c.createdAt.slice(0, 10);
-    },
-    [calendars, business.id]
-  );
+  const dateOf = React.useCallback((c: ContentItem) => contentDate(c, calendars), [calendars]);
+  const isPending = React.useCallback((c: ContentItem) => bucketOf(c, dateOf(c)) === "revision", [dateOf]);
 
   const ordered = React.useMemo(
     () => [...contents].sort((a, b) => dateOf(a).localeCompare(dateOf(b))),
     [contents, dateOf]
   );
+  const pendingCount = ordered.filter(isPending).length;
 
-  const pendingCount = ordered.filter(PENDING).length;
-
-  // Clamp del índice si cambia la lista
   React.useEffect(() => {
     if (index > ordered.length - 1) setIndex(Math.max(0, ordered.length - 1));
   }, [ordered.length, index]);
 
-  // Todo aprobado → pantalla final
   if (pendingCount === 0 && ordered.length > 0) {
     return (
       <Card className="flex flex-col items-center px-6 py-14 text-center">
@@ -208,9 +220,10 @@ export function ContentReviewDeck({
           <PartyPopper className="h-7 w-7" />
         </div>
         <h2 className="mt-4 text-xl font-bold text-zinc-900">Todo aprobado 🎉</h2>
-        <p className="mt-1 max-w-sm text-sm text-zinc-500">
-          Tus contenidos están listos para publicar.
-        </p>
+        <p className="mt-1 max-w-sm text-sm text-zinc-500">Tus contenidos están listos para publicar.</p>
+        <Button className="mt-5" onClick={() => router.push("/calendar")}>
+          <CalendarClock className="h-4 w-4" /> Ver calendario de contenidos aprobados
+        </Button>
       </Card>
     );
   }
@@ -219,13 +232,8 @@ export function ContentReviewDeck({
   if (!current) return null;
 
   function goNextPending(fromIdx: number) {
-    for (let i = fromIdx + 1; i < ordered.length; i++) {
-      if (PENDING(ordered[i])) return setIndex(i);
-    }
-    // buscar desde el principio
-    for (let i = 0; i < ordered.length; i++) {
-      if (PENDING(ordered[i])) return setIndex(i);
-    }
+    for (let i = fromIdx + 1; i < ordered.length; i++) if (isPending(ordered[i])) return setIndex(i);
+    for (let i = 0; i < ordered.length; i++) if (isPending(ordered[i])) return setIndex(i);
   }
 
   function approve() {
@@ -236,74 +244,76 @@ export function ContentReviewDeck({
 
   return (
     <div className="space-y-4">
-      {/* Progreso */}
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-zinc-500">
-          Pieza {index + 1} de {ordered.length}
-        </span>
-        <span className="text-sm text-zinc-400">{pendingCount} sin aprobar</span>
-      </div>
+      <p className="rounded-xl bg-zinc-50 px-4 py-2.5 text-sm text-zinc-500">
+        Revisá y aprobá cada contenido. Cuando aprobás una pieza, desaparece de esta cola y pasa al calendario.
+      </p>
 
-      {/* Pieza centrada, estilo red social */}
-      <div className="relative mx-auto w-full max-w-[440px]">
-        <div className="flex items-center justify-between">
+      {/* Barra de progreso + navegación */}
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-zinc-500">Pieza {index + 1} de {ordered.length}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-zinc-400">{pendingCount} sin aprobar</span>
           <button
             onClick={() => setIndex((i) => Math.max(0, i - 1))}
             disabled={index === 0}
-            className="rounded-full border border-zinc-200 bg-white p-2 text-zinc-500 shadow-sm transition hover:bg-zinc-50 disabled:opacity-40"
+            className="rounded-full border border-zinc-200 bg-white p-1.5 text-zinc-500 transition hover:bg-zinc-50 disabled:opacity-40"
             aria-label="Anterior"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="h-4 w-4" />
           </button>
-          <div className="flex flex-wrap items-center justify-center gap-1.5">
-            <Badge tone="pink">{current.channel}</Badge>
-            <Badge>{typeTag(current.format)}</Badge>
-            {current.status === "aprobado" && <Badge tone="green">Aprobada</Badge>}
-          </div>
           <button
             onClick={() => setIndex((i) => Math.min(ordered.length - 1, i + 1))}
             disabled={index === ordered.length - 1}
-            className="rounded-full border border-zinc-200 bg-white p-2 text-zinc-500 shadow-sm transition hover:bg-zinc-50 disabled:opacity-40"
+            className="rounded-full border border-zinc-200 bg-white p-1.5 text-zinc-500 transition hover:bg-zinc-50 disabled:opacity-40"
             aria-label="Siguiente"
           >
-            <ChevronRight className="h-5 w-5" />
+            <ChevronRight className="h-4 w-4" />
           </button>
-        </div>
-
-        <div className="mt-3">
-          <ContentPreview content={current} business={business} />
-        </div>
-
-        <p className="mt-3 flex items-center justify-center gap-1.5 text-sm text-zinc-400">
-          <CalendarDays className="h-4 w-4" /> {formatDate(dateOf(current))}
-        </p>
-
-        {/* Caption */}
-        <Card className="mt-3 p-4">
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">{current.caption}</p>
-          {current.hashtags.length > 0 && (
-            <p className="mt-2 text-sm text-loca-600">{current.hashtags.join(" ")}</p>
-          )}
-        </Card>
-
-        {/* Acciones: aprobar (verde, grande) + modificar (secundario, lápiz) */}
-        <div className="mt-4 flex items-center gap-2">
-          <Button variant="success" size="lg" className="flex-1" onClick={approve}>
-            <Check className="h-4 w-4" /> Aprobar
-          </Button>
-          <Button variant="ghost" size="md" onClick={() => setModifyOpen(true)}>
-            <Pencil className="h-4 w-4" /> Modificar
-          </Button>
         </div>
       </div>
 
-      <ContentModifyModal
-        business={business}
-        content={current}
-        open={modifyOpen}
-        onClose={() => setModifyOpen(false)}
-        onToast={onToast}
-      />
+      {/* Plataforma · formato (una sola vez) */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Badge tone="pink">{current.channel}</Badge>
+        <Badge>{typeTag(current.format)}</Badge>
+        {current.status === "needs_changes" && <Badge tone="yellow">Con cambios</Badge>}
+      </div>
+
+      {/* Desktop: visual izquierda, copy/datos derecha */}
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div>
+          <div className="mx-auto max-w-[440px] lg:mx-0">
+            <ContentPreview content={current} business={business} />
+            <p className="mt-3 text-center text-sm text-zinc-500 lg:text-left">
+              Fecha y horario de publicación: <span className="font-medium text-zinc-700">{formatDate(dateOf(current))}{current.scheduledTime ? ` · ${current.scheduledTime}` : ""}</span>
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <Card className="p-4">
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">{current.caption}</p>
+            {current.hashtags.length > 0 && <p className="mt-2 text-sm text-loca-600">{current.hashtags.join(" ")}</p>}
+          </Card>
+
+          <div className="space-y-2">
+            <Button variant="success" size="lg" className="w-full" onClick={approve}>
+              <Check className="h-5 w-5" /> Aprobar
+            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button variant="outline" className="flex-1" onClick={() => setManualOpen(true)}>
+                <PencilLine className="h-4 w-4" /> Editar copy y fecha
+              </Button>
+              <Button variant="outline" className="flex-1" onClick={() => setVisualOpen(true)}>
+                <ImageIcon className="h-4 w-4" /> Cambiar imagen/video
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <ContentManualEditModal content={current} open={manualOpen} onClose={() => setManualOpen(false)} onToast={onToast} />
+      <ContentVisualEditModal business={business} content={current} open={visualOpen} onClose={() => setVisualOpen(false)} onToast={onToast} />
     </div>
   );
 }

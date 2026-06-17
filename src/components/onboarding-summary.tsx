@@ -66,6 +66,13 @@ export function OnboardingSummary({
   const contact = bi?.contactInfo;
   const hasContact = contact && (contact.whatsapp || contact.email || contact.phone || contact.address);
 
+  // Faltantes obligatorios por sección (para resaltar en rojo)
+  const miss = {
+    basicos: !b.name?.trim() || !b.industry || !b.shortDescription?.trim(),
+    propuesta: !b.competitiveAdvantages?.length,
+    objetivos: !b.goals?.primaryContentGoal,
+  };
+
   return (
     <div className="space-y-4">
       <div className="text-center">
@@ -82,7 +89,7 @@ export function OnboardingSummary({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <SummaryCard icon={ShoppingBag} title="Qué vende" onEdit={() => onEditSection("basicos")}>
+        <SummaryCard icon={ShoppingBag} title="Qué vende" onEdit={() => onEditSection("basicos")} danger={miss.basicos}>
           {b.shortDescription || b.fullDescription || `${b.industry || "Tu negocio"}${b.subcategory ? ` · ${b.subcategory}` : ""}`}
         </SummaryCard>
 
@@ -98,7 +105,7 @@ export function OnboardingSummary({
               : "Audiencia por definir."}
         </SummaryCard>
 
-        <SummaryCard icon={Heart} title="Por qué la elegirían" onEdit={() => onEditSection("propuesta")}>
+        <SummaryCard icon={Heart} title="Por qué la elegirían" onEdit={() => onEditSection("propuesta")} danger={miss.propuesta}>
           {bi?.valuePropositions?.length ? (
             <ul className="space-y-0.5">
               {bi.valuePropositions.slice(0, 4).map((v, i) => (
@@ -163,7 +170,7 @@ export function OnboardingSummary({
           )}
         </SummaryCard>
 
-        <SummaryCard icon={Target} title="Objetivos" onEdit={() => onEditSection("objetivos")}>
+        <SummaryCard icon={Target} title="Objetivos" onEdit={() => onEditSection("objetivos")} danger={miss.objetivos}>
           {bi?.recommendedGoal?.goal ? (
             <>
               <p className="font-medium text-zinc-800">{bi.recommendedGoal.goal}</p>
@@ -218,31 +225,51 @@ function SummaryCard({
   icon: Icon,
   title,
   onEdit,
+  danger,
   children,
 }: {
   icon: any;
   title: string;
   onEdit?: () => void;
+  danger?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <Card className="space-y-2">
+    <Card className={`space-y-2 ${danger ? "border-red-300 bg-red-50/40 shadow-[0_0_0_3px_rgba(239,68,68,0.08)]" : ""}`}>
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-zinc-500">
+        <div className={`flex items-center gap-2 ${danger ? "text-red-500" : "text-zinc-500"}`}>
           <Icon className="h-4 w-4" />
           <SectionLabel>{title}</SectionLabel>
         </div>
-        {onEdit && (
-          <button
-            onClick={onEdit}
-            aria-label={`Editar ${title}`}
-            className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-loca-50 hover:text-loca-600"
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
-        )}
+        <div className="flex items-center gap-1.5">
+          {danger && (
+            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-600">
+              Falta completar
+            </span>
+          )}
+          {onEdit && (
+            <button
+              onClick={onEdit}
+              aria-label={`Editar ${title}`}
+              className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-loca-50 hover:text-loca-600"
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
-      <div className="text-sm leading-relaxed text-zinc-700">{children}</div>
+      {danger ? (
+        <div className="space-y-2">
+          <p className="text-sm text-red-600">Necesitamos este dato para generar una estrategia correcta.</p>
+          {onEdit && (
+            <Button variant="danger" size="sm" onClick={onEdit}>
+              <Pencil className="h-3.5 w-3.5" /> Completar ahora
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="text-sm leading-relaxed text-zinc-700">{children}</div>
+      )}
     </Card>
   );
 }

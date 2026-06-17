@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useStore, emptyBusiness } from "@/lib/store";
@@ -41,8 +41,9 @@ import { getFieldExample } from "@/lib/examples";
 import { getMissingRequiredFields } from "@/lib/onboarding-validation";
 import { emptyBrandKit } from "@/lib/store";
 import { api } from "@/lib/api";
-import { uid } from "@/lib/utils";
-import { Check, Globe, Sparkles, ArrowRight, Plus } from "lucide-react";
+import { uid, copyToClipboard, nowIso, downloadFile } from "@/lib/utils";
+import { externalAiPrompt, emptyMdTemplate, parseExternalMarkdown, isAnalysisComplete } from "@/lib/md-import";
+import { Check, Globe, Sparkles, ArrowRight, Plus, Bot, Copy, Upload, FileText, Download, Pencil } from "lucide-react";
 import type { FieldStatusKind } from "@/lib/types";
 
 const STEPS = [
@@ -260,7 +261,17 @@ export default function OnboardingPage() {
         )}
 
         <div className="mt-4">
-          {step === 0 && <StepWebsite b={b} set={set} applyAnalysis={applyAnalysis} onSkip={() => setStep(1)} onDone={() => setStep(1)} show={show} />}
+          {step === 0 && (
+            <StepWebsite
+              b={b}
+              set={set}
+              applyAnalysis={applyAnalysis}
+              onSkip={() => setStep(1)}
+              onDone={() => setStep(1)}
+              onJumpToSummary={() => setStep(SUMMARY_STEP)}
+              show={show}
+            />
+          )}
           {step === 1 && <StepBasic b={b} set={set} subcats={subcats} missing={missing} statusOf={statusOf} />}
           {step === 2 && <StepBrand b={b} set={set} missing={missing} statusOf={statusOf} />}
           {step === 3 && <StepBrandKit b={b} set={set} />}
@@ -423,13 +434,16 @@ function CommercialEditor({ b, set }: { b: Business; set: (p: Partial<Business>)
   );
 }
 
-// ── Paso 0: Web ──────────────────────────────────────────────
+// ── Paso 0: Empecemos fácil (fuente de info) ─────────────────
+type StartMode = "ai" | "web" | "manual";
+
 function StepWebsite({
   b,
   set,
   applyAnalysis,
   onSkip,
   onDone,
+  onJumpToSummary,
   show,
 }: {
   b: Business;
@@ -437,10 +451,20 @@ function StepWebsite({
   applyAnalysis: (a: WebsiteAnalysis) => void;
   onSkip: () => void;
   onDone: () => void;
+  onJumpToSummary: () => void;
   show: (m: string) => void;
 }) {
+  const [mode, setMode] = useState<StartMode | undefined>(
+    b.businessInfoImportSource === "external_ai_md" ? "ai" : b.businessInfoImportSource === "website" ? "web" : undefined
+  );
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<WebsiteAnalysis | null>(null);
+
+  function chooseMode(m: StartMode) {
+    setMode(m);
+    setResult(null);
+    set({ businessInfoImportSource: m === "ai" ? "external_ai_md" : m === "web" ? "website" : "manual" });
+  }
 
   async function autocomplete() {
     if (!b.websiteUrl?.trim()) {
@@ -463,79 +487,299 @@ function StepWebsite({
   }
 
   return (
-    <Card className="space-y-5">
-      <div className="flex items-start gap-3 rounded-xl bg-loca-50 p-4">
-        <EvaAvatar size={40} />
-        <p className="text-sm text-loca-800">
-          No te preocupes si no sabés qué poner. Eva te va a ir ayudando en cada paso 💗
+    <div className="space-y-5">
+      <div className="text-center">
+        <h2 className="text-xl font-bold tracking-tight text-zinc-900">¿Cómo querés que Eva conozca tu negocio?</h2>
+        <p className="mt-1 text-sm text-zinc-500">
+          Elegí una forma para empezar. Después vas a poder revisar y editar todo antes de generar la estrategia.
         </p>
       </div>
 
-      <HelpField label="¿Tu negocio tiene página web?">
-        <YesNoChoice value={b.hasWebsite} onChange={(v) => set({ hasWebsite: v })} />
-      </HelpField>
+      {/* 3 opciones principales (cards grandes) */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StartCard
+          icon={Bot}
+          title="Usar una IA que ya conoce mi negocio"
+          desc="Si ya usás ChatGPT, Claude o Gemini para tu marca, copiá un prompt, pedile un archivo .md y subilo acá."
+          cta="Usar mi IA"
+          active={mode === "ai"}
+          onClick={() => chooseMode("ai")}
+        />
+        <StartCard
+          icon={Globe}
+          title="Que Eva lea mi web"
+          desc="Eva analiza tu sitio, detecta info de tu marca y completa el formulario. Lo que falte queda pendiente."
+          cta="Leer mi web"
+          active={mode === "web"}
+          onClick={() => chooseMode("web")}
+        />
+        <StartCard
+          icon={Pencil}
+          title="Completar manualmente"
+          desc="Completá el formulario paso a paso. Eva puede sugerirte respuestas cuando necesites ayuda."
+          cta="Completar manualmente"
+          active={mode === "manual"}
+          onClick={() => chooseMode("manual")}
+        />
+      </div>
 
-      {b.hasWebsite && (
-        <>
-          <HelpField
-            label="URL de tu web"
-            help="Pegá el link completo, por ejemplo https://tunegocio.com"
-          >
-            <div className="relative">
-              <Globe className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-              <Input
-                value={b.websiteUrl || ""}
-                onChange={(e) => set({ websiteUrl: e.target.value })}
-                placeholder="https://cafebruma.com"
-                className="pl-9"
-              />
-            </div>
+      {mode === "ai" && (
+        <Card className="space-y-5">
+          <ExternalAiPanel
+            b={b}
+            set={set}
+            applyAnalysis={applyAnalysis}
+            onJumpToSummary={onJumpToSummary}
+            onDone={onDone}
+            show={show}
+          />
+        </Card>
+      )}
+
+      {mode === "web" && (
+        <Card className="space-y-5">
+          <HelpField label="¿Tu negocio tiene página web?">
+            <YesNoChoice value={b.hasWebsite} onChange={(v) => set({ hasWebsite: v })} />
           </HelpField>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <Button onClick={autocomplete} loading={loading}>
-              {!loading && <Sparkles className="h-4 w-4" />}
-              {loading ? "Eva está leyendo tu web…" : "Autocompletar con Eva"}
-            </Button>
-            <button onClick={onSkip} className="text-sm text-zinc-500 hover:text-zinc-800">
-              Prefiero completarlo manualmente
-            </button>
-          </div>
-
-          {/* Resultado del análisis */}
-          {result && (
-            <div className="space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
-              <div className="flex items-center justify-between">
-                <p className="font-semibold text-zinc-800">
-                  Eva pudo entender tu negocio en un {Math.round((result.confidence || 0) * 100)}%
-                </p>
-                <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-500">
-                  {result.mode === "ai" ? "Análisis con IA" : "Modo demo · extracción básica"}
-                </span>
+          {b.hasWebsite && (
+            <>
+              <HelpField label="URL de tu web" help="Pegá el link completo, por ejemplo https://tunegocio.com">
+                <div className="relative">
+                  <Globe className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                  <Input
+                    value={b.websiteUrl || ""}
+                    onChange={(e) => set({ websiteUrl: e.target.value })}
+                    placeholder="https://cafebruma.com"
+                    className="pl-9"
+                  />
+                </div>
+              </HelpField>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Button onClick={autocomplete} loading={loading}>
+                  {!loading && <Sparkles className="h-4 w-4" />}
+                  {loading ? "Eva está leyendo tu web…" : "Autocompletar con Eva"}
+                </Button>
+                <button onClick={onSkip} className="text-sm text-zinc-500 hover:text-zinc-800">
+                  Prefiero completarlo manualmente
+                </button>
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <MiniCount label="Completados" value={result.summary.completedFieldsCount} tone="emerald" />
-                <MiniCount label="Para revisar" value={result.summary.reviewFieldsCount} tone="amber" />
-                <MiniCount label="Faltan" value={result.summary.missingFieldsCount} tone="red" />
-              </div>
-              {result.foundFields.brandKit?.colors?.palette?.length ? (
-                <p className="text-xs text-zinc-500">
-                  También detectó una identidad visual inicial para tu marca 🎨
-                </p>
-              ) : null}
-              <Button variant="lima" className="w-full" onClick={onDone}>
-                Revisar lo que completó Eva <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
+              {result && <AnalysisResult result={result} onContinue={onDone} />}
+            </>
           )}
-        </>
+          {b.hasWebsite === false && (
+            <p className="text-sm text-zinc-500">Sin problema. Completá los siguientes pasos y Eva te ayuda.</p>
+          )}
+        </Card>
       )}
 
-      {b.hasWebsite === false && (
-        <p className="text-sm text-zinc-500">
-          Sin problema. Completá los siguientes pasos y Eva te ayuda donde lo necesites.
-        </p>
+      {mode === "manual" && (
+        <Card>
+          <p className="text-sm text-zinc-500">
+            Listo. Completá los siguientes pasos rápido. Donde no sepas qué poner, usá los ejemplos o “Que Eva lo sugiera”.
+          </p>
+        </Card>
       )}
-    </Card>
+
+      {/* Bloque de ayuda (secundario, debajo de las opciones) */}
+      <div className="flex items-start gap-3 rounded-xl border border-zinc-100 bg-zinc-50 p-4">
+        <EvaAvatar size={36} />
+        <div>
+          <p className="text-sm font-medium text-zinc-700">Eva te ayuda en todo el proceso</p>
+          <p className="text-xs text-zinc-500">
+            Puede sugerirte campos, marcar lo que falta y ayudarte a completar. No te preocupes si no sabés qué poner 💗
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Card grande de opción de inicio
+function StartCard({
+  icon: Icon,
+  title,
+  desc,
+  cta,
+  active,
+  onClick,
+}: {
+  icon: any;
+  title: string;
+  desc: string;
+  cta: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex h-full flex-col rounded-2xl border p-4 text-left transition ${
+        active
+          ? "border-loca-500 bg-loca-50 shadow-lift"
+          : "border-zinc-200 bg-white hover:-translate-y-0.5 hover:shadow-pop"
+      }`}
+    >
+      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${active ? "bg-loca-600 text-white" : "bg-loca-50 text-loca-600"}`}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <h3 className="mt-3 font-semibold leading-tight text-zinc-900">{title}</h3>
+      <p className="mt-1 flex-1 text-xs text-zinc-500">{desc}</p>
+      <span className={`mt-3 inline-flex items-center gap-1 text-sm font-semibold ${active ? "text-loca-700" : "text-loca-600"}`}>
+        {active ? <Check className="h-4 w-4" /> : null} {cta}
+      </span>
+    </button>
+  );
+}
+
+// Panel para pegar/subir el .md de una IA externa
+function ExternalAiPanel({
+  b,
+  set,
+  applyAnalysis,
+  onJumpToSummary,
+  onDone,
+  show,
+}: {
+  b: Business;
+  set: (p: Partial<Business>) => void;
+  applyAnalysis: (a: WebsiteAnalysis) => void;
+  onJumpToSummary: () => void;
+  onDone: () => void;
+  show: (m: string) => void;
+}) {
+  const [md, setMd] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [result, setResult] = useState<WebsiteAnalysis | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const prompt = externalAiPrompt(b.name);
+
+  async function copyPrompt() {
+    const ok = await copyToClipboard(prompt);
+    show(ok ? "Prompt copiado. Pegalo en tu IA." : "No se pudo copiar");
+  }
+
+  async function onFile(file: File) {
+    const text = await file.text();
+    setMd(text);
+    setFileName(file.name);
+  }
+
+  function analyze() {
+    if (!md.trim()) {
+      show("Pegá el contenido o subí el archivo .md primero.");
+      return;
+    }
+    const res = parseExternalMarkdown(md);
+    applyAnalysis(res);
+    set({
+      businessInfoImportSource: "external_ai_md",
+      externalAiImport: {
+        rawMarkdown: md,
+        uploadedFileName: fileName || undefined,
+        parsedAt: nowIso(),
+        fieldStatuses: res.fieldStatuses,
+        missingFields: res.missingFields,
+        isCompleteEnoughForSummary: isAnalysisComplete(res),
+      },
+    });
+    setResult(res);
+    if (isAnalysisComplete(res)) {
+      show("Listo. Tu IA completó lo necesario. Te llevo al resumen.");
+      setTimeout(onJumpToSummary, 500);
+    } else {
+      show("Importado. Faltan algunos datos: completalos en los próximos pasos.");
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl border border-zinc-200 p-4">
+      <div className="flex items-center gap-2 text-sm font-medium text-zinc-700">
+        <Bot className="h-4 w-4 text-loca-600" /> Pedile el resumen a tu IA
+      </div>
+      <p className="text-xs text-zinc-500">
+        1) Copiá este prompt. 2) Pegalo en la IA que usás. 3) Subí el archivo <code>.md</code> o pegá la respuesta acá.
+      </p>
+      <Textarea value={prompt} readOnly className="min-h-[120px] text-xs" />
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" onClick={copyPrompt}>
+          <Copy className="h-4 w-4" /> Copiar prompt
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => downloadFile("loca-resumen-negocio.md", emptyMdTemplate(), "text/markdown")}
+        >
+          <Download className="h-4 w-4" /> Descargar plantilla .md vacía
+        </Button>
+      </div>
+
+      <div className="border-t border-zinc-100 pt-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-medium text-zinc-700">Subí el .md o pegá la respuesta</p>
+          <Button size="sm" variant="outline" onClick={() => fileInput.current?.click()}>
+            <Upload className="h-4 w-4" /> Subir .md
+          </Button>
+          <input
+            ref={fileInput}
+            type="file"
+            accept=".md,.markdown,.txt"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onFile(f);
+              e.target.value = "";
+            }}
+          />
+        </div>
+        {fileName && (
+          <p className="mt-1 flex items-center gap-1 text-xs text-zinc-500">
+            <FileText className="h-3 w-3" /> {fileName}
+          </p>
+        )}
+        <Textarea
+          value={md}
+          onChange={(e) => setMd(e.target.value)}
+          placeholder="Pegá acá el Markdown que te devolvió tu IA…"
+          className="mt-2 min-h-[120px] text-xs"
+        />
+        <Button className="mt-2" onClick={analyze}>
+          <Sparkles className="h-4 w-4" /> Analizar y completar
+        </Button>
+      </div>
+
+      {result && <AnalysisResult result={result} onContinue={onDone} importedFromAi />}
+    </div>
+  );
+}
+
+function AnalysisResult({
+  result,
+  onContinue,
+  importedFromAi,
+}: {
+  result: WebsiteAnalysis;
+  onContinue: () => void;
+  importedFromAi?: boolean;
+}) {
+  return (
+    <div className="space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
+      <div className="flex items-center justify-between">
+        <p className="font-semibold text-zinc-800">
+          {importedFromAi ? "Eva importó el resumen de tu IA" : `Eva entendió tu negocio en un ${Math.round((result.confidence || 0) * 100)}%`}
+        </p>
+        <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-500">
+          {importedFromAi ? "Desde tu IA" : result.mode === "ai" ? "Análisis con IA" : "Modo demo"}
+        </span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <MiniCount label="Completados" value={result.summary.completedFieldsCount} tone="emerald" />
+        <MiniCount label="Para revisar" value={result.summary.reviewFieldsCount} tone="amber" />
+        <MiniCount label="Faltan" value={result.summary.missingFieldsCount} tone="red" />
+      </div>
+      <Button variant="lima" className="w-full" onClick={onContinue}>
+        Revisar y completar lo que falte <ArrowRight className="h-4 w-4" />
+      </Button>
+    </div>
   );
 }
 

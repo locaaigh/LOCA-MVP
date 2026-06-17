@@ -37,25 +37,25 @@ export default function DashboardPage() {
           href: "/strategy",
           cta: strategy ? "Revisar estrategia" : "Generar estrategia",
         }
-      : flow.calendar !== "approved"
+      : bizContents.length === 0
         ? {
-            title: calendar.length ? "Revisá y aprobá tu calendario" : "Generá tu calendario",
-            desc: "Las publicaciones del mes, listas para aprobar.",
-            href: "/calendar",
-            cta: calendar.length ? "Revisar calendario" : "Generar calendario",
+            title: "Generá los contenidos del mes",
+            desc: "Eva crea piezas completas con fecha, copy e imagen, listas para aprobar.",
+            href: "/content?generate=1",
+            cta: "Generar contenidos",
           }
-        : flow.content !== "approved" && bizContents.length === 0
+        : flow.content !== "approved"
           ? {
-              title: "Generá los contenidos del mes",
-              desc: "Eva escribe el texto de cada publicación.",
+              title: "Revisá y aprobá tus contenidos",
+              desc: "Aprobá cada pieza. Las aprobadas pasan al calendario.",
               href: "/content",
-              cta: "Generar contenidos",
+              cta: "Revisar contenidos",
             }
           : {
               title: "¡Tu marketing está listo! 🎉",
-              desc: "Revisá, aprobá y exportá tus piezas cuando quieras.",
-              href: "/content",
-              cta: "Ir al estudio de contenidos",
+              desc: "Tus contenidos aprobados ya están en el calendario. Revisá o exportá cuando quieras.",
+              href: "/calendar",
+              cta: "Ver calendario",
             };
 
   const hasWork = bizContents.length > 0 || calendar.length > 0;

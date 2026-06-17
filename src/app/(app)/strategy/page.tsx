@@ -71,8 +71,8 @@ export default function StrategyPage() {
 
   function approve() {
     setFlow(business!.id, { strategy: "approved" });
-    show("Estrategia aprobada 🎉 Ahora armamos el calendario.");
-    setTimeout(() => router.push("/calendar?generate=1"), 600);
+    show("Estrategia aprobada 🎉 Eva está generando tus contenidos.");
+    setTimeout(() => router.push("/content?generate=1"), 600);
   }
 
   function applyFeedback(values: string[], custom: string) {
@@ -184,8 +184,8 @@ export default function StrategyPage() {
             approveLabel="Aprobar estrategia"
             approvedLabel="Estrategia aprobada"
             modifyLabel="Modificar"
-            nextLabel="Ir al calendario →"
-            onNext={() => router.push("/calendar?generate=1")}
+            nextLabel="Ver contenidos →"
+            onNext={() => router.push("/content?generate=1")}
           />
         </StickyApproveBar>
       )}

@@ -84,6 +84,7 @@ export function emptyBusiness(userId: string): Business {
     brandKit: emptyBrandKit(),
     businessIntelligence: emptyBusinessIntelligence(),
     fieldStatuses: {},
+    businessInfoImportSource: "manual",
     productsServices: [],
     audience: {
       ageRanges: [],

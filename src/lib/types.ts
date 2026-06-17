@@ -163,6 +163,9 @@ export interface Business {
   businessIntelligence?: BusinessIntelligence;
   // Estado por campo tras el autocompletado (found/suggested/review/missing/user)
   fieldStatuses?: Record<string, FieldStatus>;
+  // Origen de la info inicial del negocio
+  businessInfoImportSource?: "website" | "external_ai_md" | "manual" | "demo";
+  externalAiImport?: ExternalAiImport;
   onboardingComplete: boolean;
   isDemo?: boolean;
   createdAt: string;
@@ -264,9 +267,16 @@ export interface ContentItem {
   format: ContentFormat;
   objective: string;
   contentPillar: string;
+  // Programación de publicación (copiada del calendar_item interno)
+  scheduledDate?: string; // ISO yyyy-mm-dd
+  scheduledTime?: string; // ej "18:30"
   status: ContentStatus;
   publishStatus: PublishStatus;
   feedbackHistory: FeedbackEntry[];
+  // Edición manual (sin IA)
+  lastManualEditAt?: string;
+  manuallyEditedFields?: string[];
+  requiresReviewAfterEdit?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -537,6 +547,18 @@ export interface WebsiteFoundFields {
   brandKit?: BrandKit;
   businessIntelligence?: BusinessIntelligence;
   toneOfVoice?: string;
+}
+
+// Importación desde IA externa (.md pegado o subido)
+export interface ExternalAiImport {
+  provider?: "chatgpt" | "claude" | "gemini" | "other";
+  rawMarkdown?: string;
+  uploadedFileName?: string;
+  parsedAt?: string;
+  fieldStatuses?: Record<string, FieldStatus>;
+  missingFields?: string[];
+  reviewFields?: string[];
+  isCompleteEnoughForSummary?: boolean;
 }
 
 export interface WebsiteAnalysis {

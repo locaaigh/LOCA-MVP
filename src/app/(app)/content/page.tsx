@@ -40,6 +40,7 @@ export default function ContentStudioPage() {
   const setFlow = useStore((s) => s.setFlow);
   const flow = useFlow(business?.id);
   const gen = useGenerators();
+  const router = useRouter();
   const { show, node } = useToast();
 
   const [tab, setTab] = useState<Tab>("revision");
@@ -59,7 +60,8 @@ export default function ContentStudioPage() {
     if (business) (calendars[business.id] || []).forEach((it) => m.set(it.id, it.date));
     return m;
   }, [calendars, business]);
-  const dateOf = (c: ContentItem) => (c.calendarItemId ? dateById.get(c.calendarItemId) : undefined) || c.createdAt.slice(0, 10);
+  const dateOf = (c: ContentItem) =>
+    c.scheduledDate || (c.calendarItemId ? dateById.get(c.calendarItemId) : undefined) || c.createdAt.slice(0, 10);
 
   const buckets = useMemo(() => {
     const r: Record<Tab, ContentItem[]> = { revision: [], aprobados: [], publicados: [], biblioteca: contents };
@@ -72,14 +74,13 @@ export default function ContentStudioPage() {
   }, [contents, dateById]);
 
   const pending = buckets.revision;
-  const calendarApproved = flow.calendar === "approved";
+  const strategyApproved = flow.strategy === "approved";
 
   async function generateAll() {
     if (!business) return;
     setLoading(true);
     try {
-      const n = await gen.generateAllContent(business, (d, t) => setProgress(`Generando ${d}/${t}…`));
-      setFlow(business.id, { content: "pending_review" });
+      const n = await gen.generateMonthContents(business, 16, (d, t) => setProgress(`Generando ${d}/${t}…`));
       show(n > 0 ? "Contenidos listos 🎉" : "Ya están todos generados");
     } catch (e: any) {
       show(e?.message || "Error");
@@ -100,19 +101,23 @@ export default function ContentStudioPage() {
   function reopen() {
     if (reopenId) {
       updateContent(reopenId, { status: "needs_changes" });
-      show("Contenido reabierto. Volvió a revisión.");
+      const id = reopenId;
+      setReopenId(null);
+      // Llevar directo al modo edición de esa pieza.
+      router.push(`/content/${id}`);
+      return;
     }
     setReopenId(null);
   }
 
   useEffect(() => {
     if (!business || autoTriggered.current) return;
-    if (params.get("generate") === "1" && calendarApproved && contents.length === 0) {
+    if (params.get("generate") === "1" && strategyApproved && contents.length === 0) {
       autoTriggered.current = true;
       generateAll();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [business, calendarApproved, contents.length, params]);
+  }, [business, strategyApproved, contents.length, params]);
 
   useEffect(() => {
     if (business && contents.length > 0 && pending.length === 0 && flow.content !== "approved") {
@@ -123,14 +128,14 @@ export default function ContentStudioPage() {
 
   if (!business) return null;
 
-  if (!calendarApproved) {
+  if (!strategyApproved) {
     return (
       <div className="space-y-5">
         {node}
         <ProgressTracker steps={buildFlowSteps(flow, true)} />
-        <EmptyState icon={Lock} title="Primero aprobá el calendario" description="Así Eva genera los contenidos en orden y con coherencia.">
-          <Link href="/calendar">
-            <Button>Ir al calendario</Button>
+        <EmptyState icon={Lock} title="Primero aprobá la estrategia" description="Cuando aprobés la estrategia, Eva genera todos los contenidos del mes.">
+          <Link href="/strategy">
+            <Button>Ir a la estrategia</Button>
           </Link>
         </EmptyState>
       </div>
@@ -373,7 +378,7 @@ function BibliotecaGallery({
   return (
     <>
       <p className="text-sm text-zinc-500">
-        Vista interna del equipo: incluye el detalle técnico de cada pieza (prompt, brief, notas).
+        Vista interna: incluye prompts, briefs y metadata. Esta información no debería verla el cliente final.
       </p>
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {contents.map((c) => {

@@ -234,6 +234,22 @@ export default function ContentDetailPage() {
               <StatusSelect value={c.status} onChange={(v) => patch({ status: v as any })} disabled={locked} />
             </div>
             <fieldset disabled={locked} className="space-y-3 disabled:opacity-70">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Fecha de publicación">
+                  <Input
+                    type="date"
+                    value={c.scheduledDate || ""}
+                    onChange={(e) => patch({ scheduledDate: e.target.value })}
+                  />
+                </Field>
+                <Field label="Horario">
+                  <Input
+                    type="time"
+                    value={c.scheduledTime || ""}
+                    onChange={(e) => patch({ scheduledTime: e.target.value })}
+                  />
+                </Field>
+              </div>
               <Field label="Título interno">
                 <Input value={c.title} onChange={(e) => patch({ title: e.target.value })} />
               </Field>

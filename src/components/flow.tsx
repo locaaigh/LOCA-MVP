@@ -25,13 +25,19 @@ function toStepStatus(s: ApprovalStatus): StepStatus {
   return "pendiente";
 }
 
-// Construye los 5 pasos del flujo desde el estado guardado.
+// Flujo nuevo: Formulario → Estrategia → Contenidos → Calendario → Exportar.
+// El calendario se "aprueba" solo cuando los contenidos están aprobados.
 export function buildFlowSteps(flow: FlowState, hasBusiness: boolean): FlowStep[] {
   return [
     { key: "form", label: "Formulario", href: "/onboarding", status: hasBusiness ? "aprobado" : "pendiente" },
     { key: "strategy", label: "Estrategia", href: "/strategy", status: toStepStatus(flow.strategy) },
-    { key: "calendar", label: "Calendario", href: "/calendar", status: toStepStatus(flow.calendar) },
     { key: "content", label: "Contenidos", href: "/content", status: toStepStatus(flow.content) },
+    {
+      key: "calendar",
+      label: "Calendario",
+      href: "/calendar",
+      status: flow.content === "approved" ? "aprobado" : "pendiente",
+    },
     {
       key: "export",
       label: "Exportar",
