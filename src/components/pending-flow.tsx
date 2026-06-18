@@ -89,17 +89,27 @@ export function PendingFlow({
   }
 
   return (
-    <Card className="space-y-5">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-bold uppercase tracking-wider text-loca-600">Completemos este dato</p>
-        <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold text-zinc-500">
-          {index + 1} de {total}
-        </span>
+    <Card className="animate-scale-in space-y-5 shadow-glow">
+      <div>
+        <div className="flex items-center justify-between">
+          <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-loca-600">
+            <Sparkles className="h-3.5 w-3.5" /> Completemos este dato
+          </p>
+          <span className="rounded-full bg-loca-50 px-2.5 py-1 text-xs font-bold text-loca-700">
+            {index + 1} de {total}
+          </span>
+        </div>
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-100">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-loca-500 to-loca-400 transition-all duration-500"
+            style={{ width: `${((index + 1) / total) * 100}%` }}
+          />
+        </div>
       </div>
 
       <div>
         <div className="flex items-center gap-2">
-          <h3 className="text-xl font-bold tracking-tight text-zinc-900">{current.label}</h3>
+          <h3 className="text-[1.35rem] font-bold tracking-tight text-zinc-900">{current.label}</h3>
           {current.critical ? (
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">Necesario</span>
           ) : (

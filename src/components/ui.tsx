@@ -9,14 +9,14 @@ type Variant = "primary" | "secondary" | "ghost" | "outline" | "danger" | "lima"
 type Size = "sm" | "md" | "lg" | "xl";
 
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-loca-600 text-white hover:bg-loca-700 shadow-sm hover:shadow-lift active:scale-[0.98]",
+  primary: "bg-gradient-to-b from-loca-500 to-loca-600 text-white shadow-sm hover:shadow-lift hover:to-loca-700 active:scale-[0.98]",
   // Verde = aprobar. Protagonista, claro y positivo.
-  success: "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm hover:shadow-[0_12px_36px_-12px_rgba(5,150,105,0.50)] active:scale-[0.98]",
-  lima: "bg-lima-400 text-ink hover:bg-lima-500 shadow-sm hover:shadow-glow-lima active:scale-[0.98]",
+  success: "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white shadow-sm hover:to-emerald-700 hover:shadow-[0_12px_36px_-12px_rgba(5,150,105,0.50)] active:scale-[0.98]",
+  lima: "bg-gradient-to-b from-lima-300 to-lima-400 text-ink shadow-sm hover:to-lima-500 hover:shadow-glow-lima active:scale-[0.98]",
   secondary: "bg-zinc-900 text-white hover:bg-zinc-800 active:scale-[0.98]",
-  outline: "border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50 hover:border-zinc-300",
-  ghost: "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900",
-  danger: "bg-red-600 text-white hover:bg-red-700 active:scale-[0.98]",
+  outline: "border border-zinc-200/80 bg-white/80 text-zinc-800 shadow-soft backdrop-blur hover:bg-white hover:border-zinc-300 hover:shadow-card",
+  ghost: "text-zinc-500 hover:bg-zinc-100/80 hover:text-zinc-900",
+  danger: "bg-gradient-to-b from-red-500 to-red-600 text-white shadow-sm hover:to-red-700 active:scale-[0.98]",
 };
 const SIZES: Record<Size, string> = {
   sm: "h-9 px-4 text-xs",
@@ -40,7 +40,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-2xl font-semibold transition-all duration-150 outline-none focus-visible:ring-4 focus-visible:ring-loca-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100",
+        "inline-flex items-center justify-center gap-2 rounded-2xl font-semibold tracking-[-0.01em] transition-all duration-150 outline-none focus-visible:ring-4 focus-visible:ring-loca-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:active:scale-100",
         VARIANTS[variant],
         SIZES[size],
         className

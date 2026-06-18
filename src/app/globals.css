@@ -43,15 +43,16 @@ body {
 }
 
 @layer components {
-  /* Inputs más grandes, aireados y con foco rosa suave */
+  /* Inputs grandes, aireados, con foco rosa suave */
   .loca-input {
-    @apply w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-[15px] text-zinc-900 outline-none transition-all duration-150 placeholder:text-zinc-400 hover:border-zinc-300 focus:border-loca-400 focus:ring-4 focus:ring-loca-100;
+    @apply w-full rounded-2xl border border-zinc-200/90 bg-white px-4 py-3.5 text-[15px] text-zinc-900 shadow-sm outline-none transition-all duration-150 placeholder:text-zinc-400 hover:border-zinc-300 focus:border-loca-400 focus:shadow-none focus:ring-4 focus:ring-loca-100;
   }
   .loca-label {
     @apply mb-2 block text-sm font-semibold text-zinc-700;
   }
+  /* Card premium: borde apenas visible + sombra en capas */
   .loca-card {
-    @apply rounded-3xl border border-zinc-200/60 bg-white shadow-card;
+    @apply rounded-[1.75rem] border border-zinc-200/50 bg-white shadow-card;
   }
   /* Fondo suave reutilizable para heros / bloques destacados */
   .loca-soft-bg {
@@ -62,12 +63,24 @@ body {
     overflow-wrap: anywhere;
     word-break: break-word;
   }
-  /* Superficie con glow rosa muy sutil para acciones protagonistas */
+  /* Superficie con glow rosa/lima muy sutil para acciones protagonistas */
   .loca-hero-bg {
     background:
       radial-gradient(120% 120% at 0% 0%, #fdf2f8 0%, rgba(255, 255, 255, 0) 55%),
       radial-gradient(120% 120% at 100% 100%, #f7fee7 0%, rgba(255, 255, 255, 0) 50%),
       #ffffff;
+  }
+  /* Orbe decorativo difuminado para fondos hero (AI-first) */
+  .loca-orb {
+    @apply pointer-events-none absolute -z-10 rounded-full blur-3xl;
+  }
+  /* Texto con degradado de marca para acentos de título */
+  .loca-gradient-text {
+    @apply bg-gradient-to-r from-loca-600 to-loca-400 bg-clip-text text-transparent;
+  }
+  /* Barra/encabezado con efecto vidrio */
+  .loca-glass {
+    @apply border-zinc-200/60 bg-white/70 backdrop-blur-xl;
   }
 }
 

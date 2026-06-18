@@ -97,7 +97,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
 
-        <nav className="mt-7 flex flex-1 flex-col gap-1">
+        <p className="mb-2 mt-8 px-2 text-[11px] font-bold uppercase tracking-wider text-zinc-300">Menú</p>
+        <nav className="flex flex-1 flex-col gap-1">
           {NAV.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
@@ -105,16 +106,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "group relative flex items-center gap-3 rounded-2xl px-3.5 py-2.5 text-sm font-semibold transition-all",
+                  "group relative flex items-center gap-3 rounded-2xl px-3.5 py-3 text-sm font-semibold transition-all",
                   isActive
-                    ? "bg-loca-50 text-loca-700 shadow-sm ring-1 ring-loca-100"
-                    : "text-zinc-500 hover:bg-zinc-100/80 hover:text-zinc-900"
+                    ? "bg-gradient-to-r from-loca-50 to-loca-100/30 text-loca-700 shadow-sm ring-1 ring-loca-100"
+                    : "text-zinc-500 hover:bg-zinc-100/70 hover:text-zinc-900"
                 )}
               >
                 {isActive && (
-                  <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-loca-500" />
+                  <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b from-loca-400 to-loca-600" />
                 )}
-                <item.icon className={cn("h-5 w-5 shrink-0 transition", isActive ? "text-loca-600" : "text-zinc-400 group-hover:text-zinc-600")} />
+                <span
+                  className={cn(
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition",
+                    isActive ? "bg-white text-loca-600 shadow-sm" : "text-zinc-400 group-hover:text-zinc-600"
+                  )}
+                >
+                  <item.icon className="h-[18px] w-[18px]" />
+                </span>
                 {item.label}
               </Link>
             );

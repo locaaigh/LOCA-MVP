@@ -607,7 +607,10 @@ type StartMode = "ai" | "web" | "manual";
 
 function MethodSelect({ onPick }: { onPick: (m: StartMode) => void }) {
   return (
-    <div className="flex min-h-screen flex-col loca-hero-bg">
+    <div className="relative flex min-h-screen flex-col overflow-hidden loca-hero-bg">
+      <div className="loca-orb left-[-12%] top-[-10%] h-80 w-80 animate-orb-drift bg-loca-200/50" />
+      <div className="loca-orb bottom-[-14%] right-[-10%] h-96 w-96 animate-orb-drift bg-lima-200/40" style={{ animationDelay: "-5s" }} />
+
       <div className="px-6 pt-7 sm:px-10">
         <Link href="/">
           <Logo className="text-2xl" />
@@ -615,20 +618,20 @@ function MethodSelect({ onPick }: { onPick: (m: StartMode) => void }) {
       </div>
 
       <div className="flex flex-1 items-center justify-center px-4 py-6 sm:px-6">
-        <div className="w-full max-w-3xl">
+        <div className="w-full max-w-3xl animate-fade-in-up">
           <div className="text-center">
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift animate-float">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift animate-float ring-8 ring-loca-50">
               <Sparkles className="h-8 w-8" />
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-[2.75rem] sm:leading-[1.05]">
-              ¿Cómo querés que Eva<br className="hidden sm:block" /> conozca tu negocio?
+            <h1 className="text-[2rem] font-extrabold tracking-tight text-zinc-900 sm:text-[3rem] sm:leading-[1.03]">
+              ¿Cómo querés que <span className="loca-gradient-text">Eva</span><br className="hidden sm:block" /> conozca tu negocio?
             </h1>
             <p className="mx-auto mt-4 max-w-xl text-base text-zinc-500 sm:text-lg">
               Empezá con tu web o con una IA que ya conozca tu marca. Eva completa todo lo posible y vos solo revisás.
             </p>
           </div>
 
-          <div className="mt-9 grid gap-4 sm:grid-cols-2">
+          <div className="mt-10 grid gap-4 sm:grid-cols-2">
             <MethodCard
               icon={Globe}
               badge="Lo más fácil"
@@ -690,7 +693,7 @@ function MethodCard({
   return (
     <button
       onClick={onClick}
-      className="group relative flex h-full flex-col rounded-3xl border border-zinc-200/80 bg-white/90 p-7 text-left transition-all duration-200 hover:-translate-y-1 hover:border-loca-200 hover:shadow-glow"
+      className="group relative flex h-full flex-col rounded-[1.75rem] border border-zinc-200/60 bg-white/90 p-7 text-left shadow-card backdrop-blur-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-loca-200 hover:shadow-glow"
     >
       <span
         className={`absolute right-5 top-5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
@@ -699,13 +702,16 @@ function MethodCard({
       >
         {badge}
       </span>
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-loca-50 text-loca-600 transition group-hover:scale-105 group-hover:bg-loca-600 group-hover:text-white">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-loca-50 to-loca-100 text-loca-600 shadow-sm ring-1 ring-loca-100/60 transition-all duration-300 group-hover:scale-105 group-hover:from-loca-500 group-hover:to-loca-700 group-hover:text-white group-hover:shadow-lift">
         <Icon className="h-8 w-8" />
       </div>
-      <h3 className="mt-5 text-xl font-bold leading-tight text-zinc-900">{title}</h3>
+      <h3 className="mt-6 text-[1.35rem] font-bold leading-tight tracking-tight text-zinc-900">{title}</h3>
       <p className="mt-2 flex-1 text-[15px] leading-relaxed text-zinc-500">{desc}</p>
-      <span className="mt-5 inline-flex items-center gap-2 text-base font-semibold text-loca-600">
-        {cta} <ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" />
+      <span className="mt-6 inline-flex items-center gap-2 text-[15px] font-semibold text-loca-600">
+        {cta}
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-loca-50 transition-all duration-300 group-hover:bg-loca-600 group-hover:text-white">
+          <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+        </span>
       </span>
     </button>
   );
@@ -727,7 +733,10 @@ function WebImportScreen({
 }) {
   const [url, setUrl] = useState(initialUrl);
   return (
-    <div className="flex min-h-screen flex-col loca-hero-bg">
+    <div className="relative flex min-h-screen flex-col overflow-hidden loca-hero-bg">
+      <div className="loca-orb left-[-10%] top-[-8%] h-80 w-80 animate-orb-drift bg-loca-200/50" />
+      <div className="loca-orb bottom-[-14%] right-[-8%] h-80 w-80 animate-orb-drift bg-lima-200/40" style={{ animationDelay: "-5s" }} />
+
       <div className="flex items-center justify-between px-6 pt-7 sm:px-10">
         <Link href="/">
           <Logo className="text-2xl" />
@@ -738,20 +747,20 @@ function WebImportScreen({
       </div>
 
       <div className="flex flex-1 items-center justify-center px-4 py-6 sm:px-6">
-        <div className="w-full max-w-xl text-center">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift">
+        <div className="w-full max-w-xl animate-fade-in-up text-center">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift ring-8 ring-loca-50">
             <Globe className="h-8 w-8" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-[2.5rem] sm:leading-tight">
+          <h1 className="text-[2rem] font-extrabold tracking-tight text-zinc-900 sm:text-[2.6rem] sm:leading-[1.05]">
             Pegá la web de tu negocio
           </h1>
           <p className="mx-auto mt-3 max-w-md text-[15px] text-zinc-500 sm:text-base">
             Eva va a leer tu sitio y detectar tu marca, productos, servicios y datos clave. Lo que no encuentre, queda pendiente.
           </p>
 
-          <div className="mt-7 rounded-3xl border border-zinc-200/70 bg-white p-5 shadow-card sm:p-6">
+          <div className="mt-8 rounded-[1.75rem] border border-zinc-200/50 bg-white p-6 shadow-card sm:p-7">
             <div className="relative">
-              <Globe className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
+              <Globe className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-loca-400" />
               <input
                 autoFocus
                 value={url}
@@ -760,7 +769,7 @@ function WebImportScreen({
                   if (e.key === "Enter" && !loading) onAnalyze(url);
                 }}
                 placeholder="https://tumarca.com"
-                className="loca-input h-16 pl-12 text-center text-lg sm:text-xl"
+                className="loca-input h-[4.5rem] rounded-2xl pl-14 text-center text-lg sm:text-xl"
               />
             </div>
             <Button size="xl" className="mt-4 w-full" onClick={() => onAnalyze(url)} loading={loading}>
@@ -806,8 +815,11 @@ function AiImportScreen({
   }
 
   return (
-    <div className="flex min-h-screen flex-col loca-hero-bg">
+    <div className="relative flex min-h-screen flex-col overflow-hidden loca-hero-bg">
       {node}
+      <div className="loca-orb left-[-10%] top-[-8%] h-80 w-80 animate-orb-drift bg-loca-200/50" />
+      <div className="loca-orb bottom-[-14%] right-[-8%] h-80 w-80 animate-orb-drift bg-lima-200/40" style={{ animationDelay: "-5s" }} />
+
       <div className="flex items-center justify-between px-6 pt-7 sm:px-10">
         <Link href="/">
           <Logo className="text-2xl" />
@@ -818,75 +830,108 @@ function AiImportScreen({
       </div>
 
       <div className="flex flex-1 items-center justify-center px-4 py-6 sm:px-6">
-        <div className="w-full max-w-xl">
+        <div className="w-full max-w-xl animate-fade-in-up">
           <div className="text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift ring-8 ring-loca-50">
               <Bot className="h-8 w-8" />
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-[2.25rem] sm:leading-tight">
-              Usá una IA que ya conoce tu negocio
+            <h1 className="text-[2rem] font-extrabold tracking-tight text-zinc-900 sm:text-[2.4rem] sm:leading-[1.05]">
+              Usá una IA que ya te conoce
             </h1>
             <p className="mx-auto mt-3 max-w-md text-[15px] text-zinc-500">
-              Copiá este prompt, pegalo en ChatGPT, Claude o Gemini, y subí el archivo <code className="rounded bg-zinc-100 px-1 py-0.5 text-[12px]">.md</code> que te devuelva.
+              Tres pasos: copiá el prompt, pegalo en tu IA y subí el archivo que te devuelva.
             </p>
           </div>
 
-          <div className="mt-6 rounded-3xl border border-zinc-200/70 bg-white p-5 shadow-card sm:p-6">
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button size="lg" className="flex-1" onClick={copyPrompt}>
-                <Copy className="h-4 w-4" /> Copiar prompt
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="flex-1"
-                onClick={() => downloadFile("loca-resumen-negocio.md", emptyMdTemplate(), "text/markdown")}
-              >
-                <Download className="h-4 w-4" /> Descargar plantilla
-              </Button>
+          <div className="mt-7 space-y-5 rounded-[1.75rem] border border-zinc-200/50 bg-white p-6 shadow-card sm:p-7">
+            {/* Paso 1 */}
+            <div className="flex gap-4">
+              <StepDot n={1} />
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-zinc-900">Copiá el prompt</p>
+                <p className="text-[13px] text-zinc-500">Lo necesitás para pedirle a tu IA el resumen.</p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <Button size="lg" className="flex-1" onClick={copyPrompt}>
+                    <Copy className="h-4 w-4" /> Copiar prompt
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => downloadFile("loca-resumen-negocio.md", emptyMdTemplate(), "text/markdown")}
+                  >
+                    <Download className="h-4 w-4" /> Plantilla
+                  </Button>
+                </div>
+              </div>
             </div>
-            <p className="mt-2 text-[13px] font-medium text-zinc-500">
-              Pedile un archivo <span className="font-semibold text-zinc-700">.md</span> o, si no puede adjuntar, un <span className="font-semibold text-zinc-700">bloque de código Markdown</span> para copiar con un clic. No uses PDF, Word ni Google Docs.
-            </p>
 
-            <button
-              onClick={() => fileInput.current?.click()}
-              className="mt-4 flex w-full flex-col items-center gap-1.5 rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50/40 px-4 py-5 text-center transition hover:border-loca-300 hover:bg-loca-50/40"
-            >
-              <Upload className="h-6 w-6 text-loca-500" />
-              <span className="text-sm font-semibold text-zinc-700">Subí el archivo .md</span>
-              {fileName ? (
-                <span className="flex items-center gap-1 text-xs text-emerald-600"><FileText className="h-3 w-3" /> {fileName}</span>
-              ) : (
-                <span className="text-xs text-zinc-400">o pegá el contenido abajo</span>
-              )}
-            </button>
-            <input
-              ref={fileInput}
-              type="file"
-              accept=".md,.markdown,.txt"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) onFile(f);
-                e.target.value = "";
-              }}
-            />
+            {/* Paso 2 */}
+            <div className="flex gap-4 border-t border-zinc-100 pt-5">
+              <StepDot n={2} />
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-zinc-900">Pegalo en tu IA</p>
+                <p className="text-[13px] text-zinc-500">
+                  ChatGPT, Claude o Gemini. Pedile un archivo <span className="font-semibold text-zinc-700">.md</span> o un bloque de código Markdown copiable. No PDF, Word ni Google Docs.
+                </p>
+              </div>
+            </div>
 
-            <Textarea
-              value={md}
-              onChange={(e) => setMd(e.target.value)}
-              placeholder="o pegá acá el Markdown que te devolvió tu IA…"
-              className="mt-3 min-h-[90px] text-xs"
-            />
+            {/* Paso 3 */}
+            <div className="flex gap-4 border-t border-zinc-100 pt-5">
+              <StepDot n={3} />
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-zinc-900">Subí o pegá el .md</p>
+                <button
+                  onClick={() => fileInput.current?.click()}
+                  className="mt-3 flex w-full flex-col items-center gap-1.5 rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50/40 px-4 py-6 text-center transition hover:border-loca-300 hover:bg-loca-50/40"
+                >
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-loca-50 text-loca-500">
+                    <Upload className="h-5 w-5" />
+                  </span>
+                  <span className="mt-1 text-sm font-semibold text-zinc-700">Subí el archivo .md</span>
+                  {fileName ? (
+                    <span className="flex items-center gap-1 text-xs font-medium text-emerald-600"><FileText className="h-3 w-3" /> {fileName}</span>
+                  ) : (
+                    <span className="text-xs text-zinc-400">o pegá el contenido abajo</span>
+                  )}
+                </button>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept=".md,.markdown,.txt"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) onFile(f);
+                    e.target.value = "";
+                  }}
+                />
+                <Textarea
+                  value={md}
+                  onChange={(e) => setMd(e.target.value)}
+                  placeholder="o pegá acá el Markdown que te devolvió tu IA…"
+                  className="mt-3 min-h-[90px] text-xs"
+                />
+              </div>
+            </div>
 
-            <Button size="xl" className="mt-3 w-full" onClick={() => onLoad(md, fileName)}>
+            <Button size="xl" className="w-full" onClick={() => onLoad(md, fileName)}>
               <Sparkles className="h-5 w-5" /> Cargar información
             </Button>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+// Número de paso (chip) para el flujo de IA externa.
+function StepDot({ n }: { n: number }) {
+  return (
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-loca-500 to-loca-700 text-sm font-bold text-white shadow-sm">
+      {n}
+    </span>
   );
 }
 
@@ -912,7 +957,10 @@ function PendingScreen({
   const [questions] = useState(() => pendingQuestions(business));
 
   return (
-    <div className="min-h-screen loca-hero-bg">
+    <div className="relative min-h-screen overflow-hidden loca-hero-bg">
+      <div className="loca-orb left-[-12%] top-[-8%] h-80 w-80 animate-orb-drift bg-loca-200/45" />
+      <div className="loca-orb bottom-[-14%] right-[-10%] h-80 w-80 animate-orb-drift bg-lima-200/35" style={{ animationDelay: "-5s" }} />
+
       <div className="flex items-center justify-between px-6 pt-7 sm:px-10">
         <Link href="/">
           <Logo className="text-2xl" />
@@ -922,15 +970,15 @@ function PendingScreen({
         </button>
       </div>
 
-      <div className="mx-auto max-w-xl px-4 py-9 sm:px-6">
-        <div className="mb-6 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift">
+      <div className="mx-auto max-w-xl animate-fade-in-up px-4 py-9 sm:px-6">
+        <div className="mb-7 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift ring-8 ring-loca-50">
             <Sparkles className="h-7 w-7" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
-            Eva ya completó gran parte. Falta revisar esto.
+          <h1 className="text-[1.7rem] font-extrabold tracking-tight text-zinc-900 sm:text-[2.1rem] sm:leading-[1.1]">
+            Eva ya completó gran parte.<br className="hidden sm:block" /> Revisemos <span className="loca-gradient-text">lo que falta</span>.
           </h1>
-          <p className="mx-auto mt-2 max-w-md text-[15px] text-zinc-500">
+          <p className="mx-auto mt-3 max-w-md text-[15px] text-zinc-500">
             Completá solo lo necesario, de a una pregunta por vez.
           </p>
         </div>

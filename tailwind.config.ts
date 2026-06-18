@@ -42,17 +42,19 @@ const config: Config = {
       },
       boxShadow: {
         soft: "0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.03)",
-        card: "0 1px 2px rgba(16,24,40,0.03), 0 18px 40px -24px rgba(16,24,40,0.14)",
-        lift: "0 12px 40px -12px rgba(219,39,119,0.22)",
-        pop: "0 24px 60px -16px rgba(16,24,40,0.20)",
+        // Sombras en capas, muy suaves (look SaaS premium)
+        card: "0 1px 1px rgba(16,24,40,0.03), 0 8px 24px -16px rgba(16,24,40,0.12), 0 24px 56px -32px rgba(16,24,40,0.14)",
+        lift: "0 10px 24px -10px rgba(219,39,119,0.28), 0 24px 60px -30px rgba(219,39,119,0.30)",
+        pop: "0 24px 70px -20px rgba(16,24,40,0.22)",
         // Glow rosa muy sutil para CTAs / cards protagonistas
-        glow: "0 0 0 1px rgba(244,114,182,0.18), 0 20px 50px -18px rgba(236,72,153,0.30)",
-        "glow-lima": "0 0 0 1px rgba(132,204,22,0.20), 0 18px 44px -18px rgba(132,204,22,0.28)",
+        glow: "0 0 0 1px rgba(244,114,182,0.16), 0 14px 40px -18px rgba(236,72,153,0.32)",
+        "glow-lima": "0 0 0 1px rgba(132,204,22,0.20), 0 14px 40px -18px rgba(132,204,22,0.30)",
       },
       borderRadius: {
         "2xl": "1rem",
         "3xl": "1.5rem",
         "4xl": "2rem",
+        "5xl": "2.5rem",
       },
       keyframes: {
         "pulse-soft": {
@@ -67,15 +69,25 @@ const config: Config = {
           "0%": { opacity: "0" },
           "100%": { opacity: "1" },
         },
+        "scale-in": {
+          "0%": { opacity: "0", transform: "scale(0.96)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
         float: {
           "0%, 100%": { transform: "translateY(0)" },
-          "50%": { transform: "translateY(-4px)" },
+          "50%": { transform: "translateY(-6px)" },
+        },
+        "orb-drift": {
+          "0%, 100%": { transform: "translate(0,0) scale(1)" },
+          "50%": { transform: "translate(10px,-12px) scale(1.06)" },
         },
       },
       animation: {
-        "fade-in-up": "fade-in-up 0.4s cubic-bezier(0.16,1,0.3,1)",
+        "fade-in-up": "fade-in-up 0.5s cubic-bezier(0.16,1,0.3,1)",
         "fade-in": "fade-in 0.4s ease-out",
-        float: "float 4s ease-in-out infinite",
+        "scale-in": "scale-in 0.35s cubic-bezier(0.16,1,0.3,1)",
+        float: "float 5s ease-in-out infinite",
+        "orb-drift": "orb-drift 12s ease-in-out infinite",
       },
     },
   },

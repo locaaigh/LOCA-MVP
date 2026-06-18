@@ -20,6 +20,7 @@ import {
   Sparkles,
   Pencil,
   ArrowRight,
+  Check,
 } from "lucide-react";
 
 export type SummarySectionKey =
@@ -257,16 +258,26 @@ function SummaryCard({
   children: React.ReactNode;
 }) {
   return (
-    <Card className={`space-y-2 ${danger ? "border-red-300 bg-red-50/40 shadow-[0_0_0_3px_rgba(239,68,68,0.08)]" : ""}`}>
+    <Card
+      className={`space-y-2.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-pop ${
+        danger ? "border-red-200 bg-red-50/40 ring-1 ring-red-100" : ""
+      }`}
+    >
       <div className="flex items-center justify-between gap-2">
-        <div className={`flex items-center gap-2 ${danger ? "text-red-500" : "text-zinc-500"}`}>
-          <Icon className="h-4 w-4" />
+        <div className={`flex items-center gap-2 ${danger ? "text-red-500" : "text-loca-500"}`}>
+          <span className={`flex h-7 w-7 items-center justify-center rounded-xl ${danger ? "bg-red-100" : "bg-loca-50"}`}>
+            <Icon className="h-4 w-4" />
+          </span>
           <SectionLabel>{title}</SectionLabel>
         </div>
         <div className="flex items-center gap-1.5">
-          {danger && (
-            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-600">
+          {danger ? (
+            <span className="rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-bold text-red-600">
               Falta completar
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-lima-50 px-2.5 py-1 text-[11px] font-bold text-lima-700 ring-1 ring-inset ring-lima-200">
+              <Check className="h-3 w-3" /> Listo
             </span>
           )}
           {onEdit && (
