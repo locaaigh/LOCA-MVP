@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore, useFlow } from "@/lib/store";
 import { exportCalendarCsv } from "@/lib/exports";
-import { Badge, Button, EmptyState, PageHeader, Select } from "@/components/ui";
+import { Button, EmptyState, PageHeader, Select } from "@/components/ui";
+import { PlatformLogo } from "@/components/platform-logo";
 import { ProgressTracker, buildFlowSteps } from "@/components/flow";
 import { CalendarDays, Download, Lock, Clock } from "lucide-react";
 import { CHANNELS, CONTENT_FORMATS } from "@/lib/constants";
@@ -86,14 +87,14 @@ export default function CalendarPage() {
         </EmptyState>
       ) : (
         <>
-          <div className="flex flex-wrap gap-2">
-            <Select value={fChannel} onChange={(e) => setFChannel(e.target.value)} className="h-9 w-40">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <Select value={fChannel} onChange={(e) => setFChannel(e.target.value)} className="w-full sm:w-48">
               <option value="">Todos los canales</option>
               {CHANNELS.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </Select>
-            <Select value={fFormat} onChange={(e) => setFFormat(e.target.value)} className="h-9 w-44">
+            <Select value={fFormat} onChange={(e) => setFFormat(e.target.value)} className="w-full sm:w-52">
               <option value="">Todos los formatos</option>
               {CONTENT_FORMATS.map((f) => (
                 <option key={f.value} value={f.value}>{f.label}</option>
@@ -148,59 +149,73 @@ function ContentMonthView({
           (itemsByDay[day] ||= []).push(it);
         }
 
+        const today = new Date();
+        const isCurrentMonth = today.getFullYear() === y && today.getMonth() === m - 1;
+        const todayDate = today.getDate();
+
         return (
           <div key={mk}>
-            <h3 className="mb-2 font-semibold capitalize text-zinc-800">{MONTHS[m - 1]} {y}</h3>
+            <h3 className="mb-3 text-lg font-bold capitalize text-zinc-800">{MONTHS[m - 1]} <span className="text-zinc-400">{y}</span></h3>
 
             {/* Grilla (desktop) */}
-            <div className="hidden rounded-2xl border border-zinc-200 bg-white p-2 sm:block">
-              <div className="grid grid-cols-7 gap-1">
+            <div className="hidden rounded-3xl border border-zinc-200/70 bg-white p-3 shadow-card sm:block">
+              <div className="grid grid-cols-7 gap-1.5">
                 {WEEKDAYS.map((d) => (
-                  <div key={d} className="py-1 text-center text-xs font-medium text-zinc-400">{d}</div>
+                  <div key={d} className="py-1.5 text-center text-[11px] font-bold uppercase tracking-wide text-zinc-400">{d}</div>
                 ))}
-                {cells.map((day, i) => (
-                  <div key={i} className="min-h-[88px] rounded-lg border border-zinc-100 p-1">
-                    {day && (
-                      <>
-                        <div className="mb-1 text-xs font-medium text-zinc-400">{day}</div>
-                        <div className="space-y-1">
-                          {(itemsByDay[day] || []).map((c) => (
-                            <button
-                              key={c.id}
-                              onClick={() => onItemClick(c)}
-                              className="block w-full truncate rounded-md bg-emerald-50 px-1.5 py-1 text-left text-[11px] text-emerald-700 hover:bg-emerald-100"
-                              title={`${c.channel} · ${c.title}`}
-                            >
-                              <span className="font-semibold">{c.channel.slice(0, 2)}</span> {c.title}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
+                {cells.map((day, i) => {
+                  const isToday = isCurrentMonth && day === todayDate;
+                  const dayItems = day ? itemsByDay[day] || [] : [];
+                  return (
+                    <div
+                      key={i}
+                      className={`min-h-[104px] rounded-2xl border p-1.5 transition ${
+                        day ? "border-zinc-100 hover:border-zinc-200" : "border-transparent bg-zinc-50/40"
+                      } ${isToday ? "border-loca-200 bg-loca-50/40 ring-1 ring-loca-100" : ""}`}
+                    >
+                      {day && (
+                        <>
+                          <div className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${isToday ? "bg-loca-600 text-white" : "text-zinc-400"}`}>{day}</div>
+                          <div className="space-y-1">
+                            {dayItems.map((c) => (
+                              <button
+                                key={c.id}
+                                onClick={() => onItemClick(c)}
+                                className="flex w-full items-center gap-1.5 rounded-lg bg-zinc-50 px-1.5 py-1 text-left transition hover:bg-loca-50 hover:ring-1 hover:ring-loca-100"
+                                title={`${c.channel} · ${c.title}`}
+                              >
+                                <PlatformLogo channel={c.channel} size={18} className="shrink-0 !rounded-md" />
+                                <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-zinc-600">{c.title}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
             {/* Agenda (mobile) */}
-            <div className="space-y-2 sm:hidden">
+            <div className="space-y-2.5 sm:hidden">
               {Object.keys(itemsByDay)
                 .map(Number)
                 .sort((a, b) => a - b)
                 .map((day) => (
-                  <div key={day} className="rounded-xl border border-zinc-200 bg-white p-3">
-                    <p className="mb-1.5 text-sm font-semibold text-zinc-700">{day} de {MONTHS[m - 1]}</p>
-                    <div className="space-y-1.5">
+                  <div key={day} className="rounded-2xl border border-zinc-200/70 bg-white p-4 shadow-card">
+                    <p className="mb-2.5 text-sm font-bold text-zinc-700">{day} de {MONTHS[m - 1]}</p>
+                    <div className="space-y-2">
                       {itemsByDay[day].map((c) => (
                         <button
                           key={c.id}
                           onClick={() => onItemClick(c)}
-                          className="flex w-full items-center gap-2 rounded-lg bg-zinc-50 px-2 py-1.5 text-left text-sm hover:bg-emerald-50"
+                          className="flex w-full items-center gap-3 rounded-xl bg-zinc-50 px-3 py-2.5 text-left transition hover:bg-loca-50"
                         >
-                          <Badge tone="pink">{c.channel}</Badge>
-                          <span className="min-w-0 flex-1 truncate text-zinc-700">{c.title}</span>
+                          <PlatformLogo channel={c.channel} size={32} className="shrink-0" />
+                          <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-700">{c.title}</span>
                           {c.scheduledTime && (
-                            <span className="flex shrink-0 items-center gap-0.5 text-xs text-zinc-400">
+                            <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-zinc-400">
                               <Clock className="h-3 w-3" /> {c.scheduledTime}
                             </span>
                           )}

@@ -13,7 +13,12 @@ body {
 }
 
 body {
-  background: #fafafa;
+  /* Fondo claro premium con un velo rosa apenas perceptible arriba */
+  background:
+    radial-gradient(140% 80% at 100% -10%, #fdf2f8 0%, rgba(253, 242, 248, 0) 38%),
+    radial-gradient(120% 70% at -10% 0%, #faf5ff 0%, rgba(250, 245, 255, 0) 34%),
+    #fbfbfc;
+  background-attachment: fixed;
   color: #18181b;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -30,23 +35,39 @@ body {
 
 @layer base {
   h1, h2, h3 {
-    letter-spacing: -0.015em;
+    letter-spacing: -0.02em;
+  }
+  h1 {
+    text-wrap: balance;
   }
 }
 
 @layer components {
+  /* Inputs más grandes, aireados y con foco rosa suave */
   .loca-input {
-    @apply w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-loca-400 focus:ring-4 focus:ring-loca-100;
+    @apply w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-[15px] text-zinc-900 outline-none transition-all duration-150 placeholder:text-zinc-400 hover:border-zinc-300 focus:border-loca-400 focus:ring-4 focus:ring-loca-100;
   }
   .loca-label {
-    @apply mb-1.5 block text-sm font-medium text-zinc-700;
+    @apply mb-2 block text-sm font-semibold text-zinc-700;
   }
   .loca-card {
-    @apply rounded-2xl border border-zinc-200/70 bg-white shadow-card;
+    @apply rounded-3xl border border-zinc-200/60 bg-white shadow-card;
   }
   /* Fondo suave reutilizable para heros / bloques destacados */
   .loca-soft-bg {
     background: radial-gradient(120% 120% at 100% 0%, #fdf2f8 0%, #ffffff 45%);
+  }
+  /* Evita que copy/hashtags largos rompan el layout de las cards */
+  .overflow-wrap-anywhere {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  /* Superficie con glow rosa muy sutil para acciones protagonistas */
+  .loca-hero-bg {
+    background:
+      radial-gradient(120% 120% at 0% 0%, #fdf2f8 0%, rgba(255, 255, 255, 0) 55%),
+      radial-gradient(120% 120% at 100% 100%, #f7fee7 0%, rgba(255, 255, 255, 0) 50%),
+      #ffffff;
   }
 }
 

@@ -8,6 +8,7 @@ import { useGenerators } from "@/lib/generators";
 import { exportContentsCsv } from "@/lib/exports";
 import { Badge, Button, Card, EmptyState, EvaLoading, Modal, PageHeader, useToast } from "@/components/ui";
 import { ContentPreview } from "@/components/content-preview";
+import { PlatformLogos, contentPlatforms } from "@/components/platform-logo";
 import { ContentReviewDeck } from "@/components/content-review";
 import { ProgressTracker, StickyApproveBar, buildFlowSteps } from "@/components/flow";
 import { FORMAT_LABELS, CONTENT_STATUS_LABELS } from "@/lib/constants";
@@ -169,7 +170,7 @@ export default function ContentStudioPage() {
       ) : contents.length > 0 ? (
         <>
           {/* Tabs */}
-          <div className="flex gap-1 overflow-x-auto rounded-xl border border-zinc-200 bg-white p-1">
+          <div className="flex gap-1 overflow-x-auto rounded-2xl border border-zinc-200/70 bg-white p-1.5 shadow-soft">
             <TabButton active={tab === "revision"} onClick={() => setTab("revision")} icon={Play} count={buckets.revision.length}>
               Revisión
             </TabButton>
@@ -270,8 +271,8 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium transition ${
-        active ? "bg-loca-600 text-white shadow-sm" : "text-zinc-600 hover:text-zinc-900"
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+        active ? "bg-loca-600 text-white shadow-lift" : "text-zinc-500 hover:bg-zinc-100/70 hover:text-zinc-900"
       }`}
     >
       <Icon className="h-4 w-4" /> {children}
@@ -302,17 +303,21 @@ function Gallery({
   return (
     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
       {items.map((c) => (
-        <Card key={c.id} className="flex h-full flex-col gap-3 p-3">
-          <Link href={`/content/${c.id}`}>
+        <Card key={c.id} className="flex h-full flex-col gap-3 p-3 transition hover:shadow-pop">
+          <Link href={`/content/${c.id}`} className="relative block">
             <ContentPreview content={c} business={business} className="!shadow-none" />
+            <PlatformLogos
+              channels={contentPlatforms(c.channel, c.distributionPlatforms, business.marketingChannels)}
+              size={28}
+              className="absolute right-2.5 top-2.5 drop-shadow-lg"
+            />
           </Link>
           <div className="flex flex-wrap items-center gap-1.5">
-            <Badge tone="pink">{c.channel}</Badge>
             <Badge>{FORMAT_LABELS[c.format]}</Badge>
             {badge ? <Badge tone="lima">{badge(c)}</Badge> : <Badge tone="green">Aprobado</Badge>}
           </div>
-          <p className="line-clamp-1 text-sm font-semibold text-zinc-900">{c.title}</p>
-          <p className="line-clamp-2 text-xs text-zinc-500">{c.caption || c.hook}</p>
+          <p className="overflow-wrap-anywhere line-clamp-1 text-[15px] font-bold text-zinc-900">{c.title}</p>
+          <p className="overflow-wrap-anywhere line-clamp-2 text-xs text-zinc-500">{c.caption || c.hook}</p>
           <div className="mt-auto">{renderActions(c)}</div>
         </Card>
       ))}
@@ -386,9 +391,15 @@ function BibliotecaGallery({
           return (
             <Link key={c.id} href={`/content/${c.id}`}>
               <Card className="flex h-full flex-col gap-3 p-3 transition hover:-translate-y-0.5 hover:shadow-pop">
-                <ContentPreview content={c} business={business} className="!shadow-none" />
+                <div className="relative">
+                  <ContentPreview content={c} business={business} className="!shadow-none" />
+                  <PlatformLogos
+                    channels={contentPlatforms(c.channel, c.distributionPlatforms, business.marketingChannels)}
+                    size={28}
+                    className="absolute right-2.5 top-2.5 drop-shadow-lg"
+                  />
+                </div>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <Badge tone="pink">{c.channel}</Badge>
                   <Badge>{FORMAT_LABELS[c.format]}</Badge>
                   <Badge tone={STATUS_TONE[c.status]}>{CONTENT_STATUS_LABELS[c.status]}</Badge>
                   {locked && (
@@ -397,8 +408,8 @@ function BibliotecaGallery({
                     </span>
                   )}
                 </div>
-                <p className="line-clamp-1 text-sm font-semibold text-zinc-900">{c.title}</p>
-                <p className="line-clamp-2 text-xs text-zinc-500">{c.hook}</p>
+                <p className="overflow-wrap-anywhere line-clamp-1 text-sm font-semibold text-zinc-900">{c.title}</p>
+                <p className="overflow-wrap-anywhere line-clamp-2 text-xs text-zinc-500">{c.hook}</p>
               </Card>
             </Link>
           );

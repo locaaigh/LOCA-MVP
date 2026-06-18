@@ -1,268 +1,113 @@
 // ─────────────────────────────────────────────────────────────
-// Importar un resumen de negocio en Markdown generado por otra IA.
-// Prompt estricto + plantilla vacía + parser tolerante que respeta
-// los marcadores FALTA_COMPLETAR / INCOMPLETO / REVISAR / INFERIDO.
-// NO asume que todo es verdad: usa lo que la IA marcó.
+// Import de negocio por IA externa (.md) — FUENTE DE VERDAD ÚNICA.
+//
+// `EXTERNAL_AI_IMPORT_SCHEMA` describe cada campo importable (key del .md,
+// aliases, sección, si es crítico, ejemplo, cómo mapea al store). Desde ese
+// schema se generan:
+//   1. el prompt externo que ve el usuario  (buildExternalAiPrompt)
+//   2. la plantilla .md vacía                (emptyMdTemplate)
+//   3. el parser .md → WebsiteAnalysis       (parseExternalMarkdown)
+// Así no hay listas de campos duplicadas que se desalineen con el formulario.
+//
+// Reglas de estado por valor:
+//   vacío / FALTA_COMPLETAR → missing
+//   INCOMPLETO              → review (o missing si el campo es crítico)
+//   REVISAR                 → review
+//   INFERIDO               → suggested
+//   valor real             → found
+// NUNCA inventa datos (precios solo si vienen explícitos en el texto).
 // ─────────────────────────────────────────────────────────────
-import type { Confidence, FieldStatus, WebsiteAnalysis, WebsiteFoundFields } from "./types";
+import type {
+  Confidence,
+  FieldStatus,
+  ProductServiceType,
+  WebsiteAnalysis,
+  WebsiteFoundFields,
+} from "./types";
 
-// Estructura del archivo .md que esperamos (con valores vacíos).
-const TEMPLATE_BODY = `# LOCA - Resumen estructurado del negocio
-
-## 1. Metadatos del archivo
-- fuente: IA externa
-- nombre_ia: [ChatGPT / Claude / Gemini / otra]
-- fecha_generacion: [fecha de hoy]
-- nivel_confianza_general: [alto / medio / bajo]
-- aclaraciones_generales:
-
-## 2. Estado general de completitud
-- formulario_completo: [si / no]
-- campos_faltantes_importantes:
-- campos_a_revisar:
-- recomendacion: [puede pasar directo a resumen / necesita completar campos pendientes]
-
-## 3. Datos básicos del negocio
-- nombre_comercial:
-- razon_social:
-- industria:
-- subcategoria:
-- tipo_de_negocio: [producto / servicio / producto y servicio / marketplace / ecommerce / local físico / SaaS / consultoría / otro]
-- modelo_de_negocio: [B2B / B2C / B2B y B2C]
-- pais:
-- provincia_estado:
-- ciudad:
-- zonas_de_operacion:
-- sitio_web:
-- redes_sociales:
-  - instagram:
-  - facebook:
-  - linkedin:
-  - tiktok:
-  - youtube:
-  - otra:
-- descripcion_corta:
-- descripcion_larga:
-
-## 4. Oferta comercial
-- productos_principales:
-- servicios_principales:
-- producto_o_servicio_mas_importante:
-- ticket_promedio:
-- rango_de_precios:
-- frecuencia_de_compra:
-- proceso_de_compra:
-- canales_de_venta:
-- promociones_actuales:
-- estacionalidad:
-- fechas_importantes_del_negocio:
-
-## 5. Audiencia y clientes
-- publico_objetivo_principal:
-- publico_objetivo_secundario:
-- edad_aproximada:
-- genero_si_aplica:
-- ubicacion_del_publico:
-- nivel_socioeconomico_si_aplica:
-- intereses:
-- dolores_o_problemas:
-- deseos_o_motivaciones:
-- objeciones_frecuentes:
-- motivos_por_los_que_compra:
-- motivos_por_los_que_no_compra:
-- cliente_ideal_descripcion:
-
-## 6. Propuesta de valor y diferenciación
-- propuesta_de_valor:
-- principales_beneficios:
-- diferenciales:
-- ventajas_competitivas:
-- valores_de_marca:
-- razones_para_elegirnos:
-- pruebas_de_confianza:
-- casos_de_exito_o_resultados:
-- competidores_directos:
-- competidores_indirectos:
-- posicionamiento_deseado:
-
-## 7. Comunicación y tono
-- tono_de_marca:
-- personalidad_de_marca:
-- palabras_que_si_usa:
-- palabras_que_no_usa:
-- temas_que_debe_evitar:
-- mensajes_clave:
-- slogan_o_frase_de_marca:
-- estilo_de_copy_preferido:
-- nivel_de_formalidad: [informal / cercano / profesional / técnico / premium / aspiracional / otro]
-- emojis: [sí / no / moderado]
-- humor: [sí / no / moderado]
-
-## 8. Identidad visual / Brand Kit
-- colores_principales:
-- colores_secundarios:
-- tipografias:
-- estilo_visual:
-- referencias_visuales:
-- logo_disponible: [si / no / no se]
-- uso_de_imagenes: [fotografía / ilustración / producto / personas / lifestyle / placas gráficas / mixto]
-- restricciones_visuales:
-- marcas_o_estilos_a_evitar:
-
-## 9. Marketing actual
-- canales_actuales:
-- canales_prioritarios:
-- frecuencia_de_publicacion_actual:
-- tipos_de_contenido_actuales:
-- que_contenidos_funcionan_mejor:
-- que_contenidos_funcionan_peor:
-- campañas_activas:
-- inversion_publicitaria_actual:
-- herramientas_que_usa:
-- base_de_datos_email_whatsapp:
-- acciones_comerciales_actuales:
-- problemas_actuales_de_marketing:
-
-## 10. Objetivos
-- objetivo_principal:
-- objetivos_secundarios:
-- objetivo_de_marketing_30_dias:
-- objetivo_de_marketing_90_dias:
-- objetivo_de_negocio:
-- prioridad_actual: [ventas / reconocimiento / comunidad / tráfico / leads / retención / lanzamiento / posicionamiento / otro]
-- metricas_importantes:
-- resultado_esperado:
-
-## 11. Contenidos esperados
-- plataformas_deseadas:
-- formatos_deseados:
-- cantidad_de_contenidos_mensuales:
-- tipo_de_contenido_preferido:
-- temas_a_comunicar:
-- temas_a_evitar:
-- productos_servicios_a_priorizar:
-- fechas_o_eventos_a_incluir:
-- ejemplos_de_contenidos_que_gustan:
-- ejemplos_de_contenidos_que_no_gustan:
-
-## 12. Restricciones, legales y sensibilidad
-- restricciones_legales:
-- claims_que_no_deben_usarse:
-- temas_sensibles:
-- informacion_confidencial:
-- aprobaciones_necesarias:
-- palabras_prohibidas:
-- condiciones_importantes:
-
-## 13. Información confirmada
-- campo: valor
-
-## 14. Información inferida
-- campo: valor
-
-## 15. Información para revisar
-- campo: valor
-
-## 16. Información faltante
-- campo: motivo por el que falta
-
-## 17. Preguntas pendientes para completar el formulario
-- pregunta 1:
-- pregunta 2:
-- pregunta 3:
-
-FIN DEL ARCHIVO`;
-
-// Prompt estricto para pegar en ChatGPT / Claude / Gemini.
-export function externalAiPrompt(businessName?: string): string {
-  return `Necesito que prepares un archivo Markdown (.md) para cargar mi negocio${
-    businessName ? ` ("${businessName}")` : ""
-  } en LOCA, una herramienta de marketing con IA.
-
-Tu objetivo es ayudarme a completar un formulario estratégico de marketing con la mayor precisión posible.
-
-REGLAS OBLIGATORIAS:
-1. Usá SOLO información real que conozcas de mi negocio o que yo te haya dado en conversaciones anteriores.
-2. NO inventes datos.
-3. NO completes campos con suposiciones como si fueran información confirmada.
-4. Si un dato no lo sabés, escribí exactamente: FALTA_COMPLETAR.
-5. Si un dato está parcial o incompleto, escribí exactamente: INCOMPLETO y explicá qué falta.
-6. Si un dato es una inferencia tuya, marcalo como INFERIDO.
-7. Si tenés dudas, marcalo como REVISAR.
-8. Antes de entregar el archivo final, si falta información clave para marketing, haceme preguntas concretas.
-9. Si no puedo o no quiero responder esas preguntas, dejá esos campos como FALTA_COMPLETAR.
-10. No escribas recomendaciones generales fuera del formato. Necesito un archivo ordenado para subirlo a otra herramienta.
-
-INSTRUCCIÓN IMPORTANTE:
-Al final, devolveme un único bloque Markdown listo para guardar como archivo: loca-resumen-negocio.md
-
-Dentro del Markdown, respetá EXACTAMENTE esta estructura:
-
-${TEMPLATE_BODY}
-
-Después de generar el Markdown, indicame: "Descargá o copiá este contenido como loca-resumen-negocio.md y subilo en LOCA."`;
+// ── Normalización de claves ──────────────────────────────────
+function normKey(k: string): string {
+  return k
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // saca acentos
+    .replace(/[^a-z0-9]+/g, "_") // espacios/guiones → _
+    .replace(/^_+|_+$/g, "");
 }
-
-// Plantilla .md vacía (misma estructura, campos como FALTA_COMPLETAR).
-export function emptyMdTemplate(): string {
-  return TEMPLATE_BODY.replace(/^(\s*-\s*[a-z0-9_]+):\s*$/gim, "$1: FALTA_COMPLETAR");
-}
-
-// ── Mapeo de claves del .md → campos del formulario ──────────
-const KEY_ALIASES: Record<string, string> = {
-  nombre_comercial: "name",
-  razon_social: "name",
-  industria: "industry",
-  subcategoria: "subcategory",
-  tipo_de_negocio: "businessType",
-  modelo_de_negocio: "businessModel",
-  pais: "country",
-  provincia_estado: "state",
-  ciudad: "city",
-  sitio_web: "websiteUrl",
-  descripcion_corta: "shortDescription",
-  descripcion_larga: "fullDescription",
-  valores_de_marca: "values",
-  diferenciales: "competitiveAdvantages",
-  ventajas_competitivas: "competitiveAdvantages",
-  canales_actuales: "marketingActivities",
-  tono_de_marca: "tone",
-  palabras_que_no_usa: "avoid",
-  temas_que_debe_evitar: "avoid",
-  objetivo_principal: "goal",
-  prioridad_actual: "goal",
-  publico_objetivo_principal: "audienceSegments",
-  edad_aproximada: "audienceAge",
-  dolores_o_problemas: "audiencePain",
-  // productos / servicios
-  productos_principales: "__products",
-  servicios_principales: "__services",
-  producto_o_servicio_mas_importante: "__top",
-};
-
-const LIST_FIELDS = new Set([
-  "values",
-  "competitiveAdvantages",
-  "marketingActivities",
-  "audienceSegments",
-  "audiencePain",
-  "audienceAge",
-]);
 
 function splitList(v: string): string[] {
-  return v.split(/[,;|]/).map((s) => s.trim()).filter(Boolean);
+  return v
+    .split(/[,;|\n]/)
+    // Saca solo viñetas reales ("- ", "* ", "• ", "1. "), no rangos tipo 25-34.
+    .map((s) => s.replace(/^\s*(?:[-*•]\s+|\d+[.)]\s+)/, "").trim())
+    .filter(Boolean);
 }
 
-const PLACEHOLDER = /^\s*\[.*\]\s*$/; // ej "[ChatGPT / Claude / ...]"
+// Plataformas/canales canónicos (alineado con constants.MARKETING_CHANNELS)
+function normalizeChannels(v: string): string[] {
+  const raw = splitList(v);
+  const out: string[] = [];
+  const push = (label: string) => {
+    if (!out.includes(label)) out.push(label);
+  };
+  for (const token of raw) {
+    const t = normKey(token);
+    if (/insta/.test(t)) push("Instagram");
+    else if (/facebook|\bfb\b|face/.test(t)) push("Facebook");
+    else if (/tiktok|tik_tok/.test(t)) push("TikTok");
+    else if (/linkedin/.test(t)) push("LinkedIn");
+    else if (/youtube|yt/.test(t)) push("YouTube");
+    else if (/(^|_)x($|_)|twitter/.test(t)) push("X");
+    else if (/pinterest/.test(t)) push("Pinterest");
+    else if (/whatsapp|wpp|wsp/.test(t)) push("WhatsApp");
+    else if (/google/.test(t)) push("Google Business Profile");
+    else if (/email|mail|news/.test(t)) push("Email");
+    else if (/blog|web|sitio/.test(t)) push("Blog");
+    else if (token.trim()) push(token.trim());
+  }
+  return out;
+}
 
-// Interpreta el valor según marcadores.
-function interpret(value: string): { status: FieldStatus["status"]; clean: string } {
+// "visibilidad" | "ventas" | "confianza" (objetivo principal de contenido)
+function normalizeGoal(v: string): string | undefined {
+  const t = normKey(v);
+  if (/(vent|vender|compra|conversion|facturar)/.test(t)) return "ventas";
+  if (/(visib|reconoc|alcance|conocer|awareness|dar_a_conocer|marca)/.test(t)) return "visibilidad";
+  if (/(confianz|comunidad|fideliz|autoridad|credibil)/.test(t)) return "confianza";
+  return undefined;
+}
+
+function normalizeModel(v: string): string {
+  const t = v.toUpperCase();
+  if (t.includes("B2B") && t.includes("B2C")) return "Ambos";
+  if (t.includes("B2B")) return "B2B";
+  if (t.includes("B2C")) return "B2C";
+  if (/ambos|los dos|empresas y personas/i.test(v)) return "Ambos";
+  return v.trim();
+}
+
+// Extrae precio SOLO si viene explícito (no inventa). Devuelve {name, price?}.
+function parseProductEntry(entry: string): { name: string; price?: number } {
+  const m = entry.match(/(.+?)[\s\-–—:]*\$?\s*([\d.]+(?:[.,]\d{1,2})?)\s*(?:usd|ars|eur|pesos|dolares|d[oó]lares)?\.?$/i);
+  if (m && /\d/.test(m[2])) {
+    const name = m[1].replace(/[\s\-–—:(]+$/, "").trim();
+    const num = Number(m[2].replace(/\.(?=\d{3}\b)/g, "").replace(",", "."));
+    if (name && Number.isFinite(num) && num > 0) return { name, price: num };
+  }
+  return { name: entry.trim() };
+}
+
+// ── Marcadores de estado ─────────────────────────────────────
+type Marker = "missing" | "incompleto" | "revisar" | "inferido" | "found";
+const PLACEHOLDER = /^\s*\[.*\]\s*$/;
+
+function interpret(value: string): { marker: Marker; clean: string } {
   const v = value.trim();
-  if (!v || PLACEHOLDER.test(v) || /FALTA_COMPLETAR/i.test(v)) return { status: "missing", clean: "" };
-  if (/INCOMPLETO/i.test(v)) return { status: "review", clean: stripMarker(v) };
-  if (/REVISAR/i.test(v)) return { status: "review", clean: stripMarker(v) };
-  if (/INFERIDO/i.test(v)) return { status: "suggested", clean: stripMarker(v) };
-  return { status: "found", clean: v };
+  if (!v || PLACEHOLDER.test(v) || /FALTA_COMPLETAR/i.test(v)) return { marker: "missing", clean: "" };
+  if (/INCOMPLETO/i.test(v)) return { marker: "incompleto", clean: stripMarker(v) };
+  if (/REVISAR/i.test(v)) return { marker: "revisar", clean: stripMarker(v) };
+  if (/INFERIDO/i.test(v)) return { marker: "inferido", clean: stripMarker(v) };
+  return { marker: "found", clean: v };
 }
 
 function stripMarker(v: string): string {
@@ -272,67 +117,557 @@ function stripMarker(v: string): string {
     .trim();
 }
 
+// ─────────────────────────────────────────────────────────────
+// SCHEMA: la única lista de campos importables.
+// ─────────────────────────────────────────────────────────────
+export type ImportSectionId = "basicos" | "oferta" | "audiencia" | "propuesta" | "canales" | "objetivos" | "marca" | "agenda";
+
+export interface ImportField {
+  /** key canónica que se escribe en el .md */
+  mdKey: string;
+  label: string;
+  section: ImportSectionId;
+  /** bucket de estado (alineado a las keys de fieldStatuses del form) */
+  statusKey: string;
+  critical: boolean;
+  multiple: boolean;
+  example: string;
+  hint: string;
+  aliases?: string[];
+  /** mapea el valor limpio dentro de WebsiteFoundFields */
+  apply: (f: WebsiteFoundFields, value: string) => void;
+}
+
+export const IMPORT_SECTIONS: { id: ImportSectionId; title: string }[] = [
+  { id: "basicos", title: "Datos básicos del negocio" },
+  { id: "oferta", title: "Productos y servicios" },
+  { id: "audiencia", title: "Audiencia" },
+  { id: "propuesta", title: "Propuesta de valor" },
+  { id: "canales", title: "Canales / plataformas" },
+  { id: "objetivos", title: "Objetivos" },
+  { id: "marca", title: "Tono y marca" },
+  { id: "agenda", title: "Agenda comercial (opcional)" },
+];
+
+export const EXTERNAL_AI_IMPORT_SCHEMA: ImportField[] = [
+  // ── Básicos ──
+  {
+    mdKey: "nombre_del_negocio",
+    label: "Nombre del negocio",
+    section: "basicos",
+    statusKey: "name",
+    critical: true,
+    multiple: false,
+    example: "Café Bruma",
+    hint: "Nombre comercial tal como lo conocen los clientes.",
+    aliases: ["nombre_comercial", "nombre", "razon_social", "marca"],
+    apply: (f, v) => (f.name = v),
+  },
+  {
+    mdKey: "industria",
+    label: "Industria",
+    section: "basicos",
+    statusKey: "industry",
+    critical: true,
+    multiple: false,
+    example: "Food & Beverage",
+    hint: "Rubro general del negocio.",
+    aliases: ["rubro", "sector"],
+    apply: (f, v) => (f.industry = v),
+  },
+  {
+    mdKey: "subcategoria",
+    label: "Subcategoría / rubro específico",
+    section: "basicos",
+    statusKey: "subcategory",
+    critical: true,
+    multiple: false,
+    example: "Cafetería de especialidad",
+    hint: "Tipo específico dentro de la industria.",
+    aliases: ["rubro_especifico", "categoria"],
+    apply: (f, v) => (f.subcategory = v),
+  },
+  {
+    mdKey: "tipo_de_negocio",
+    label: "Tipo de negocio",
+    section: "basicos",
+    statusKey: "businessType",
+    critical: true,
+    multiple: false,
+    example: "Local físico",
+    hint: "Local físico / Online / Híbrido / Servicios a domicilio / Marca personal.",
+    aliases: ["tipo"],
+    apply: (f, v) => (f.businessType = v),
+  },
+  {
+    mdKey: "modelo_de_negocio",
+    label: "Modelo (B2B / B2C)",
+    section: "basicos",
+    statusKey: "businessModel",
+    critical: false,
+    multiple: false,
+    example: "B2C",
+    hint: "B2B, B2C o Ambos.",
+    aliases: ["modelo", "b2b_b2c"],
+    apply: (f, v) => (f.businessModel = normalizeModel(v)),
+  },
+  {
+    mdKey: "pais",
+    label: "País o mercado principal",
+    section: "basicos",
+    statusKey: "country",
+    critical: true,
+    multiple: false,
+    example: "Argentina",
+    hint: "País principal donde opera.",
+    aliases: ["mercado", "pais_principal"],
+    apply: (f, v) => (f.country = v),
+  },
+  {
+    mdKey: "provincia_estado",
+    label: "Provincia / Estado",
+    section: "basicos",
+    statusKey: "state",
+    critical: false,
+    multiple: false,
+    example: "Buenos Aires",
+    hint: "Si aplica.",
+    aliases: ["provincia", "estado", "region"],
+    apply: (f, v) => (f.state = v),
+  },
+  {
+    mdKey: "ciudad",
+    label: "Ciudad",
+    section: "basicos",
+    statusKey: "city",
+    critical: false,
+    multiple: false,
+    example: "CABA",
+    hint: "Si aplica.",
+    aliases: ["localidad"],
+    apply: (f, v) => (f.city = v),
+  },
+  {
+    mdKey: "sitio_web",
+    label: "Sitio web",
+    section: "basicos",
+    statusKey: "websiteUrl",
+    critical: false,
+    multiple: false,
+    example: "https://cafebruma.com",
+    hint: "URL completa si tiene.",
+    aliases: ["web", "url", "pagina_web"],
+    apply: (f, v) => (f.websiteUrl = v),
+  },
+  {
+    mdKey: "descripcion_corta",
+    label: "Descripción corta",
+    section: "basicos",
+    statusKey: "shortDescription",
+    critical: true,
+    multiple: false,
+    example: "Cafetería de especialidad con granos de origen y pastelería artesanal.",
+    hint: "1-2 frases: qué hace el negocio.",
+    aliases: ["descripcion", "resumen"],
+    apply: (f, v) => (f.shortDescription = v),
+  },
+  {
+    mdKey: "descripcion_larga",
+    label: "Descripción completa",
+    section: "basicos",
+    statusKey: "fullDescription",
+    critical: false,
+    multiple: false,
+    example: "Somos una cafetería de especialidad fundada en 2020...",
+    hint: "Más detalle: qué, cómo y para quién.",
+    aliases: ["descripcion_completa", "acerca_de"],
+    apply: (f, v) => (f.fullDescription = v),
+  },
+
+  // ── Oferta (productos / servicios) ──
+  {
+    mdKey: "productos_principales",
+    label: "Productos principales",
+    section: "oferta",
+    statusKey: "productsServices",
+    critical: true,
+    multiple: true,
+    example: "Café de filtro, Blend de la casa, Medialunas",
+    hint: "Lista separada por comas. Si hay precio explícito incluilo (ej: 'Blend - $4500'). NO inventes precios.",
+    aliases: ["productos", "catalogo_productos"],
+    apply: (f, v) => addOfferings(f, v, "producto"),
+  },
+  {
+    mdKey: "servicios_principales",
+    label: "Servicios principales",
+    section: "oferta",
+    statusKey: "productsServices",
+    critical: false,
+    multiple: true,
+    example: "Catering de eventos, Barismo para empresas",
+    hint: "Lista separada por comas. NO inventes precios.",
+    aliases: ["servicios", "catalogo_servicios"],
+    apply: (f, v) => addOfferings(f, v, "servicio"),
+  },
+  {
+    mdKey: "producto_o_servicio_mas_importante",
+    label: "El más importante",
+    section: "oferta",
+    statusKey: "productsServices",
+    critical: false,
+    multiple: false,
+    example: "Blend de la casa",
+    hint: "Tu producto/servicio estrella.",
+    aliases: ["mas_vendido", "estrella", "top_seller"],
+    apply: (f, v) => markTopSeller(f, v),
+  },
+
+  // ── Audiencia ──
+  {
+    mdKey: "publico_objetivo",
+    label: "Público objetivo",
+    section: "audiencia",
+    statusKey: "audience",
+    critical: true,
+    multiple: true,
+    example: "Profesionales jóvenes, amantes del café",
+    hint: "Segmentos principales de tu audiencia.",
+    aliases: ["audiencia", "publico", "cliente_ideal", "segmentos"],
+    apply: (f, v) => (f.audience = { ...(f.audience || {}), segments: splitList(v) }),
+  },
+  {
+    mdKey: "edad_aproximada",
+    label: "Edad aproximada",
+    section: "audiencia",
+    statusKey: "audience",
+    critical: false,
+    multiple: true,
+    example: "25-34, 35-44",
+    hint: "Rangos de edad.",
+    aliases: ["edad", "rango_etario", "edades"],
+    apply: (f, v) => (f.audience = { ...(f.audience || {}), ageRanges: splitList(v) }),
+  },
+  {
+    mdKey: "dolores_o_problemas",
+    label: "Dolores / problemas que resolvés",
+    section: "audiencia",
+    statusKey: "audience",
+    critical: false,
+    multiple: true,
+    example: "Falta de tiempo, querer un café de calidad cerca",
+    hint: "Necesidades que resuelve tu negocio.",
+    aliases: ["dolores", "problemas", "pain_points", "necesidades"],
+    apply: (f, v) => (f.audience = { ...(f.audience || {}), painPoints: splitList(v) }),
+  },
+
+  // ── Propuesta de valor ──
+  {
+    mdKey: "propuesta_de_valor",
+    label: "Propuesta de valor / diferenciador",
+    section: "propuesta",
+    statusKey: "competitiveAdvantages",
+    critical: true,
+    multiple: true,
+    example: "Granos de origen, tueste propio, atención cercana",
+    hint: "Por qué te eligen. Beneficios y diferenciales.",
+    aliases: ["diferenciales", "ventajas_competitivas", "diferenciador", "beneficios", "principales_beneficios"],
+    apply: (f, v) => (f.competitiveAdvantages = mergeList(f.competitiveAdvantages, v)),
+  },
+  {
+    mdKey: "valores_de_marca",
+    label: "Valores de marca",
+    section: "propuesta",
+    statusKey: "values",
+    critical: false,
+    multiple: true,
+    example: "Calidad, Sustentabilidad, Comunidad",
+    hint: "Hasta 5 valores.",
+    aliases: ["valores"],
+    apply: (f, v) => (f.values = splitList(v).slice(0, 5)),
+  },
+
+  // ── Canales / plataformas ──
+  {
+    mdKey: "canales_y_plataformas",
+    label: "Canales / plataformas",
+    section: "canales",
+    statusKey: "marketingChannels",
+    critical: true,
+    multiple: true,
+    example: "Instagram, Facebook, TikTok",
+    hint: "Redes/plataformas donde querés publicar (Instagram, Facebook, TikTok, LinkedIn, etc.).",
+    aliases: ["canales", "plataformas", "redes_sociales", "redes", "canales_de_venta"],
+    apply: (f, v) => (f.marketingChannels = mergeList(f.marketingChannels, normalizeChannels(v).join(", "))),
+  },
+  {
+    mdKey: "marketing_actual",
+    label: "Qué venís haciendo de marketing",
+    section: "canales",
+    statusKey: "marketingActivities",
+    critical: false,
+    multiple: true,
+    example: "Redes orgánicas, WhatsApp",
+    hint: "Acciones de marketing actuales.",
+    aliases: ["marketing", "acciones_de_marketing", "que_hacen_de_marketing"],
+    apply: (f, v) => (f.marketingActivities = splitList(v)),
+  },
+
+  // ── Objetivos ──
+  {
+    mdKey: "objetivo_principal",
+    label: "Objetivo principal",
+    section: "objetivos",
+    statusKey: "goals",
+    critical: true,
+    multiple: false,
+    example: "Ventas",
+    hint: "Visibilidad, Ventas o Confianza.",
+    aliases: ["objetivo", "prioridad_actual", "meta_principal"],
+    apply: (f, v) => {
+      const g = normalizeGoal(v);
+      f.goals = { ...(f.goals || {}), ...(g ? { primaryContentGoal: g as any } : {}) };
+    },
+  },
+  {
+    mdKey: "objetivos_de_marketing",
+    label: "Objetivos de marketing",
+    section: "objetivos",
+    statusKey: "goals",
+    critical: false,
+    multiple: false,
+    example: "Aumentar reservas un 20% en 3 meses",
+    hint: "Qué querés lograr con el marketing.",
+    aliases: ["meta_marketing", "objetivos_marketing"],
+    apply: (f, v) => (f.goals = { ...(f.goals || {}), marketingObjectives: v }),
+  },
+
+  // ── Tono y marca ──
+  {
+    mdKey: "tono_de_marca",
+    label: "Tono de marca",
+    section: "marca",
+    statusKey: "brandKit",
+    critical: true,
+    multiple: true,
+    example: "Cercano, Profesional, Cálido",
+    hint: "Cómo suena tu marca.",
+    aliases: ["tono", "voz_de_marca", "personalidad"],
+    apply: (f, v) =>
+      (f.brandKit = {
+        ...(f.brandKit || ({} as any)),
+        voiceTone: { ...((f.brandKit as any)?.voiceTone || {}), toneTags: splitList(v) },
+      } as any),
+  },
+  {
+    mdKey: "palabras_o_temas_a_evitar",
+    label: "Cosas a evitar",
+    section: "marca",
+    statusKey: "brandKit",
+    critical: false,
+    multiple: true,
+    example: "Lenguaje informal, descuentos agresivos",
+    hint: "Palabras, temas o claims que NO querés usar.",
+    aliases: ["evitar", "palabras_que_no_usa", "temas_que_debe_evitar", "restricciones"],
+    apply: (f, v) =>
+      (f.brandKit = {
+        ...(f.brandKit || ({} as any)),
+        avoidList: [...(((f.brandKit as any)?.avoidList) || []), ...splitList(v)],
+      } as any),
+  },
+
+  // ── Agenda comercial (opcional) ──
+  {
+    mdKey: "temporadas_fuertes",
+    label: "Temporadas fuertes",
+    section: "agenda",
+    statusKey: "seasonalityTags",
+    critical: false,
+    multiple: true,
+    example: "Invierno, Navidad",
+    hint: "Épocas de mayor venta.",
+    aliases: ["estacionalidad", "temporadas"],
+    apply: (f, v) => (f.seasonalityTags = splitList(v)),
+  },
+  {
+    mdKey: "fechas_importantes",
+    label: "Fechas importantes",
+    section: "agenda",
+    statusKey: "specialDates",
+    critical: false,
+    multiple: true,
+    example: "Aniversario de la marca, Día del Padre",
+    hint: "Fechas clave para campañas.",
+    aliases: ["fechas_especiales", "fechas_clave"],
+    apply: (f, v) => (f.specialDates = splitList(v)),
+  },
+];
+
+function mergeList(prev: string[] | undefined, value: string): string[] {
+  const next = splitList(value);
+  const set = new Set([...(prev || []), ...next]);
+  return Array.from(set);
+}
+
+function addOfferings(f: WebsiteFoundFields, value: string, type: ProductServiceType) {
+  f.productsServices ||= [];
+  for (const entry of splitList(value)) {
+    const { name, price } = parseProductEntry(entry);
+    if (!name) continue;
+    f.productsServices.push({
+      name,
+      type,
+      // No inventamos precio: solo si vino explícito en el texto.
+      ...(price != null ? { price } : {}),
+      source: "md",
+      shouldReview: true,
+    });
+  }
+}
+
+function markTopSeller(f: WebsiteFoundFields, value: string) {
+  if (!value || !f.productsServices?.length) return;
+  const q = value.toLowerCase().slice(0, 6);
+  const match = f.productsServices.find((p) => p.name.toLowerCase().includes(q));
+  (match || f.productsServices[0]).isTopSeller = true;
+}
+
+// Índice normalizado: cada mdKey + aliases → ImportField
+const FIELD_INDEX: Record<string, ImportField> = (() => {
+  const idx: Record<string, ImportField> = {};
+  for (const f of EXTERNAL_AI_IMPORT_SCHEMA) {
+    idx[normKey(f.mdKey)] = f;
+    for (const a of f.aliases || []) idx[normKey(a)] = f;
+  }
+  return idx;
+})();
+
+// ─────────────────────────────────────────────────────────────
+// 1) PROMPT EXTERNO (generado desde el schema)
+// ─────────────────────────────────────────────────────────────
+export function buildExternalAiPrompt(businessName?: string): string {
+  const guide = IMPORT_SECTIONS.map((sec) => {
+    const fields = EXTERNAL_AI_IMPORT_SCHEMA.filter((f) => f.section === sec.id);
+    const lines = fields
+      .map((f) => `  - ${f.mdKey}: ${f.hint} (ej: ${f.example})${f.critical ? "  [IMPORTANTE]" : ""}`)
+      .join("\n");
+    return `• ${sec.title}\n${lines}`;
+  }).join("\n\n");
+
+  return `Necesito que prepares un archivo Markdown (.md) con la información de mi negocio${
+    businessName ? ` ("${businessName}")` : ""
+  } para cargarlo en LOCA, una herramienta de marketing con IA.
+
+REGLAS OBLIGATORIAS:
+1. Usá SOLO información real que conozcas de mi negocio o que yo te haya dado.
+2. NO inventes datos. NO completes con suposiciones como si fueran confirmadas.
+3. Si un dato no lo sabés, escribí exactamente: FALTA_COMPLETAR
+4. Si está parcial, escribí: INCOMPLETO: y aclará qué falta.
+5. Si es una inferencia tuya, marcalo: INFERIDO: (valor)
+6. Si tenés dudas, marcalo: REVISAR: (valor)
+7. NO inventes precios. Incluí un precio solo si lo sabés con certeza.
+
+FORMATO DE ENTREGA (MUY IMPORTANTE):
+- Entregame un archivo Markdown .md llamado loca-resumen-negocio.md.
+- NO uses PDF. NO uses DOC/DOCX. NO uses presentaciones. NO uses tablas visuales ni documentos enriquecidos.
+- Si no podés crear un archivo descargable .md, devolveme UN SOLO bloque de código Markdown. El usuario debe poder usar el botón de copiar del bloque de código y pegarlo directamente en LOCA.
+- No escribas explicaciones antes ni después del Markdown.
+- No cambies los nombres de las claves. LOCA las lee automáticamente.
+
+GUÍA DE CAMPOS (qué poner en cada clave):
+${guide}
+
+ESTRUCTURA EXACTA A DEVOLVER (copiá estas claves y completá los valores; dejá FALTA_COMPLETAR donde no sepas):
+
+${buildTemplate()}
+
+FORMATO FINAL OBLIGATORIO:
+Devolveme únicamente el contenido Markdown final, con esas claves exactas.
+El usuario debe poder guardarlo como loca-resumen-negocio.md o copiar el bloque de código.
+No uses PDF. No uses DOC/DOCX. No agregues texto fuera del Markdown.`;
+}
+
+// Compatibilidad con llamadas existentes.
+export function externalAiPrompt(businessName?: string): string {
+  return buildExternalAiPrompt(businessName);
+}
+
+// ─────────────────────────────────────────────────────────────
+// 2) PLANTILLA .md vacía (generada desde el schema)
+// ─────────────────────────────────────────────────────────────
+function buildTemplate(): string {
+  let out = "# LOCA - Resumen del negocio\n";
+  for (const sec of IMPORT_SECTIONS) {
+    const fields = EXTERNAL_AI_IMPORT_SCHEMA.filter((f) => f.section === sec.id);
+    if (!fields.length) continue;
+    out += `\n## ${sec.title}\n`;
+    for (const f of fields) out += `- ${f.mdKey}: FALTA_COMPLETAR\n`;
+  }
+  return out.trimEnd();
+}
+
+export function emptyMdTemplate(): string {
+  return buildTemplate();
+}
+
+// ─────────────────────────────────────────────────────────────
+// 3) PARSER .md → WebsiteAnalysis (usa el mismo schema/aliases)
+// ─────────────────────────────────────────────────────────────
+const CONF: Record<FieldStatus["status"], Confidence> = {
+  found: "high",
+  suggested: "medium",
+  review: "low",
+  missing: "low",
+  user: "high",
+};
+
 export function parseExternalMarkdown(md: string): WebsiteAnalysis {
   const lines = md.split(/\r?\n/);
   const found: WebsiteFoundFields = {};
   const fieldStatuses: Record<string, FieldStatus> = {};
   const missingSet = new Set<string>();
 
-  const conf = (s: FieldStatus["status"]): Confidence =>
-    s === "found" ? "high" : s === "suggested" ? "medium" : "low";
+  const setStatus = (key: string, status: FieldStatus["status"]) => {
+    const prev = fieldStatuses[key]?.status;
+    // No degradar un estado bueno con uno peor del mismo bucket.
+    const rank: Record<string, number> = { missing: 0, review: 1, suggested: 2, found: 3, user: 3 };
+    if (prev && rank[prev] >= rank[status]) return;
+    fieldStatuses[key] = { status, confidence: CONF[status], source: "external_ai" };
+    if (status === "missing") missingSet.add(key);
+    else missingSet.delete(key);
+  };
 
   for (const raw of lines) {
     const line = raw.trim();
-    const m = line.match(/^[-*]\s*([a-z0-9_]+)\s*:\s*(.*)$/i);
+    const m = line.match(/^[-*]\s*([^:]+?)\s*:\s*(.*)$/);
     if (!m) continue;
-    const rawKey = m[1].toLowerCase();
-    const key = KEY_ALIASES[rawKey];
-    if (!key) continue;
+    const field = FIELD_INDEX[normKey(m[1])];
+    if (!field) continue;
 
-    const { status, clean } = interpret(m[2]);
+    const { marker, clean } = interpret(m[2]);
 
-    // Productos / servicios → crear cards
-    if (key === "__products" || key === "__services") {
-      if (status !== "missing" && clean) {
-        const type = key === "__services" ? "servicio" : "producto";
-        for (const name of splitList(clean)) {
-          (found.productsServices ||= []).push({
-            name,
-            type,
-            source: "md",
-            confidence: status === "found" ? "high" : status === "suggested" ? "medium" : "low",
-            shouldReview: status !== "found",
-          });
-        }
-        fieldStatuses["productsServices"] = { status: status === "found" ? "found" : "review", source: "external_ai" };
-        missingSet.delete("productsServices");
-      }
-      continue;
-    }
-    if (key === "__top") {
-      if (clean && found.productsServices?.length) {
-        const match = found.productsServices.find((p) => p.name.toLowerCase().includes(clean.toLowerCase().slice(0, 6)));
-        if (match) match.isTopSeller = true;
-        else found.productsServices[0].isTopSeller = true;
-      }
-      continue;
-    }
-
-    const statusKey = statusKeyFor(key);
-    // No degradar un estado ya bueno con uno peor del mismo campo
-    const prev = fieldStatuses[statusKey]?.status;
-    if (prev === "found") continue;
+    // Estado del campo según marcador (INCOMPLETO en crítico = missing).
+    let status: FieldStatus["status"];
+    if (marker === "missing") status = "missing";
+    else if (marker === "incompleto") status = field.critical ? "missing" : "review";
+    else if (marker === "revisar") status = "review";
+    else if (marker === "inferido") status = "suggested";
+    else status = "found";
 
     if (status === "missing") {
-      if (!prev) {
-        fieldStatuses[statusKey] = { status: "missing", source: "external_ai" };
-        missingSet.add(statusKey);
-      }
+      setStatus(field.statusKey, "missing");
       continue;
     }
-    if (clean) applyField(found, key, clean);
-    fieldStatuses[statusKey] = { status, confidence: conf(status), source: "external_ai" };
-    missingSet.delete(statusKey);
+    if (clean) field.apply(found, clean);
+    setStatus(field.statusKey, status);
+  }
+
+  // productsServices: confianza/estado de cada item según el status del bucket.
+  if (found.productsServices?.length) {
+    const st = fieldStatuses["productsServices"]?.status || "found";
+    for (const p of found.productsServices) {
+      p.confidence = st === "found" ? "high" : st === "suggested" ? "medium" : "low";
+      p.shouldReview = st !== "found";
+    }
   }
 
   const isComplete = isAnalysisComplete({ foundFields: found } as WebsiteAnalysis);
@@ -361,54 +696,61 @@ export function parseExternalMarkdown(md: string): WebsiteAnalysis {
 export function isAnalysisComplete(a: WebsiteAnalysis): boolean {
   const f = a.foundFields || {};
   const has = (v: any) => v != null && v !== "" && (!Array.isArray(v) || v.length > 0);
-  return has(f.name) && has(f.industry) && has(f.shortDescription) && has(f.competitiveAdvantages);
+  return (
+    has(f.name) &&
+    has(f.industry) &&
+    has(f.shortDescription) &&
+    has(f.competitiveAdvantages) &&
+    has(f.productsServices) &&
+    has(f.marketingChannels) &&
+    has(f.goals?.primaryContentGoal)
+  );
 }
 
-// Algunos keys mapean a sub-objetos; el status se guarda con la key visible del form.
-function statusKeyFor(key: string): string {
-  if (key === "tone" || key === "avoid") return "brandKit";
-  if (key === "goal") return "goals";
-  if (key.startsWith("audience")) return "audience";
-  return key;
-}
+// ─────────────────────────────────────────────────────────────
+// 4) Ejemplo de .md para test manual del parser.
+// ─────────────────────────────────────────────────────────────
+export function sampleImportMarkdown(): string {
+  return `# LOCA - Resumen del negocio
 
-function applyField(found: WebsiteFoundFields, key: string, value: string) {
-  if (LIST_FIELDS.has(key)) {
-    const list = splitList(value);
-    if (key === "audienceSegments") {
-      found.audience = { ...(found.audience || {}), segments: list } as any;
-    } else if (key === "audiencePain") {
-      found.audience = { ...(found.audience || {}), painPoints: list } as any;
-    } else if (key === "audienceAge") {
-      found.audience = { ...(found.audience || {}), ageRanges: list } as any;
-    } else {
-      (found as any)[key] = list;
-    }
-    return;
-  }
-  switch (key) {
-    case "businessModel": {
-      const v = value.toUpperCase();
-      found.businessModel =
-        v.includes("B2B") && v.includes("B2C") ? "Ambos" : v.includes("B2B") ? "B2B" : v.includes("B2C") ? "B2C" : value;
-      return;
-    }
-    case "tone":
-      found.brandKit = {
-        ...(found.brandKit || ({} as any)),
-        voiceTone: { ...((found.brandKit as any)?.voiceTone || {}), toneTags: splitList(value) },
-      } as any;
-      return;
-    case "avoid":
-      found.brandKit = {
-        ...(found.brandKit || ({} as any)),
-        avoidList: [...(((found.brandKit as any)?.avoidList) || []), ...splitList(value)],
-      } as any;
-      return;
-    case "goal":
-      found.goals = { ...(found.goals || {}), marketingObjectives: value } as any;
-      return;
-    default:
-      (found as any)[key] = value;
-  }
+## Datos básicos del negocio
+- nombre_del_negocio: Café Bruma
+- industria: Food & Beverage
+- subcategoria: Cafetería de especialidad
+- tipo_de_negocio: Local físico
+- modelo_de_negocio: B2C
+- pais: Argentina
+- ciudad: INFERIDO: CABA
+- descripcion_corta: Cafetería de especialidad con tueste propio y pastelería artesanal.
+- descripcion_larga: FALTA_COMPLETAR
+
+## Productos y servicios
+- productos_principales: Blend de la casa - $4500, Café de filtro, Medialunas
+- servicios_principales: Catering para eventos
+- producto_o_servicio_mas_importante: Blend de la casa
+
+## Audiencia
+- publico_objetivo: Profesionales jóvenes, amantes del café
+- edad_aproximada: 25-34, 35-44
+- dolores_o_problemas: REVISAR: querer buen café cerca del trabajo
+
+## Propuesta de valor
+- propuesta_de_valor: Granos de origen, tueste propio, atención cercana
+- valores_de_marca: Calidad, Comunidad
+
+## Canales / plataformas
+- canales_y_plataformas: Instagram, Facebook, TikTok
+- marketing_actual: Redes orgánicas
+
+## Objetivos
+- objetivo_principal: Ventas
+- objetivos_de_marketing: FALTA_COMPLETAR
+
+## Tono y marca
+- tono_de_marca: Cercano, Cálido, Profesional
+- palabras_o_temas_a_evitar: INFERIDO: lenguaje demasiado informal
+
+## Agenda comercial (opcional)
+- temporadas_fuertes: Invierno
+- fechas_importantes: FALTA_COMPLETAR`;
 }

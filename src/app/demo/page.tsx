@@ -18,7 +18,7 @@ export default function DemoPage() {
   }, [hydrated, loginDemo, router]);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-50">
+    <main className="loca-soft-bg flex min-h-screen items-center justify-center px-5">
       <EvaLoading text="Preparando el modo demo con Café Bruma y Casa Nativa…" />
     </main>
   );

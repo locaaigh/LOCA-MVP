@@ -11,18 +11,18 @@ type Size = "sm" | "md" | "lg" | "xl";
 const VARIANTS: Record<Variant, string> = {
   primary: "bg-loca-600 text-white hover:bg-loca-700 shadow-sm hover:shadow-lift active:scale-[0.98]",
   // Verde = aprobar. Protagonista, claro y positivo.
-  success: "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm hover:shadow-[0_8px_30px_-10px_rgba(5,150,105,0.45)] active:scale-[0.98]",
-  lima: "bg-lima-400 text-ink hover:bg-lima-500 shadow-sm active:scale-[0.98]",
+  success: "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm hover:shadow-[0_12px_36px_-12px_rgba(5,150,105,0.50)] active:scale-[0.98]",
+  lima: "bg-lima-400 text-ink hover:bg-lima-500 shadow-sm hover:shadow-glow-lima active:scale-[0.98]",
   secondary: "bg-zinc-900 text-white hover:bg-zinc-800 active:scale-[0.98]",
   outline: "border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50 hover:border-zinc-300",
   ghost: "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900",
   danger: "bg-red-600 text-white hover:bg-red-700 active:scale-[0.98]",
 };
 const SIZES: Record<Size, string> = {
-  sm: "h-9 px-3.5 text-xs",
+  sm: "h-9 px-4 text-xs",
   md: "h-11 px-5 text-sm",
-  lg: "h-12 px-6 text-[15px]",
-  xl: "h-14 px-7 text-base",
+  lg: "h-[3.25rem] px-7 text-[15px]",
+  xl: "h-16 px-9 text-[17px]",
 };
 
 export function Button({
@@ -40,7 +40,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100",
+        "inline-flex items-center justify-center gap-2 rounded-2xl font-semibold transition-all duration-150 outline-none focus-visible:ring-4 focus-visible:ring-loca-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100",
         VARIANTS[variant],
         SIZES[size],
         className
@@ -56,7 +56,7 @@ export function Button({
 
 // ── Card ─────────────────────────────────────────────────────
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("loca-card p-5", className)} {...props} />;
+  return <div className={cn("loca-card p-6", className)} {...props} />;
 }
 
 // ── Badge ────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+        "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold",
         BADGE_TONES[tone],
         className
       )}
@@ -152,10 +152,10 @@ export function ChipSelect({
             type="button"
             onClick={() => toggle(opt)}
             className={cn(
-              "rounded-full border px-3 py-1 text-xs transition",
+              "rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition",
               value.includes(opt)
-                ? "border-loca-500 bg-loca-50 text-loca-700"
-                : "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400"
+                ? "border-loca-400 bg-loca-50 text-loca-700 ring-2 ring-loca-100"
+                : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
             )}
           >
             {opt}
@@ -168,7 +168,7 @@ export function ChipSelect({
               key={v}
               type="button"
               onClick={() => toggle(v)}
-              className="rounded-full border border-loca-500 bg-loca-50 px-3 py-1 text-xs text-loca-700"
+              className="rounded-full border border-loca-400 bg-loca-50 px-3.5 py-1.5 text-[13px] font-medium text-loca-700 ring-2 ring-loca-100"
             >
               {v} ✕
             </button>
@@ -223,15 +223,15 @@ export function Modal({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
-        <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-3">
-          <h2 className="font-semibold">{title}</h2>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100">
+      <div className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />
+      <div className="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-pop animate-fade-in-up sm:rounded-3xl">
+        <div className="flex items-center justify-between border-b border-zinc-100 px-6 py-4">
+          <h2 className="text-lg font-bold tracking-tight text-zinc-900">{title}</h2>
+          <button onClick={onClose} className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div className="overflow-y-auto p-5">{children}</div>
+        <div className="overflow-y-auto p-6">{children}</div>
       </div>
     </div>
   );
@@ -265,8 +265,8 @@ export function PageHeader({
   return (
     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-zinc-500">{subtitle}</p>}
+        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">{title}</h1>
+        {subtitle && <p className="mt-2 text-[15px] text-zinc-500">{subtitle}</p>}
       </div>
       {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
     </div>
@@ -293,13 +293,13 @@ export function EmptyState({
   children?: React.ReactNode;
 }) {
   return (
-    <Card className="flex flex-col items-center px-6 py-12 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-loca-50 text-loca-600">
-        <Icon className="h-6 w-6" />
+    <Card className="flex flex-col items-center px-6 py-16 text-center">
+      <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-loca-50 text-loca-600 shadow-glow">
+        <Icon className="h-7 w-7" />
       </div>
-      <h2 className="mt-4 text-lg font-semibold text-zinc-900">{title}</h2>
-      {description && <p className="mt-1 max-w-sm text-sm text-zinc-500">{description}</p>}
-      {children && <div className="mt-5 flex flex-wrap items-center justify-center gap-2">{children}</div>}
+      <h2 className="mt-5 text-xl font-bold text-zinc-900">{title}</h2>
+      {description && <p className="mt-2 max-w-sm text-[15px] text-zinc-500">{description}</p>}
+      {children && <div className="mt-6 flex flex-wrap items-center justify-center gap-2">{children}</div>}
     </Card>
   );
 }

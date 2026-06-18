@@ -23,7 +23,7 @@ export default function MetricsPage() {
   if (!business || !snapshot) return null;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
       <PageHeader
         title="Métricas"
         subtitle="Cómo vienen funcionando tus contenidos y qué conviene hacer en el próximo calendario."

@@ -157,7 +157,7 @@ export function EvaChatBubble({ raised = false }: { raised?: boolean }) {
       {open && (
         <div
           className={cn(
-            "fixed right-4 z-40 flex max-h-[70vh] w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-pop animate-fade-in-up sm:right-6",
+            "fixed right-4 z-40 flex max-h-[70vh] w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-3xl border border-zinc-200/70 bg-white shadow-pop animate-fade-in-up sm:right-6",
             panelPos
           )}
         >
@@ -194,7 +194,7 @@ export function EvaChatBubble({ raised = false }: { raised?: boolean }) {
                 <button
                   key={a.label}
                   onClick={() => handleAction(a)}
-                  className="rounded-full border border-zinc-300 px-3 py-1 text-xs text-zinc-700 transition hover:border-loca-400 hover:bg-loca-50 hover:text-loca-700"
+                  className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-loca-400 hover:bg-loca-50 hover:text-loca-700"
                 >
                   {a.label}
                 </button>

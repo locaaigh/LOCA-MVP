@@ -49,26 +49,26 @@ export function buildFlowSteps(flow: FlowState, hasBusiness: boolean): FlowStep[
 // ── Progress tracker del flujo ───────────────────────────────
 export function ProgressTracker({ steps }: { steps: FlowStep[] }) {
   return (
-    <div className="flex items-center gap-1 overflow-x-auto pb-1">
+    <div className="flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-zinc-200/60 bg-white/70 px-4 py-3 shadow-soft">
       {steps.map((s, i) => {
         const dot =
           s.status === "aprobado" ? (
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-lima-400 text-ink">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-lima-400 text-ink shadow-glow-lima">
               <Check className="h-4 w-4" />
             </span>
           ) : s.status === "en_progreso" ? (
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-loca-600 text-white">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-loca-600 text-white shadow-lift">
+              <Loader2 className="h-4 w-4 animate-spin" />
             </span>
           ) : (
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-200 text-zinc-500">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-400">
               <Circle className="h-3 w-3" />
             </span>
           );
         const labelEl = (
           <span
             className={cn(
-              "whitespace-nowrap text-xs font-medium",
+              "whitespace-nowrap text-[13px] font-semibold",
               s.status === "aprobado"
                 ? "text-lima-700"
                 : s.status === "en_progreso"
@@ -81,10 +81,10 @@ export function ProgressTracker({ steps }: { steps: FlowStep[] }) {
         );
         return (
           <React.Fragment key={s.key}>
-            <div className="flex shrink-0 items-center gap-1.5">
+            <div className="flex shrink-0 items-center gap-2">
               {dot}
               {s.href ? (
-                <Link href={s.href} className="hover:underline">
+                <Link href={s.href} className="transition hover:opacity-70">
                   {labelEl}
                 </Link>
               ) : (
@@ -94,7 +94,7 @@ export function ProgressTracker({ steps }: { steps: FlowStep[] }) {
             {i < steps.length - 1 && (
               <div
                 className={cn(
-                  "h-0.5 w-5 shrink-0 rounded-full sm:w-8",
+                  "h-1 w-5 shrink-0 rounded-full sm:w-8",
                   s.status === "aprobado" ? "bg-lima-400" : "bg-zinc-200"
                 )}
               />
@@ -165,8 +165,8 @@ export function ApprovalActions({
 // ── Barra sticky de aprobación (mobile-first, offset del sidebar) ─
 export function StickyApproveBar({ children }: { children: React.ReactNode }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-white/90 backdrop-blur md:left-64">
-      <div className="mx-auto max-w-6xl px-4 py-3 sm:px-8">{children}</div>
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200/70 bg-white/90 backdrop-blur-md md:left-72">
+      <div className="mx-auto max-w-6xl px-4 py-3.5 sm:px-10">{children}</div>
     </div>
   );
 }
@@ -195,10 +195,10 @@ export function FeedbackPanel({
   const canApply = selected.length > 0 || custom.trim().length > 0;
 
   return (
-    <Card className="space-y-4 border-loca-200">
+    <Card className="space-y-4 border-loca-200 shadow-glow">
       <div>
-        <h3 className="font-semibold">{title}</h3>
-        <p className="text-xs text-zinc-500">
+        <h3 className="text-lg font-bold text-zinc-900">{title}</h3>
+        <p className="text-sm text-zinc-500">
           Elegí una o varias opciones. Eva aplica los cambios por vos.
         </p>
       </div>
@@ -209,10 +209,10 @@ export function FeedbackPanel({
             type="button"
             onClick={() => toggle(o.value)}
             className={cn(
-              "rounded-full border px-3 py-1.5 text-sm transition",
+              "rounded-full border px-3.5 py-2 text-sm font-medium transition",
               selected.includes(o.value)
-                ? "border-loca-500 bg-loca-50 text-loca-700"
-                : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
+                ? "border-loca-400 bg-loca-50 text-loca-700 ring-2 ring-loca-100"
+                : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
             )}
           >
             {o.label}
@@ -222,10 +222,10 @@ export function FeedbackPanel({
           type="button"
           onClick={() => setShowCustom((s) => !s)}
           className={cn(
-            "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-sm transition",
+            "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition",
             showCustom
-              ? "border-loca-500 bg-loca-50 text-loca-700"
-              : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
+              ? "border-loca-400 bg-loca-50 text-loca-700 ring-2 ring-loca-100"
+              : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
           )}
         >
           <MessageSquarePlus className="h-3.5 w-3.5" /> Dar feedback personalizado

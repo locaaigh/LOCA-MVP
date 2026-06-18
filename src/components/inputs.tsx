@@ -48,8 +48,8 @@ export function HelpField({
 }) {
   return (
     <div id={id} className="scroll-mt-24">
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <label className={cn("text-sm font-medium", error ? "text-red-600" : "text-zinc-700")}>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <label className={cn("text-sm font-semibold", error ? "text-red-600" : "text-zinc-700")}>
           {label} {required && <span className="text-loca-500">*</span>}
         </label>
         <div className="flex items-center gap-2">
@@ -111,8 +111,8 @@ export function SearchableSelect({
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "flex w-full items-center justify-between rounded-lg border bg-white px-3 py-2 text-left text-sm transition",
-          error ? "border-red-400" : "border-zinc-300 hover:border-zinc-400"
+          "flex w-full items-center justify-between rounded-2xl border bg-white px-4 py-3 text-left text-[15px] transition",
+          error ? "border-red-400" : "border-zinc-200 hover:border-zinc-300"
         )}
       >
         <span className={value ? "text-zinc-900" : "text-zinc-400"}>
@@ -256,10 +256,10 @@ export function OptionCards({
             type="button"
             onClick={() => toggle(o.value)}
             className={cn(
-              "flex items-start gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition",
+              "flex items-start gap-2 rounded-2xl border px-4 py-3.5 text-left text-sm transition",
               active
-                ? "border-loca-500 bg-loca-50 text-loca-700"
-                : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
+                ? "border-loca-400 bg-loca-50 text-loca-700 ring-2 ring-loca-100"
+                : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
             )}
           >
             {o.icon && <span className="mt-0.5 shrink-0">{o.icon}</span>}
@@ -300,10 +300,10 @@ export function YesNoChoice({
           type="button"
           onClick={() => onChange(v)}
           className={cn(
-            "rounded-xl border px-3 py-2.5 text-sm font-medium transition",
+            "rounded-2xl border px-4 py-3.5 text-sm font-semibold transition",
             value === v
-              ? "border-loca-500 bg-loca-50 text-loca-700"
-              : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
+              ? "border-loca-400 bg-loca-50 text-loca-700 ring-2 ring-loca-100"
+              : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
           )}
         >
           {l}

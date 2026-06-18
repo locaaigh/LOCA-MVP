@@ -26,35 +26,38 @@ export function ProductServiceCard({
       : "Sin precio";
   const origin = originBadge(ps);
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white p-3">
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-200/70 bg-white p-3.5 transition-shadow hover:shadow-sm">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-loca-50 text-loca-600">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-loca-50 text-loca-600 ring-1 ring-loca-100">
           <Check className="h-4 w-4" />
         </div>
         <div className="min-w-0">
-          <p className="flex items-center gap-1.5 truncate font-medium text-zinc-800">
+          <p className="flex items-center gap-1.5 truncate font-semibold text-zinc-800">
             {ps.name || "Sin nombre"}
             {ps.isTopSeller && (
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
                 <Star className="h-2.5 w-2.5" /> Top seller
               </span>
             )}
           </p>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs text-zinc-400">
-              {ps.type === "producto" ? "Producto" : "Servicio"} · {price}
-            </span>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-zinc-400">{ps.type === "producto" ? "Producto" : "Servicio"}</span>
+            {price === "Sin precio" ? (
+              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">Sin precio</span>
+            ) : (
+              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-600">{price}</span>
+            )}
             {origin && (
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${origin.cls}`}>{origin.label}</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${origin.cls}`}>{origin.label}</span>
             )}
           </div>
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
-        <button onClick={onEdit} className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700">
+        <button onClick={onEdit} className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700">
           <Pencil className="h-4 w-4" />
         </button>
-        <button onClick={onRemove} className="rounded-lg p-2 text-zinc-400 hover:bg-red-50 hover:text-red-500">
+        <button onClick={onRemove} className="rounded-xl p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-500">
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
@@ -100,10 +103,10 @@ export function ProductServiceForm({
   }
 
   return (
-    <Card className="space-y-3 border-loca-200">
+    <Card className="space-y-4 rounded-3xl border-loca-200">
       <div className="flex items-center justify-between">
         <Badge tone="pink">{isProduct ? "Producto" : "Servicio"}</Badge>
-        <button onClick={onRemove} className="text-zinc-400 hover:text-red-500">
+        <button onClick={onRemove} className="rounded-xl p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-500">
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
@@ -116,8 +119,8 @@ export function ProductServiceForm({
         />
       </Field>
 
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-zinc-400">
+      <div className="flex flex-col gap-2 rounded-2xl border border-loca-100 bg-loca-50/50 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-zinc-500">
           ¿No sabés qué poner en las descripciones? Que Eva las escriba por vos.
         </p>
         <EvaSuggestionButton label="Generar con Eva" onClick={generateWithEva} loading={aiLoading} />
@@ -190,18 +193,20 @@ export function ProductServiceForm({
         </Field>
       </div>
 
-      <label className="flex items-center gap-2 text-sm">
+      <label className="flex cursor-pointer items-center gap-2.5 rounded-2xl border border-zinc-200/70 bg-white p-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
         <input
           type="checkbox"
           checked={ps.isTopSeller}
           onChange={(e) => onChange({ isTopSeller: e.target.checked })}
           className="h-4 w-4 rounded border-zinc-300 text-loca-600"
         />
-        Marcar como top seller
+        <span className="inline-flex items-center gap-1.5">
+          <Star className="h-3.5 w-3.5 text-amber-500" /> Marcar como top seller
+        </span>
       </label>
 
       <div className="flex gap-2 pt-1">
-        <Button className="flex-1" onClick={onSave} disabled={!ps.name.trim()}>
+        <Button size="lg" className="flex-1" onClick={onSave} disabled={!ps.name.trim()}>
           <Check className="h-4 w-4" /> Guardar {isProduct ? "producto" : "servicio"}
         </Button>
       </div>
@@ -241,10 +246,12 @@ export function ProductServiceImporter({
   }
 
   return (
-    <div className="rounded-xl border border-dashed border-zinc-300 p-4">
-      <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 text-sm text-zinc-600">
-          <FileSpreadsheet className="h-5 w-5 text-zinc-400" />
+    <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/50 p-5">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3 text-sm font-medium text-zinc-700">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-zinc-400 ring-1 ring-zinc-200/70">
+            <FileSpreadsheet className="h-5 w-5" />
+          </div>
           <span>Subí tu base de productos/servicios (CSV)</span>
         </div>
         <Button size="sm" variant="outline" onClick={() => inputRef.current?.click()}>
@@ -262,12 +269,12 @@ export function ProductServiceImporter({
           }}
         />
       </div>
-      <p className="mt-1.5 text-xs text-zinc-400">
+      <p className="mt-3 text-xs text-zinc-400">
         Columnas aceptadas: name, type, category, shortDescription, longDescription, price, currency, keywords.
       </p>
 
       {errors.length > 0 && (
-        <ul className="mt-2 space-y-0.5 text-xs text-red-500">
+        <ul className="mt-3 space-y-1 rounded-xl bg-red-50 p-3 text-xs text-red-600 ring-1 ring-inset ring-red-100">
           {errors.map((e, i) => (
             <li key={i}>• {e}</li>
           ))}
@@ -275,11 +282,11 @@ export function ProductServiceImporter({
       )}
 
       {preview && preview.length > 0 && (
-        <div className="mt-3 space-y-2">
-          <p className="text-sm font-medium text-zinc-700">
+        <div className="mt-4 space-y-2.5">
+          <p className="text-sm font-semibold text-zinc-700">
             Eva detectó {preview.length} {preview.length === 1 ? "ítem" : "ítems"}. Revisalos antes de seguir.
           </p>
-          <div className="max-h-48 overflow-y-auto rounded-lg border border-zinc-100">
+          <div className="max-h-48 overflow-y-auto rounded-xl border border-zinc-200/70">
             <table className="w-full text-left text-xs">
               <thead className="bg-zinc-50 text-zinc-500">
                 <tr>
@@ -315,14 +322,14 @@ export function ProductServiceImporter({
 
 // Badge de origen/estado del ítem detectado/sugerido.
 function originBadge(ps: ProductService): { label: string; cls: string } | null {
-  if (ps.shouldReview) return { label: "Revisar", cls: "bg-amber-50 text-amber-700" };
+  if (ps.shouldReview) return { label: "Revisar", cls: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-100" };
   switch (ps.importSource) {
     case "website":
-      return { label: "Encontrado en web", cls: "bg-emerald-50 text-emerald-700" };
+      return { label: "Encontrado en web", cls: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100" };
     case "md":
-      return { label: "Confirmado por tu IA", cls: "bg-emerald-50 text-emerald-700" };
+      return { label: "Confirmado por tu IA", cls: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100" };
     case "eva":
-      return { label: "Sugerido por Eva", cls: "bg-loca-50 text-loca-700" };
+      return { label: "Sugerido por Eva", cls: "bg-loca-50 text-loca-700 ring-1 ring-inset ring-loca-100" };
     default:
       return null;
   }

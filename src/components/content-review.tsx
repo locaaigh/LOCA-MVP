@@ -3,12 +3,12 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
-import { useGenerators } from "@/lib/generators";
 import { Badge, Button, Card, Field, Input, Modal, Textarea } from "@/components/ui";
 import { ContentPreview } from "@/components/content-preview";
+import { PlatformLogo, PlatformLogos, contentPlatforms } from "@/components/platform-logo";
 import { FORMAT_LABELS } from "@/lib/constants";
 import { bucketOf } from "@/lib/content-status";
-import { formatDate, nowIso } from "@/lib/utils";
+import { nowIso } from "@/lib/utils";
 import type { Business, ContentItem } from "@/lib/types";
 import {
   Check,
@@ -18,6 +18,7 @@ import {
   PartyPopper,
   ImageIcon,
   PencilLine,
+  Sparkles,
 } from "lucide-react";
 
 function typeTag(format: string): string {
@@ -27,6 +28,18 @@ function typeTag(format: string): string {
   if (format === "ad") return "Anuncio";
   if (format === "email") return "Email";
   return "Feed";
+}
+
+// Fecha y horario en formato limpio: "04/06/26 · 14:20 hs"
+function publishLabel(dateIso: string, time?: string): string {
+  let datePart = dateIso;
+  try {
+    const d = new Date(dateIso);
+    datePart = d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  } catch {
+    /* noop */
+  }
+  return time ? `${datePart} · ${time} hs` : datePart;
 }
 
 function contentDate(c: ContentItem, calendars: Record<string, any[]>): string {
@@ -99,7 +112,23 @@ export function ContentManualEditModal({
   );
 }
 
-// ── Cambiar imagen/video o concepto visual (puede usar IA) ───
+// Tags de feedback visual que ve el cliente (sin tecnicismos ni prompts).
+const VISUAL_FEEDBACK_TAGS = [
+  "No representa mi marca",
+  "Producto equivocado",
+  "Servicio equivocado",
+  "Persona/escena incorrecta",
+  "Estilo visual incorrecto",
+  "Colores incorrectos",
+  "Baja calidad",
+  "Texto en imagen incorrecto",
+  "Formato incorrecto",
+  "Quiero algo más premium",
+  "Quiero algo más simple",
+  "Otro",
+];
+
+// ── Cambiar imagen/video: feedback simple por tags (sin prompt/concepto) ───
 export function ContentVisualEditModal({
   business,
   content,
@@ -113,68 +142,101 @@ export function ContentVisualEditModal({
   onClose: () => void;
   onToast: (m: string) => void;
 }) {
-  const gen = useGenerators();
   const updateContent = useStore((s) => s.updateContent);
-  const [prompt, setPrompt] = React.useState(content.imagePrompt);
-  const [concept, setConcept] = React.useState(content.visualConcept);
-  const [imgLoading, setImgLoading] = React.useState(false);
-  const [regenerated, setRegenerated] = React.useState(false);
+  const [tags, setTags] = React.useState<string[]>([]);
+  const [otherText, setOtherText] = React.useState("");
+  const [comment, setComment] = React.useState("");
 
   React.useEffect(() => {
     if (open) {
-      setPrompt(content.imagePrompt);
-      setConcept(content.visualConcept);
-      setRegenerated(false);
+      setTags(content.selectedVisualFeedbackTags || []);
+      setOtherText("");
+      setComment("");
     }
   }, [open, content.id]);
 
-  async function regenerate() {
-    setImgLoading(true);
-    try {
-      // Aplicar el prompt editado antes de generar
-      updateContent(content.id, { imagePrompt: prompt });
-      const res = await gen.generateImage({ ...content, imagePrompt: prompt }, business);
-      setRegenerated(true);
-      onToast(res.provider === "mock" ? "Imagen simulada (modo demo)" : "Imagen generada ✨");
-    } catch (e: any) {
-      onToast(e?.message || "No se pudo generar la imagen");
-    } finally {
-      setImgLoading(false);
-    }
-  }
+  const usedChange = (content.visualChangeCount || 0) >= 1;
+  const hasOther = tags.includes("Otro");
+  const canSend = tags.length > 0 || otherText.trim().length > 0 || comment.trim().length > 0;
 
-  function save() {
-    const changed = prompt !== content.imagePrompt || concept !== content.visualConcept || regenerated;
+  const toggle = (t: string) =>
+    setTags((s) => (s.includes(t) ? s.filter((x) => x !== t) : [...s, t]));
+
+  function send() {
+    if (usedChange) {
+      onToast("Ya usaste el cambio incluido para esta pieza.");
+      return;
+    }
+    // El feedback del cliente queda guardado para que Eva prepare la nueva versión.
+    // (Internamente puede alimentar prompt/concepto, pero el cliente no los ve.)
+    const customParts = [hasOther && otherText.trim() ? otherText.trim() : "", comment.trim()].filter(Boolean);
     updateContent(content.id, {
-      imagePrompt: prompt,
-      visualConcept: concept,
-      // Cambiar el visual hace que vuelva a revisión si estaba aprobado.
-      ...(changed && content.status === "aprobado" ? { status: "needs_changes" as const } : {}),
+      selectedVisualFeedbackTags: tags,
+      customVisualFeedback: customParts.join(" — ") || undefined,
+      visualChangeRequestedAt: nowIso(),
+      visualChangeCount: (content.visualChangeCount || 0) + 1,
+      // Cambiar el visual hace que la pieza vuelva a revisión.
+      status: "needs_changes" as const,
     });
-    if (changed && content.status === "aprobado") onToast("Cambiaste el visual: la pieza volvió a revisión.");
-    else onToast("Cambios guardados ✨");
+    onToast("Cambio enviado a Eva. La pieza volvió a revisión.");
     onClose();
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Cambiar imagen/video">
-      <div className="space-y-3">
-        <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          ⚡ Regenerar la imagen puede usar IA (y créditos). Si cambiás el visual, la pieza vuelve a revisión.
-        </div>
+    <Modal open={open} onClose={onClose} title="¿Qué querés cambiar de la imagen/video?">
+      <div className="space-y-4">
+        <p className="text-sm text-zinc-500">
+          Elegí qué no te convence. Eva va a usar este feedback para preparar una nueva versión.
+        </p>
+
         <ContentPreview content={content} business={business} className="!shadow-none" />
-        <Field label="Concepto visual">
-          <Textarea value={concept} onChange={(e) => setConcept(e.target.value)} className="min-h-[70px] text-sm" />
-        </Field>
-        <Field label="Prompt de imagen (interno)">
-          <Textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} className="min-h-[80px] text-xs" />
-        </Field>
+
+        {usedChange ? (
+          <div className="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 ring-1 ring-inset ring-amber-100">
+            Ya usaste el cambio incluido para esta pieza.
+          </div>
+        ) : (
+          <div className="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 ring-1 ring-inset ring-amber-100">
+            Recordá: tu plan incluye 1 cambio por contenido.
+          </div>
+        )}
+
+        <fieldset disabled={usedChange} className="space-y-4 disabled:opacity-60">
+          <div className="flex flex-wrap gap-2">
+            {VISUAL_FEEDBACK_TAGS.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => toggle(t)}
+                className={
+                  "rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition " +
+                  (tags.includes(t)
+                    ? "border-loca-400 bg-loca-50 text-loca-700 ring-2 ring-loca-100"
+                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50")
+                }
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+
+          {hasOther && (
+            <Field label="Contanos qué querés cambiar">
+              <Textarea value={otherText} onChange={(e) => setOtherText(e.target.value)} className="min-h-[70px]" placeholder="Describí qué te gustaría distinto…" />
+            </Field>
+          )}
+
+          <Field label="Agregá un comentario para Eva (opcional)">
+            <Textarea value={comment} onChange={(e) => setComment(e.target.value)} className="min-h-[60px]" placeholder="Ej: que se vea el local de fondo." />
+          </Field>
+        </fieldset>
+
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button variant="outline" className="flex-1" onClick={regenerate} loading={imgLoading}>
-            {!imgLoading && <ImageIcon className="h-4 w-4" />} Regenerar imagen (IA)
+          <Button variant="primary" size="lg" className="flex-1" onClick={send} disabled={usedChange || !canSend}>
+            <Sparkles className="h-4 w-4" /> Enviar cambio a Eva
           </Button>
-          <Button variant="primary" className="flex-1" onClick={save}>
-            <Check className="h-4 w-4" /> Guardar
+          <Button variant="ghost" size="lg" onClick={onClose}>
+            Cancelar
           </Button>
         </div>
       </div>
@@ -272,42 +334,59 @@ export function ContentReviewDeck({
         </div>
       </div>
 
-      {/* Plataforma · formato (una sola vez) */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <Badge tone="pink">{current.channel}</Badge>
-        <Badge>{typeTag(current.format)}</Badge>
-        {current.status === "needs_changes" && <Badge tone="yellow">Con cambios</Badge>}
-      </div>
+      {/* Plataforma(s) con logo (crosspost si aplica) · formato */}
+      {(() => {
+        const platforms = contentPlatforms(current.channel, current.distributionPlatforms, business.marketingChannels);
+        return (
+          <div className="flex items-center gap-3">
+            <PlatformLogos channels={platforms} size={40} />
+            <div>
+              <p className="text-[15px] font-bold leading-tight text-zinc-900">{platforms.join(" + ")}</p>
+              <div className="mt-0.5 flex items-center gap-1.5">
+                <span className="text-xs font-medium text-zinc-500">
+                  {typeTag(current.format)}
+                  {platforms.length > 1 ? " · se publica en varias redes" : ""}
+                </span>
+                {current.status === "needs_changes" && <Badge tone="yellow">Con cambios</Badge>}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Desktop: visual izquierda, copy/datos derecha */}
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <div>
           <div className="mx-auto max-w-[440px] lg:mx-0">
             <ContentPreview content={current} business={business} />
-            <p className="mt-3 text-center text-sm text-zinc-500 lg:text-left">
-              Fecha y horario de publicación: <span className="font-medium text-zinc-700">{formatDate(dateOf(current))}{current.scheduledTime ? ` · ${current.scheduledTime}` : ""}</span>
-            </p>
+            <div className="mt-3 flex items-center justify-center gap-2 lg:justify-start">
+              <CalendarClock className="h-4 w-4 text-loca-500" />
+              <span className="text-sm font-semibold text-zinc-700">{publishLabel(dateOf(current), current.scheduledTime)}</span>
+            </div>
           </div>
         </div>
 
         <div className="space-y-4">
-          <Card className="p-4">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">{current.caption}</p>
-            {current.hashtags.length > 0 && <p className="mt-2 text-sm text-loca-600">{current.hashtags.join(" ")}</p>}
+          <Card className="overflow-hidden p-5">
+            <p className="overflow-wrap-anywhere whitespace-pre-wrap break-words text-[15px] leading-relaxed text-zinc-700">{current.caption}</p>
+            {current.hashtags.length > 0 && <p className="overflow-wrap-anywhere mt-3 break-words text-sm font-medium text-loca-600">{current.hashtags.join(" ")}</p>}
           </Card>
 
-          <div className="space-y-2">
-            <Button variant="success" size="lg" className="w-full" onClick={approve}>
+          <div className="space-y-2.5">
+            <Button variant="success" size="xl" className="w-full" onClick={approve}>
               <Check className="h-5 w-5" /> Aprobar
             </Button>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button variant="outline" className="flex-1" onClick={() => setManualOpen(true)}>
+            <div className="flex flex-col gap-2.5 sm:flex-row">
+              <Button variant="outline" size="lg" className="flex-1" onClick={() => setManualOpen(true)}>
                 <PencilLine className="h-4 w-4" /> Editar copy y fecha
               </Button>
-              <Button variant="outline" className="flex-1" onClick={() => setVisualOpen(true)}>
+              <Button variant="outline" size="lg" className="flex-1" onClick={() => setVisualOpen(true)}>
                 <ImageIcon className="h-4 w-4" /> Cambiar imagen/video
               </Button>
             </div>
+            <p className="text-center text-xs text-zinc-400">
+              Este contenido incluye <span className="font-semibold text-zinc-500">1 cambio</span>. Editar copy/fecha/hora no lo consume.
+            </p>
           </div>
         </div>
       </div>

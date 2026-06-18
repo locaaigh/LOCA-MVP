@@ -7,6 +7,7 @@ import { useStore } from "@/lib/store";
 import { useGenerators } from "@/lib/generators";
 import { Badge, Button, Card, Field, Input, Modal, Select, Textarea, useToast } from "@/components/ui";
 import { ContentPreview } from "@/components/content-preview";
+import { PlatformLogo } from "@/components/platform-logo";
 import { FeedbackPanel } from "@/components/flow";
 import { CONTENT_FEEDBACK, applyStructuredFeedback } from "@/lib/feedback";
 import { FORMAT_LABELS, IMAGE_FORMAT_LABELS, CONTENT_STATUS_LABELS } from "@/lib/constants";
@@ -116,9 +117,9 @@ export default function ContentDetailPage() {
         <Link href="/content" className="flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800">
           <ArrowLeft className="h-4 w-4" /> Volver a contenidos
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <Badge tone="default">Detalle interno</Badge>
-          <Badge tone="pink">{c.channel}</Badge>
+          <PlatformLogo channel={c.channel} size={28} />
           <Badge>{FORMAT_LABELS[c.format]}</Badge>
         </div>
       </div>

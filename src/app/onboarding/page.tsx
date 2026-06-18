@@ -34,8 +34,10 @@ import {
   ProductServiceImporter,
 } from "@/components/product-service";
 import { BrandKitEditor } from "@/components/brand-kit";
-import { OnboardingSummary, type SummarySectionKey } from "@/components/onboarding-summary";
-import { Logo, EvaAvatar } from "@/components/brand";
+import { OnboardingSummary, missingCritical, type SummarySectionKey } from "@/components/onboarding-summary";
+import { PendingFlow } from "@/components/pending-flow";
+import { pendingQuestions } from "@/lib/business-questions";
+import { Logo } from "@/components/brand";
 import { EvaChatBubble } from "@/components/eva-chat";
 import { getFieldExample } from "@/lib/examples";
 import { getMissingRequiredFields } from "@/lib/onboarding-validation";
@@ -44,7 +46,20 @@ import { api } from "@/lib/api";
 import { uid, copyToClipboard, nowIso, downloadFile } from "@/lib/utils";
 import { externalAiPrompt, emptyMdTemplate, parseExternalMarkdown, isAnalysisComplete } from "@/lib/md-import";
 import { suggestPending } from "@/lib/eva-suggest";
-import { Check, Globe, Sparkles, ArrowRight, Plus, Bot, Copy, Upload, FileText, Download, Pencil } from "lucide-react";
+import {
+  Check,
+  Globe,
+  Sparkles,
+  ArrowRight,
+  ArrowLeft,
+  Plus,
+  Bot,
+  Copy,
+  Upload,
+  FileText,
+  Download,
+  Pencil,
+} from "lucide-react";
 import type { FieldStatusKind } from "@/lib/types";
 
 const STEPS = [
@@ -59,6 +74,10 @@ const STEPS = [
 ];
 const CURRENT_YEAR = 2026;
 const SUMMARY_STEP = STEPS.length - 1; // 7
+const WIZARD_TOTAL = STEPS.length - 1; // 7 pasos reales del formulario (1..7)
+
+// Fases del onboarding (la pantalla inicial es independiente del wizard).
+type Phase = "select" | "web" | "ai" | "pending" | "wizard";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -67,9 +86,15 @@ export default function OnboardingPage() {
   const upsertBusiness = useStore((s) => s.upsertBusiness);
   const { show, node } = useToast();
 
-  const [step, setStep] = useState(0);
+  // Fase de la experiencia. La pantalla inicial NO es el paso 1 del wizard:
+  // "select" (elección de método) → "web" / "ai" (pantallas únicas) →
+  // "pending" (faltantes agrupados) → "wizard" (formulario manual de pasos).
+  const [phase, setPhase] = useState<Phase>("select");
+  const [step, setStep] = useState(1); // el wizard manual arranca en el paso 1 (Negocio)
   const [b, setB] = useState<Business>(() => emptyBusiness(user?.id || "anon"));
   const [missing, setMissing] = useState<Set<string>>(new Set());
+  const [webLoading, setWebLoading] = useState(false);
+  const [criticalOpen, setCriticalOpen] = useState(false);
   // Edición de una sección desde el resumen final
   const [editSection, setEditSection] = useState<SummarySectionKey | null>(null);
   const [draftBackup, setDraftBackup] = useState<Business | null>(null);
@@ -124,8 +149,10 @@ export default function OnboardingPage() {
   const statusOf = (f: string): FieldStatusKind | undefined => b.fieldStatuses?.[f]?.status;
 
   // Aplica el análisis de la web (sin marcar como editado).
-  function applyAnalysis(a: WebsiteAnalysis) {
+  // Devuelve el negocio resultante para poder decidir el ruteo (resumen vs pendientes).
+  function applyAnalysis(a: WebsiteAnalysis): Business {
     const ff = a.foundFields;
+    let computed: Business | null = null;
     setB((prev) => {
       const next: Business = { ...prev };
       if (ff.name) next.name = ff.name;
@@ -170,13 +197,103 @@ export default function OnboardingPage() {
           behavior: ff.audience.behavior || prev.audience.behavior,
         };
       }
+      if (ff.goals) {
+        next.goals = {
+          ...prev.goals,
+          primaryContentGoal: (ff.goals.primaryContentGoal as any) || prev.goals.primaryContentGoal,
+          marketingObjectives: ff.goals.marketingObjectives || prev.goals.marketingObjectives,
+          businessObjectives: ff.goals.businessObjectives || prev.goals.businessObjectives,
+        };
+      }
+      if (ff.seasonalityTags?.length) {
+        next.seasonalityTags = ff.seasonalityTags;
+        next.hasSeasonality = true;
+      }
+      if (ff.specialDates?.length) {
+        next.specialDates = ff.specialDates;
+        next.hasSpecialDates = true;
+      }
       if (ff.brandKit) next.brandKit = ff.brandKit;
       if (ff.businessIntelligence) next.businessIntelligence = ff.businessIntelligence;
       next.fieldStatuses = { ...prev.fieldStatuses, ...a.fieldStatuses };
       next.websiteExtractionStatus = "done";
       next.websiteExtractionConsent = true;
+      computed = next;
       return next;
     });
+    return computed ?? b;
+  }
+
+  // Decide a dónde ir después de analizar web / importar .md.
+  // Suficiente info → resumen final. Faltan datos clave → pantalla de pendientes.
+  function routeAfterImport(next: Business) {
+    if (missingCritical(next).length === 0) {
+      setStep(SUMMARY_STEP);
+      setPhase("wizard");
+    } else {
+      setPhase("pending");
+    }
+  }
+
+  // Elección de método en la pantalla inicial.
+  function pickMethod(m: StartMode) {
+    set({ businessInfoImportSource: m === "ai" ? "external_ai_md" : m === "web" ? "website" : "manual" });
+    if (m === "manual") {
+      setStep(1);
+      setPhase("wizard");
+    } else {
+      setPhase(m);
+    }
+  }
+
+  // Analizar la web (pantalla Web).
+  async function analyzeWeb(url: string) {
+    const clean = url.trim();
+    if (!clean) {
+      show("Pegá la URL de tu web primero.");
+      return;
+    }
+    setWebLoading(true);
+    set({ websiteUrl: clean, hasWebsite: true, websiteExtractionStatus: "loading" });
+    try {
+      const res = await api.extractWebsite(clean);
+      const next = applyAnalysis(res.data);
+      show(res.meta?.warning || "Listo. Eva leyó tu web y completó lo que encontró.");
+      routeAfterImport(next);
+    } catch {
+      set({ websiteExtractionStatus: "error" });
+      show("Eva no pudo leer la web. Probá con otra URL o completá a mano.");
+    } finally {
+      setWebLoading(false);
+    }
+  }
+
+  // Importar el .md de una IA externa (pantalla IA).
+  function loadExternalMd(md: string, fileName: string) {
+    if (!md.trim()) {
+      show("Subí el archivo .md o pegá el contenido primero.");
+      return;
+    }
+    const res = parseExternalMarkdown(md);
+    const next = applyAnalysis(res);
+    set({
+      businessInfoImportSource: "external_ai_md",
+      externalAiImport: {
+        rawMarkdown: md,
+        uploadedFileName: fileName || undefined,
+        parsedAt: nowIso(),
+        fieldStatuses: res.fieldStatuses,
+        missingFields: res.missingFields,
+        isCompleteEnoughForSummary: isAnalysisComplete(res),
+      },
+    });
+    show("Importado. Eva completó lo que pudo de tu resumen.");
+    routeAfterImport(next);
+  }
+
+  function goSummary() {
+    setStep(SUMMARY_STEP);
+    setPhase("wizard");
   }
 
   const subcats = useMemo(() => SUBCATEGORIES[b.industry] || [], [b.industry]);
@@ -218,93 +335,151 @@ export default function OnboardingPage() {
     router.push("/strategy?generate=1");
   }
 
-  const onSummary = step === SUMMARY_STEP;
+  const onSummary = phase === "wizard" && step === SUMMARY_STEP;
 
   return (
-    <main className="min-h-screen bg-zinc-50 pb-28">
+    <main className="min-h-screen">
       {node}
-      {/* Header sticky con progreso */}
-      <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto max-w-3xl px-4 py-2.5 sm:px-6">
-          <div className="flex items-center justify-between">
-            <Link href="/">
-              <Logo className="text-xl" />
-            </Link>
-            <span className="text-sm font-medium text-zinc-500">
-              Paso {step + 1} de {STEPS.length} · {STEPS[step]}
-            </span>
-          </div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-100">
-            <div
-              className="h-full rounded-full bg-loca-500 transition-all duration-300"
-              style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
-            />
-          </div>
-        </div>
-      </header>
 
-      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
-        {/* Stepper de puntos (navegable) */}
-        <div className="mb-5 flex items-center">
-          {STEPS.map((s, i) => (
-            <div key={s} className="flex flex-1 items-center">
-              <button
-                onClick={() => i <= step && setStep(i)}
-                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition ${
-                  i < step
-                    ? "bg-lima-400 text-ink"
-                    : i === step
-                      ? "bg-loca-600 text-white"
-                      : "bg-zinc-200 text-zinc-500"
-                }`}
-              >
-                {i < step ? <Check className="h-3.5 w-3.5" /> : i + 1}
-              </button>
-              {i < STEPS.length - 1 && (
-                <div className={`mx-1 h-0.5 flex-1 ${i < step ? "bg-lima-400" : "bg-zinc-200"}`} />
+      {/* ── Pantalla inicial: elección de método (sin stepper, sin footer, sin scroll) ── */}
+      {phase === "select" && <MethodSelect onPick={pickMethod} />}
+
+      {/* ── Pantalla Web (única, centrada) ── */}
+      {phase === "web" && (
+        <WebImportScreen
+          initialUrl={b.websiteUrl || ""}
+          loading={webLoading}
+          onAnalyze={analyzeWeb}
+          onBack={() => setPhase("select")}
+        />
+      )}
+
+      {/* ── Pantalla IA externa (única, centrada) ── */}
+      {phase === "ai" && (
+        <AiImportScreen
+          businessName={b.name}
+          onLoad={loadExternalMd}
+          onBack={() => setPhase("select")}
+        />
+      )}
+
+      {/* ── Pantalla de pendientes (después de web/.md incompletos) ── */}
+      {phase === "pending" && (
+        <PendingScreen
+          business={b}
+          applyPatch={set}
+          onEditSection={openSection}
+          onSuggest={completeWithEva}
+          onSummary={goSummary}
+          onBack={() => setPhase("select")}
+        />
+      )}
+
+      {/* ── Wizard manual (solo aquí aparecen pasos / stepper / footer) ── */}
+      {phase === "wizard" && (
+        <>
+          <header className="sticky top-0 z-20 border-b border-zinc-200/70 bg-white/85 backdrop-blur-md">
+            <div className="mx-auto max-w-3xl px-4 py-3 sm:px-6">
+              <div className="flex items-center justify-between">
+                <Link href="/">
+                  <Logo className="text-xl" />
+                </Link>
+                <span className="text-sm font-semibold text-zinc-400">
+                  Paso {step} de {WIZARD_TOTAL} · <span className="text-zinc-700">{STEPS[step]}</span>
+                </span>
+              </div>
+              <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-zinc-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-loca-500 to-loca-400 transition-all duration-500"
+                  style={{ width: `${(step / WIZARD_TOTAL) * 100}%` }}
+                />
+              </div>
+            </div>
+          </header>
+
+          <div className="mx-auto max-w-3xl px-4 py-8 pb-28 sm:px-6">
+            {/* Stepper navegable (pasos 1..7) */}
+            <div className="mb-7 flex items-center">
+              {Array.from({ length: WIZARD_TOTAL }, (_, k) => k + 1).map((i, idx) => (
+                <div key={i} className="flex flex-1 items-center">
+                  <button
+                    onClick={() => i <= step && setStep(i)}
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition ${
+                      i < step
+                        ? "bg-lima-400 text-ink shadow-glow-lima"
+                        : i === step
+                          ? "bg-loca-600 text-white shadow-lift"
+                          : "bg-zinc-200/80 text-zinc-400"
+                    }`}
+                  >
+                    {i < step ? <Check className="h-4 w-4" /> : i}
+                  </button>
+                  {idx < WIZARD_TOTAL - 1 && (
+                    <div className={`mx-1.5 h-1 flex-1 rounded-full transition ${i < step ? "bg-lima-400" : "bg-zinc-200/80"}`} />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {!onSummary && (
+              <>
+                <h1 className="text-3xl font-bold tracking-tight text-zinc-900">{STEPS[step]}</h1>
+                <StepIntro step={step} />
+              </>
+            )}
+
+            <div className="mt-5">
+              {step === 1 && <StepBasic b={b} set={set} subcats={subcats} missing={missing} statusOf={statusOf} />}
+              {step === 2 && <StepBrand b={b} set={set} missing={missing} statusOf={statusOf} />}
+              {step === 3 && <StepBrandKit b={b} set={set} />}
+              {step === 4 && <StepProducts b={b} set={set} show={show} />}
+              {step === 5 && <StepAudience b={b} set={set} missing={missing} />}
+              {step === 6 && <StepGoals b={b} set={set} missing={missing} />}
+              {step === 7 && (
+                <OnboardingSummary
+                  business={b}
+                  onConfirm={finish}
+                  onEdit={() => setStep(1)}
+                  onEditSection={openSection}
+                  onCompleteWithEva={completeWithEva}
+                  onFixCritical={() => setCriticalOpen(true)}
+                />
               )}
             </div>
-          ))}
-        </div>
+          </div>
 
-        {!onSummary && (
-          <>
-            <h1 className="text-2xl font-bold">{STEPS[step]}</h1>
-            <StepIntro step={step} />
-          </>
-        )}
-
-        <div className="mt-4">
-          {step === 0 && (
-            <StepWebsite
-              b={b}
-              set={set}
-              applyAnalysis={applyAnalysis}
-              onSkip={() => setStep(1)}
-              onDone={() => setStep(1)}
-              onJumpToSummary={() => setStep(SUMMARY_STEP)}
-              show={show}
-            />
+          {!onSummary && (
+            <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200/70 bg-white/90 backdrop-blur-md">
+              <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
+                <Button variant="ghost" size="lg" onClick={() => (step === 1 ? setPhase("select") : setStep(step - 1))}>
+                  {step === 1 ? "Volver al inicio" : "Atrás"}
+                </Button>
+                <Button size="lg" onClick={tryNext}>
+                  {step === SUMMARY_STEP - 1 ? "Ver resumen" : "Siguiente"} <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           )}
-          {step === 1 && <StepBasic b={b} set={set} subcats={subcats} missing={missing} statusOf={statusOf} />}
-          {step === 2 && <StepBrand b={b} set={set} missing={missing} statusOf={statusOf} />}
-          {step === 3 && <StepBrandKit b={b} set={set} />}
-          {step === 4 && <StepProducts b={b} set={set} show={show} />}
-          {step === 5 && <StepAudience b={b} set={set} missing={missing} />}
-          {step === 6 && <StepGoals b={b} set={set} missing={missing} />}
-          {step === 7 && (
-            <OnboardingSummary
-              business={b}
-              onConfirm={finish}
-              onEdit={() => setStep(1)}
-              onEditSection={openSection}
-              onCompleteWithEva={completeWithEva}
-            />
-          )}
-        </div>
-      </div>
+        </>
+      )}
 
-      {/* Edición enfocada de una sección desde el resumen */}
+      {/* Faltantes críticos: flujo enfocado 1-de-N (campo por campo) */}
+      <Modal open={criticalOpen} onClose={() => setCriticalOpen(false)} title="Falta este dato para tu estrategia">
+        <PendingFlow
+          business={b}
+          questions={pendingQuestions(b).filter((q) => q.critical)}
+          applyPatch={set}
+          onSuggest={completeWithEva}
+          onEditSection={(k) => {
+            setCriticalOpen(false);
+            openSection(k);
+          }}
+          onDone={() => setCriticalOpen(false)}
+          doneLabel="Listo"
+        />
+      </Modal>
+
+      {/* Edición enfocada de una sección (resumen y pendientes) */}
       <Modal open={!!editSection} onClose={cancelSection} title={sectionTitle(editSection)}>
         <SectionEditor section={editSection} b={b} set={set} subcats={subcats} show={show} />
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
@@ -317,31 +492,7 @@ export default function OnboardingPage() {
         </div>
       </Modal>
 
-      {/* Sticky bottom CTA (oculto en el resumen, que tiene sus propios botones) */}
-      {!onSummary && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 backdrop-blur">
-          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-            <Button variant="ghost" onClick={() => (step === 0 ? router.push("/") : setStep(step - 1))}>
-              {step === 0 ? "Cancelar" : "Atrás"}
-            </Button>
-            {step === 0 ? (
-              <Button onClick={() => setStep(1)}>
-                Continuar <ArrowRight className="h-4 w-4" />
-              </Button>
-            ) : step === SUMMARY_STEP - 1 ? (
-              <Button onClick={tryNext}>
-                Ver resumen <ArrowRight className="h-4 w-4" />
-              </Button>
-            ) : (
-              <Button onClick={tryNext}>
-                Siguiente <ArrowRight className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-
-      <EvaChatBubble raised />
+      <EvaChatBubble raised={phase === "wizard"} />
     </main>
   );
 }
@@ -356,7 +507,7 @@ function StepIntro({ step }: { step: number }) {
     "¿A quién le hablás? Esto ayuda a Eva a afinar el contenido.",
     "Por último, qué querés lograr. Con esto Eva arma tu estrategia.",
   ];
-  return <p className="mt-1 text-sm text-zinc-500">{intros[step]}</p>;
+  return <p className="mt-2 text-[15px] text-zinc-500">{intros[step]}</p>;
 }
 
 // ── Paso 3: Identidad visual (Brand Kit) ─────────────────────
@@ -449,365 +600,357 @@ function CommercialEditor({ b, set }: { b: Business; set: (p: Partial<Business>)
   );
 }
 
-// ── Paso 0: Empecemos fácil (fuente de info) ─────────────────
+// ─────────────────────────────────────────────────────────────
+// PANTALLA INICIAL: elección de método (independiente del wizard)
+// ─────────────────────────────────────────────────────────────
 type StartMode = "ai" | "web" | "manual";
 
-function StepWebsite({
-  b,
-  set,
-  applyAnalysis,
-  onSkip,
-  onDone,
-  onJumpToSummary,
-  show,
-}: {
-  b: Business;
-  set: (p: Partial<Business>) => void;
-  applyAnalysis: (a: WebsiteAnalysis) => void;
-  onSkip: () => void;
-  onDone: () => void;
-  onJumpToSummary: () => void;
-  show: (m: string) => void;
-}) {
-  const [mode, setMode] = useState<StartMode | undefined>(
-    b.businessInfoImportSource === "external_ai_md" ? "ai" : b.businessInfoImportSource === "website" ? "web" : undefined
-  );
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<WebsiteAnalysis | null>(null);
-
-  function chooseMode(m: StartMode) {
-    setMode(m);
-    setResult(null);
-    set({ businessInfoImportSource: m === "ai" ? "external_ai_md" : m === "web" ? "website" : "manual" });
-  }
-
-  async function autocomplete() {
-    if (!b.websiteUrl?.trim()) {
-      show("Escribí la URL de tu web primero.");
-      return;
-    }
-    setLoading(true);
-    set({ websiteExtractionStatus: "loading" });
-    try {
-      const res = await api.extractWebsite(b.websiteUrl.trim());
-      applyAnalysis(res.data);
-      setResult(res.data);
-      show(res.meta?.warning || "Listo. Eva completó algunos datos. Revisalos y completá lo que falte.");
-    } catch {
-      set({ websiteExtractionStatus: "error" });
-      show("Eva no pudo leer la web. Podés completar el formulario manualmente o probar con otra URL.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
+function MethodSelect({ onPick }: { onPick: (m: StartMode) => void }) {
   return (
-    <div className="space-y-5">
-      <div className="text-center">
-        <h2 className="text-xl font-bold tracking-tight text-zinc-900">¿Cómo querés que Eva conozca tu negocio?</h2>
-        <p className="mt-1 text-sm text-zinc-500">
-          Elegí una forma para empezar. Después vas a poder revisar y editar todo antes de generar la estrategia.
-        </p>
+    <div className="flex min-h-screen flex-col loca-hero-bg">
+      <div className="px-6 pt-7 sm:px-10">
+        <Link href="/">
+          <Logo className="text-2xl" />
+        </Link>
       </div>
 
-      {/* 3 opciones principales (cards grandes) */}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <StartCard
-          icon={Bot}
-          title="Usar una IA que ya conoce mi negocio"
-          desc="Si ya usás ChatGPT, Claude o Gemini para tu marca, copiá un prompt, pedile un archivo .md y subilo acá."
-          cta="Usar mi IA"
-          active={mode === "ai"}
-          onClick={() => chooseMode("ai")}
-        />
-        <StartCard
-          icon={Globe}
-          title="Que Eva lea mi web"
-          desc="Eva analiza tu sitio, detecta info de tu marca y completa el formulario. Lo que falte queda pendiente."
-          cta="Leer mi web"
-          active={mode === "web"}
-          onClick={() => chooseMode("web")}
-        />
-        <StartCard
-          icon={Pencil}
-          title="Completar manualmente"
-          desc="Completá el formulario paso a paso. Eva puede sugerirte respuestas cuando necesites ayuda."
-          cta="Completar manualmente"
-          active={mode === "manual"}
-          onClick={() => chooseMode("manual")}
-        />
-      </div>
+      <div className="flex flex-1 items-center justify-center px-4 py-6 sm:px-6">
+        <div className="w-full max-w-3xl">
+          <div className="text-center">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift animate-float">
+              <Sparkles className="h-8 w-8" />
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-[2.75rem] sm:leading-[1.05]">
+              ¿Cómo querés que Eva<br className="hidden sm:block" /> conozca tu negocio?
+            </h1>
+            <p className="mx-auto mt-4 max-w-xl text-base text-zinc-500 sm:text-lg">
+              Empezá con tu web o con una IA que ya conozca tu marca. Eva completa todo lo posible y vos solo revisás.
+            </p>
+          </div>
 
-      {mode === "ai" && (
-        <Card className="space-y-5">
-          <ExternalAiPanel
-            b={b}
-            set={set}
-            applyAnalysis={applyAnalysis}
-            onJumpToSummary={onJumpToSummary}
-            onDone={onDone}
-            show={show}
-          />
-        </Card>
-      )}
+          <div className="mt-9 grid gap-4 sm:grid-cols-2">
+            <MethodCard
+              icon={Globe}
+              badge="Lo más fácil"
+              badgeTone="lima"
+              title="Pegar mi web"
+              desc="Eva lee tu sitio y completa marca, productos, servicios y datos clave. Vos solo revisás."
+              cta="Leer mi web"
+              onClick={() => onPick("web")}
+            />
+            <MethodCard
+              icon={Bot}
+              badge="Si ya usás IA"
+              badgeTone="pink"
+              title="Subir resumen de mi IA"
+              desc="Copiá un prompt, pedile a ChatGPT, Claude o Gemini un .md y subilo en LOCA."
+              cta="Usar mi IA"
+              onClick={() => onPick("ai")}
+            />
+          </div>
 
-      {mode === "web" && (
-        <Card className="space-y-5">
-          <p className="rounded-lg bg-zinc-50 p-3 text-xs text-zinc-500">
-            Eva va a leer tu web y completar todo lo que encuentre. Lo que no esté claro queda como sugerido o pendiente.
-          </p>
-          <HelpField label="¿Tu negocio tiene página web?">
-            <YesNoChoice value={b.hasWebsite} onChange={(v) => set({ hasWebsite: v })} />
-          </HelpField>
-          {b.hasWebsite && (
-            <>
-              <HelpField label="URL de tu web" help="Pegá el link completo, por ejemplo https://tunegocio.com">
-                <div className="relative">
-                  <Globe className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                  <Input
-                    value={b.websiteUrl || ""}
-                    onChange={(e) => set({ websiteUrl: e.target.value })}
-                    placeholder="https://cafebruma.com"
-                    className="pl-9"
-                  />
-                </div>
-              </HelpField>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <Button onClick={autocomplete} loading={loading}>
-                  {!loading && <Sparkles className="h-4 w-4" />}
-                  {loading ? "Eva está leyendo tu web…" : "Autocompletar con Eva"}
-                </Button>
-                <button onClick={onSkip} className="text-sm text-zinc-500 hover:text-zinc-800">
-                  Prefiero completarlo manualmente
-                </button>
-              </div>
-              {result && <AnalysisResult result={result} onContinue={onDone} />}
-            </>
-          )}
-          {b.hasWebsite === false && (
-            <p className="text-sm text-zinc-500">Sin problema. Completá los siguientes pasos y Eva te ayuda.</p>
-          )}
-        </Card>
-      )}
-
-      {mode === "manual" && (
-        <Card>
-          <p className="text-sm text-zinc-500">
-            Listo. Completá los siguientes pasos rápido. Donde no sepas qué poner, usá los ejemplos o “Que Eva lo sugiera”.
-          </p>
-        </Card>
-      )}
-
-      {/* Bloque de ayuda (secundario, debajo de las opciones) */}
-      <div className="flex items-start gap-3 rounded-xl border border-zinc-100 bg-zinc-50 p-4">
-        <EvaAvatar size={36} />
-        <div>
-          <p className="text-sm font-medium text-zinc-700">Eva te ayuda en todo el proceso</p>
-          <p className="text-xs text-zinc-500">
-            Puede sugerirte campos, marcar lo que falta y ayudarte a completar. No te preocupes si no sabés qué poner 💗
-          </p>
+          <button
+            onClick={() => onPick("manual")}
+            className="group mx-auto mt-5 flex w-full max-w-xl items-center gap-3 rounded-2xl border border-zinc-200 bg-white/60 px-5 py-3.5 text-left transition hover:border-zinc-300 hover:bg-white sm:mt-6"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-500">
+              <Pencil className="h-4 w-4" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-zinc-700">Prefiero completar manualmente</span>
+              <span className="block text-xs text-zinc-400">Paso a paso, con sugerencias de Eva cuando las necesites.</span>
+            </span>
+            <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-zinc-400 transition group-hover:text-zinc-700">
+              Completar a mano <ArrowRight className="h-4 w-4" />
+            </span>
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-// Card grande de opción de inicio
-function StartCard({
+function MethodCard({
   icon: Icon,
+  badge,
+  badgeTone,
   title,
   desc,
   cta,
-  active,
   onClick,
 }: {
   icon: any;
+  badge: string;
+  badgeTone: "lima" | "pink";
   title: string;
   desc: string;
   cta: string;
-  active: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`flex h-full flex-col rounded-2xl border p-4 text-left transition ${
-        active
-          ? "border-loca-500 bg-loca-50 shadow-lift"
-          : "border-zinc-200 bg-white hover:-translate-y-0.5 hover:shadow-pop"
-      }`}
+      className="group relative flex h-full flex-col rounded-3xl border border-zinc-200/80 bg-white/90 p-7 text-left transition-all duration-200 hover:-translate-y-1 hover:border-loca-200 hover:shadow-glow"
     >
-      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${active ? "bg-loca-600 text-white" : "bg-loca-50 text-loca-600"}`}>
-        <Icon className="h-5 w-5" />
+      <span
+        className={`absolute right-5 top-5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+          badgeTone === "lima" ? "bg-lima-100 text-lima-700" : "bg-loca-100 text-loca-700"
+        }`}
+      >
+        {badge}
+      </span>
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-loca-50 text-loca-600 transition group-hover:scale-105 group-hover:bg-loca-600 group-hover:text-white">
+        <Icon className="h-8 w-8" />
       </div>
-      <h3 className="mt-3 font-semibold leading-tight text-zinc-900">{title}</h3>
-      <p className="mt-1 flex-1 text-xs text-zinc-500">{desc}</p>
-      <span className={`mt-3 inline-flex items-center gap-1 text-sm font-semibold ${active ? "text-loca-700" : "text-loca-600"}`}>
-        {active ? <Check className="h-4 w-4" /> : null} {cta}
+      <h3 className="mt-5 text-xl font-bold leading-tight text-zinc-900">{title}</h3>
+      <p className="mt-2 flex-1 text-[15px] leading-relaxed text-zinc-500">{desc}</p>
+      <span className="mt-5 inline-flex items-center gap-2 text-base font-semibold text-loca-600">
+        {cta} <ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" />
       </span>
     </button>
   );
 }
 
-// Panel para pegar/subir el .md de una IA externa
-function ExternalAiPanel({
-  b,
-  set,
-  applyAnalysis,
-  onJumpToSummary,
-  onDone,
-  show,
+// ─────────────────────────────────────────────────────────────
+// PANTALLA WEB: input gigante de URL → analizar
+// ─────────────────────────────────────────────────────────────
+function WebImportScreen({
+  initialUrl,
+  loading,
+  onAnalyze,
+  onBack,
 }: {
-  b: Business;
-  set: (p: Partial<Business>) => void;
-  applyAnalysis: (a: WebsiteAnalysis) => void;
-  onJumpToSummary: () => void;
-  onDone: () => void;
-  show: (m: string) => void;
+  initialUrl: string;
+  loading: boolean;
+  onAnalyze: (url: string) => void;
+  onBack: () => void;
+}) {
+  const [url, setUrl] = useState(initialUrl);
+  return (
+    <div className="flex min-h-screen flex-col loca-hero-bg">
+      <div className="flex items-center justify-between px-6 pt-7 sm:px-10">
+        <Link href="/">
+          <Logo className="text-2xl" />
+        </Link>
+        <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-zinc-400 transition hover:text-zinc-700">
+          <ArrowLeft className="h-4 w-4" /> Volver
+        </button>
+      </div>
+
+      <div className="flex flex-1 items-center justify-center px-4 py-6 sm:px-6">
+        <div className="w-full max-w-xl text-center">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift">
+            <Globe className="h-8 w-8" />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-[2.5rem] sm:leading-tight">
+            Pegá la web de tu negocio
+          </h1>
+          <p className="mx-auto mt-3 max-w-md text-[15px] text-zinc-500 sm:text-base">
+            Eva va a leer tu sitio y detectar tu marca, productos, servicios y datos clave. Lo que no encuentre, queda pendiente.
+          </p>
+
+          <div className="mt-7 rounded-3xl border border-zinc-200/70 bg-white p-5 shadow-card sm:p-6">
+            <div className="relative">
+              <Globe className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
+              <input
+                autoFocus
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !loading) onAnalyze(url);
+                }}
+                placeholder="https://tumarca.com"
+                className="loca-input h-16 pl-12 text-center text-lg sm:text-xl"
+              />
+            </div>
+            <Button size="xl" className="mt-4 w-full" onClick={() => onAnalyze(url)} loading={loading}>
+              {!loading && <Sparkles className="h-5 w-5" />}
+              {loading ? "Eva está leyendo tu web…" : "Analizar mi web"}
+            </Button>
+          </div>
+
+          <p className="mx-auto mt-4 max-w-md text-[13px] text-zinc-400">
+            No inventamos precios ni datos sensibles. Si algo no aparece en tu web, te lo vamos a pedir después.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// PANTALLA IA EXTERNA: prompt + subir/pegar .md
+// ─────────────────────────────────────────────────────────────
+function AiImportScreen({
+  businessName,
+  onLoad,
+  onBack,
+}: {
+  businessName: string;
+  onLoad: (md: string, fileName: string) => void;
+  onBack: () => void;
 }) {
   const [md, setMd] = useState("");
   const [fileName, setFileName] = useState("");
-  const [result, setResult] = useState<WebsiteAnalysis | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const prompt = externalAiPrompt(b.name);
+  const prompt = externalAiPrompt(businessName);
+  const { show, node } = useToast();
 
   async function copyPrompt() {
     const ok = await copyToClipboard(prompt);
     show(ok ? "Prompt copiado. Pegalo en tu IA." : "No se pudo copiar");
   }
-
   async function onFile(file: File) {
-    const text = await file.text();
-    setMd(text);
+    setMd(await file.text());
     setFileName(file.name);
   }
 
-  function analyze() {
-    if (!md.trim()) {
-      show("Pegá el contenido o subí el archivo .md primero.");
-      return;
-    }
-    const res = parseExternalMarkdown(md);
-    applyAnalysis(res);
-    set({
-      businessInfoImportSource: "external_ai_md",
-      externalAiImport: {
-        rawMarkdown: md,
-        uploadedFileName: fileName || undefined,
-        parsedAt: nowIso(),
-        fieldStatuses: res.fieldStatuses,
-        missingFields: res.missingFields,
-        isCompleteEnoughForSummary: isAnalysisComplete(res),
-      },
-    });
-    setResult(res);
-    if (isAnalysisComplete(res)) {
-      show("Listo. Tu IA completó lo necesario. Te llevo al resumen.");
-      setTimeout(onJumpToSummary, 500);
-    } else {
-      show("Importado. Faltan algunos datos: completalos en los próximos pasos.");
-    }
-  }
-
   return (
-    <div className="space-y-3 rounded-xl border border-zinc-200 p-4">
-      <div className="flex items-center gap-2 text-sm font-medium text-zinc-700">
-        <Bot className="h-4 w-4 text-loca-600" /> Pedile el resumen a tu IA
-      </div>
-      <p className="text-xs text-zinc-500">
-        1) Copiá este prompt. 2) Pegalo en la IA que usás. 3) Subí el archivo <code>.md</code> o pegá la respuesta acá.
-      </p>
-      <Textarea value={prompt} readOnly className="min-h-[120px] text-xs" />
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={copyPrompt}>
-          <Copy className="h-4 w-4" /> Copiar prompt
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => downloadFile("loca-resumen-negocio.md", emptyMdTemplate(), "text/markdown")}
-        >
-          <Download className="h-4 w-4" /> Descargar plantilla .md vacía
-        </Button>
+    <div className="flex min-h-screen flex-col loca-hero-bg">
+      {node}
+      <div className="flex items-center justify-between px-6 pt-7 sm:px-10">
+        <Link href="/">
+          <Logo className="text-2xl" />
+        </Link>
+        <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-zinc-400 transition hover:text-zinc-700">
+          <ArrowLeft className="h-4 w-4" /> Volver
+        </button>
       </div>
 
-      <div className="border-t border-zinc-100 pt-3">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-medium text-zinc-700">Subí el .md o pegá la respuesta</p>
-          <Button size="sm" variant="outline" onClick={() => fileInput.current?.click()}>
-            <Upload className="h-4 w-4" /> Subir .md
-          </Button>
-          <input
-            ref={fileInput}
-            type="file"
-            accept=".md,.markdown,.txt"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onFile(f);
-              e.target.value = "";
-            }}
-          />
+      <div className="flex flex-1 items-center justify-center px-4 py-6 sm:px-6">
+        <div className="w-full max-w-xl">
+          <div className="text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift">
+              <Bot className="h-8 w-8" />
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-[2.25rem] sm:leading-tight">
+              Usá una IA que ya conoce tu negocio
+            </h1>
+            <p className="mx-auto mt-3 max-w-md text-[15px] text-zinc-500">
+              Copiá este prompt, pegalo en ChatGPT, Claude o Gemini, y subí el archivo <code className="rounded bg-zinc-100 px-1 py-0.5 text-[12px]">.md</code> que te devuelva.
+            </p>
+          </div>
+
+          <div className="mt-6 rounded-3xl border border-zinc-200/70 bg-white p-5 shadow-card sm:p-6">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button size="lg" className="flex-1" onClick={copyPrompt}>
+                <Copy className="h-4 w-4" /> Copiar prompt
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="flex-1"
+                onClick={() => downloadFile("loca-resumen-negocio.md", emptyMdTemplate(), "text/markdown")}
+              >
+                <Download className="h-4 w-4" /> Descargar plantilla
+              </Button>
+            </div>
+            <p className="mt-2 text-[13px] font-medium text-zinc-500">
+              Pedile a tu IA que te devuelva un archivo <span className="font-semibold text-zinc-700">.md</span>. No PDF ni Word.
+            </p>
+
+            <button
+              onClick={() => fileInput.current?.click()}
+              className="mt-4 flex w-full flex-col items-center gap-1.5 rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50/40 px-4 py-5 text-center transition hover:border-loca-300 hover:bg-loca-50/40"
+            >
+              <Upload className="h-6 w-6 text-loca-500" />
+              <span className="text-sm font-semibold text-zinc-700">Subí el archivo .md</span>
+              {fileName ? (
+                <span className="flex items-center gap-1 text-xs text-emerald-600"><FileText className="h-3 w-3" /> {fileName}</span>
+              ) : (
+                <span className="text-xs text-zinc-400">o pegá el contenido abajo</span>
+              )}
+            </button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".md,.markdown,.txt"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onFile(f);
+                e.target.value = "";
+              }}
+            />
+
+            <Textarea
+              value={md}
+              onChange={(e) => setMd(e.target.value)}
+              placeholder="o pegá acá el Markdown que te devolvió tu IA…"
+              className="mt-3 min-h-[90px] text-xs"
+            />
+
+            <Button size="xl" className="mt-3 w-full" onClick={() => onLoad(md, fileName)}>
+              <Sparkles className="h-5 w-5" /> Cargar información
+            </Button>
+          </div>
         </div>
-        {fileName && (
-          <p className="mt-1 flex items-center gap-1 text-xs text-zinc-500">
-            <FileText className="h-3 w-3" /> {fileName}
-          </p>
-        )}
-        <Textarea
-          value={md}
-          onChange={(e) => setMd(e.target.value)}
-          placeholder="Pegá acá el Markdown que te devolvió tu IA…"
-          className="mt-2 min-h-[120px] text-xs"
-        />
-        <Button className="mt-2" onClick={analyze}>
-          <Sparkles className="h-4 w-4" /> Analizar y completar
-        </Button>
       </div>
-
-      {result && <AnalysisResult result={result} onContinue={onDone} importedFromAi />}
     </div>
   );
 }
 
-function AnalysisResult({
-  result,
-  onContinue,
-  importedFromAi,
+// ─────────────────────────────────────────────────────────────
+// PANTALLA DE PENDIENTES: asistente enfocado 1-de-N (web/.md)
+// ─────────────────────────────────────────────────────────────
+function PendingScreen({
+  business,
+  applyPatch,
+  onEditSection,
+  onSuggest,
+  onSummary,
+  onBack,
 }: {
-  result: WebsiteAnalysis;
-  onContinue: () => void;
-  importedFromAi?: boolean;
+  business: Business;
+  applyPatch: (p: Partial<Business>) => void;
+  onEditSection: (key: SummarySectionKey) => void;
+  onSuggest: () => void;
+  onSummary: () => void;
+  onBack: () => void;
 }) {
-  return (
-    <div className="space-y-3 rounded-xl border border-emerald-100 bg-emerald-50/50 p-4">
-      <div className="flex items-center justify-between">
-        <p className="font-semibold text-zinc-800">
-          {importedFromAi ? "Eva importó el resumen de tu IA" : `Eva entendió tu negocio en un ${Math.round((result.confidence || 0) * 100)}%`}
-        </p>
-        <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-500">
-          {importedFromAi ? "Desde tu IA" : result.mode === "ai" ? "Análisis con IA" : "Modo demo"}
-        </span>
-      </div>
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <MiniCount label="Completados" value={result.summary.completedFieldsCount} tone="emerald" />
-        <MiniCount label="Para revisar" value={result.summary.reviewFieldsCount} tone="amber" />
-        <MiniCount label="Faltan" value={result.summary.missingFieldsCount} tone="red" />
-      </div>
-      <Button variant="lima" className="w-full" onClick={onContinue}>
-        Revisar y completar lo que falte <ArrowRight className="h-4 w-4" />
-      </Button>
-    </div>
-  );
-}
+  // Congelamos la lista al entrar para poder caminarla "1 de N" sin que se reordene.
+  const [questions] = useState(() => pendingQuestions(business));
 
-function MiniCount({ label, value, tone }: { label: string; value: number; tone: "emerald" | "amber" | "red" }) {
-  const cls =
-    tone === "emerald" ? "text-emerald-700" : tone === "amber" ? "text-amber-700" : "text-red-600";
   return (
-    <div className="rounded-lg bg-white p-2">
-      <div className={`text-xl font-bold ${cls}`}>{value}</div>
-      <div className="text-[11px] text-zinc-500">{label}</div>
+    <div className="min-h-screen loca-hero-bg">
+      <div className="flex items-center justify-between px-6 pt-7 sm:px-10">
+        <Link href="/">
+          <Logo className="text-2xl" />
+        </Link>
+        <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-zinc-400 transition hover:text-zinc-700">
+          <ArrowLeft className="h-4 w-4" /> Volver
+        </button>
+      </div>
+
+      <div className="mx-auto max-w-xl px-4 py-9 sm:px-6">
+        <div className="mb-6 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift">
+            <Sparkles className="h-7 w-7" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
+            Eva ya completó gran parte. Falta revisar esto.
+          </h1>
+          <p className="mx-auto mt-2 max-w-md text-[15px] text-zinc-500">
+            Completá solo lo necesario, de a una pregunta por vez.
+          </p>
+        </div>
+
+        <PendingFlow
+          business={business}
+          questions={questions}
+          applyPatch={applyPatch}
+          onSuggest={onSuggest}
+          onEditSection={onEditSection}
+          onDone={onSummary}
+          doneLabel="Ver el resumen de mi negocio"
+        />
+
+        <div className="mt-5 text-center">
+          <button onClick={onSummary} className="text-sm font-semibold text-zinc-400 transition hover:text-zinc-700">
+            Saltar y ver el resumen
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

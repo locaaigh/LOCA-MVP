@@ -8,6 +8,8 @@ import { exportStrategyHtml } from "@/lib/exports";
 import { Badge, Button, Card, EmptyState, EvaLoading, Modal, PageHeader, useToast } from "@/components/ui";
 import { ApprovalActions, FeedbackPanel, ProgressTracker, StickyApproveBar, buildFlowSteps } from "@/components/flow";
 import { STRATEGY_FEEDBACK, applyStructuredFeedback } from "@/lib/feedback";
+import { PlatformLogo } from "@/components/platform-logo";
+import { missingCriticalLabels } from "@/lib/business-questions";
 import {
   Sparkles,
   Download,
@@ -17,7 +19,9 @@ import {
   MessageCircle,
   Zap,
   ListChecks,
+  Lock,
 } from "lucide-react";
+import Link from "next/link";
 
 export default function StrategyPage() {
   const router = useRouter();
@@ -34,10 +38,13 @@ export default function StrategyPage() {
   const [showFeedback, setShowFeedback] = useState(false);
   const autoTriggered = useRef(false);
 
-  // Auto-generar al venir del onboarding (?generate=1)
+  // Falta info crítica → no se puede generar una estrategia útil.
+  const criticalMissing = business ? missingCriticalLabels(business) : [];
+
+  // Auto-generar al venir del onboarding (?generate=1), solo si no faltan críticos.
   useEffect(() => {
     if (!business || autoTriggered.current) return;
-    if (params.get("generate") === "1" && !strategy) {
+    if (params.get("generate") === "1" && !strategy && criticalMissing.length === 0) {
       autoTriggered.current = true;
       generate();
     }
@@ -55,6 +62,27 @@ export default function StrategyPage() {
   }, []);
 
   if (!business) return null;
+
+  // Guard: sin info crítica no generamos estrategia (evita estrategias genéricas).
+  if (criticalMissing.length > 0 && !strategy) {
+    return (
+      <div className="space-y-5">
+        {node}
+        <ProgressTracker steps={buildFlowSteps(flow, true)} />
+        <EmptyState
+          icon={Lock}
+          title="Falta información crítica para generar una estrategia útil"
+          description={`Completá estos datos para que Eva no genere algo genérico: ${criticalMissing.join(", ")}.`}
+        >
+          <Link href="/settings">
+            <Button>
+              <Sparkles className="h-4 w-4" /> Completar información del negocio
+            </Button>
+          </Link>
+        </EmptyState>
+      </div>
+    );
+  }
 
   async function generate(feedback?: string) {
     setLoading(true);
@@ -83,7 +111,7 @@ export default function StrategyPage() {
   const approved = flow.strategy === "approved";
 
   return (
-    <div className={strategy ? "space-y-5 pb-24" : "space-y-5"}>
+    <div className={strategy ? "space-y-8 pb-24" : "space-y-8"}>
       {node}
       <ProgressTracker steps={buildFlowSteps(flow, true)} />
 
@@ -117,7 +145,7 @@ export default function StrategyPage() {
       {strategy && (
         <>
           {/* Vista resumida visual */}
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-5 lg:grid-cols-2">
             <HeroCard
               icon={Sparkles}
               tone="loca"
@@ -127,47 +155,58 @@ export default function StrategyPage() {
             <HeroCard icon={Target} tone="lima" label="Objetivo del mes" text={strategy.monthlyGoal} />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             <MiniCard icon={Users} label="Audiencia principal" text={strategy.audienceSummary} />
             <MiniCard icon={MessageCircle} label="Tono de voz" text={strategy.toneOfVoice} />
             <Card>
-              <div className="mb-2 flex items-center gap-2 text-zinc-500">
+              <div className="mb-3 flex items-center gap-2 text-zinc-500">
                 <Megaphone className="h-4 w-4" />
-                <span className="text-xs font-semibold uppercase">Canales</span>
+                <span className="text-xs font-semibold uppercase tracking-wide">Canales</span>
               </div>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap items-center gap-2">
                 {strategy.recommendedChannels.map((c) => (
-                  <Badge key={c} tone="pink">{c}</Badge>
+                  <span
+                    key={c}
+                    className="inline-flex items-center gap-2 rounded-full bg-loca-50 py-1 pl-1 pr-3 text-xs font-semibold text-loca-700 ring-1 ring-inset ring-loca-100"
+                  >
+                    <PlatformLogo channel={c} size={22} />
+                    {c}
+                  </span>
                 ))}
               </div>
-              <div className="mt-3 flex items-center gap-2 text-zinc-500">
+              <div className="mt-4 flex items-center gap-2 text-zinc-500">
                 <Zap className="h-4 w-4" />
-                <span className="text-xs font-semibold uppercase">CTA principal</span>
+                <span className="text-xs font-semibold uppercase tracking-wide">CTA principal</span>
               </div>
-              <Badge tone="lima" className="mt-1.5">{strategy.recommendedCta}</Badge>
+              <Badge tone="lima" className="mt-2">{strategy.recommendedCta}</Badge>
             </Card>
           </div>
 
           <Card>
-            <h3 className="mb-3 font-semibold">Pilares de contenido</h3>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <h3 className="mb-4 text-lg font-bold tracking-tight text-zinc-900">Pilares de contenido</h3>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {strategy.contentPillars.map((p) => (
-                <div key={p.name} className="rounded-xl bg-loca-50 p-3">
-                  <p className="font-medium text-loca-700">{p.name}</p>
-                  <p className="mt-1 text-sm text-zinc-600">{p.description}</p>
+                <div key={p.name} className="rounded-2xl bg-loca-50 p-4 ring-1 ring-inset ring-loca-100/60 transition hover:-translate-y-0.5 hover:shadow-card">
+                  <p className="font-semibold text-loca-700">{p.name}</p>
+                  <p className="mt-1.5 text-sm leading-relaxed text-zinc-600">{p.description}</p>
                 </div>
               ))}
             </div>
           </Card>
 
           <Card>
-            <div className="mb-2 flex items-center gap-2">
-              <ListChecks className="h-4 w-4 text-loca-600" />
-              <h3 className="font-semibold">Próximas acciones</h3>
+            <div className="mb-4 flex items-center gap-2">
+              <ListChecks className="h-5 w-5 text-loca-600" />
+              <h3 className="text-lg font-bold tracking-tight text-zinc-900">Próximas acciones</h3>
             </div>
-            <ol className="list-inside list-decimal space-y-1 text-sm text-zinc-700">
+            <ol className="space-y-3">
               {strategy.nextActions.slice(0, 3).map((a, i) => (
-                <li key={i}>{a}</li>
+                <li key={i} className="flex items-start gap-3 text-[15px] leading-relaxed text-zinc-700">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-loca-100 text-xs font-bold text-loca-700">
+                    {i + 1}
+                  </span>
+                  {a}
+                </li>
               ))}
             </ol>
           </Card>
@@ -220,7 +259,20 @@ export default function StrategyPage() {
               </ul>
             </div>
             <FullBlock title="Tono de voz">{strategy.toneOfVoice}</FullBlock>
-            <FullList title="Canales recomendados" items={strategy.recommendedChannels} />
+            <div>
+              <h4 className="mb-2 text-sm font-semibold">Canales recomendados</h4>
+              <div className="flex flex-wrap items-center gap-2">
+                {strategy.recommendedChannels.map((c) => (
+                  <span
+                    key={c}
+                    className="inline-flex items-center gap-2 rounded-full bg-loca-50 py-1 pl-1 pr-3 text-xs font-semibold text-loca-700 ring-1 ring-inset ring-loca-100"
+                  >
+                    <PlatformLogo channel={c} size={22} />
+                    {c}
+                  </span>
+                ))}
+              </div>
+            </div>
             <FullList title="Ideas de ofertas" items={strategy.offerIdeas} />
             <FullList title="Mensajes clave" items={strategy.keyMessages} />
             <FullList title="Do's" items={strategy.dos} />
@@ -261,12 +313,18 @@ function HeroCard({
   tone: "loca" | "lima";
 }) {
   return (
-    <Card className={tone === "loca" ? "bg-loca-50" : "bg-lima-50"}>
-      <div className="flex items-center gap-2">
-        <Icon className={`h-5 w-5 ${tone === "loca" ? "text-loca-600" : "text-lima-600"}`} />
-        <span className="text-xs font-semibold uppercase text-zinc-500">{label}</span>
+    <Card className={tone === "loca" ? "bg-loca-50 shadow-glow" : "bg-lima-50"}>
+      <div className="flex items-center gap-2.5">
+        <span
+          className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
+            tone === "loca" ? "bg-white/70 text-loca-600" : "bg-white/70 text-lima-600"
+          }`}
+        >
+          <Icon className="h-5 w-5" />
+        </span>
+        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{label}</span>
       </div>
-      <p className="mt-2 text-base font-medium leading-snug text-zinc-800">{text}</p>
+      <p className="mt-4 text-lg font-medium leading-snug text-zinc-800">{text}</p>
     </Card>
   );
 }
@@ -274,9 +332,9 @@ function HeroCard({
 function MiniCard({ icon: Icon, label, text }: { icon: any; label: string; text: string }) {
   return (
     <Card>
-      <div className="mb-2 flex items-center gap-2 text-zinc-500">
+      <div className="mb-3 flex items-center gap-2 text-zinc-500">
         <Icon className="h-4 w-4" />
-        <span className="text-xs font-semibold uppercase">{label}</span>
+        <span className="text-xs font-semibold uppercase tracking-wide">{label}</span>
       </div>
       <p className="text-sm leading-relaxed text-zinc-600">{text}</p>
     </Card>

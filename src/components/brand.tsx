@@ -12,7 +12,7 @@ export function Logo({ className, light }: { className?: string; light?: boolean
 export function EvaAvatar({ size = 40 }: { size?: number }) {
   return (
     <span
-      className="inline-flex items-center justify-center rounded-full bg-gradient-to-br from-loca-500 to-loca-700 font-bold text-white"
+      className="inline-flex items-center justify-center rounded-full bg-gradient-to-br from-loca-400 via-loca-500 to-loca-700 font-bold text-white shadow-lift ring-2 ring-white"
       style={{ width: size, height: size, fontSize: size * 0.4 }}
     >
       E

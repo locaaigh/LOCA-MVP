@@ -42,12 +42,12 @@ export function ContentPreview({
       {/* Overlay de texto */}
       <div className="absolute inset-x-0 bottom-0 p-4 text-white">
         {content.designTextOverlay && (
-          <p className="text-lg font-extrabold leading-tight drop-shadow-md">
+          <p className="overflow-wrap-anywhere line-clamp-3 text-lg font-extrabold leading-tight drop-shadow-md">
             {content.designTextOverlay}
           </p>
         )}
         <span
-          className="mt-2 inline-block rounded-full px-3 py-1 text-xs font-semibold text-white"
+          className="overflow-wrap-anywhere mt-2 inline-block max-w-full rounded-full px-3 py-1 text-xs font-semibold text-white"
           style={{ backgroundColor: brandColor }}
         >
           {content.cta}

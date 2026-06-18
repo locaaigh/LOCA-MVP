@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { Badge, Button, Card, SectionLabel } from "@/components/ui";
+import { PlatformLogo } from "@/components/platform-logo";
+import { missingCriticalLabels } from "@/lib/business-questions";
 import type { Business } from "@/lib/types";
 import {
   ShoppingBag,
@@ -17,6 +19,7 @@ import {
   AlertCircle,
   Sparkles,
   Pencil,
+  ArrowRight,
 } from "lucide-react";
 
 export type SummarySectionKey =
@@ -31,18 +34,9 @@ export type SummarySectionKey =
   | "keywords";
 
 // Calidad mínima para que Eva no genere una estrategia genérica.
+// Fuente única de verdad: business-questions.ts (críticos).
 function missingCritical(b: Business): string[] {
-  const m: string[] = [];
-  if (!b.name?.trim()) m.push("Nombre del negocio");
-  if (!b.industry) m.push("Industria");
-  if (!b.shortDescription?.trim()) m.push("Descripción corta");
-  if (!b.productsServices?.some((p) => p.name?.trim())) m.push("Al menos un producto o servicio");
-  if (!b.audience?.ageRanges?.length && !b.audience?.segments?.length) m.push("Audiencia principal");
-  if (!b.competitiveAdvantages?.length) m.push("Propuesta de valor / diferenciación");
-  if (!b.goals?.primaryContentGoal) m.push("Objetivo principal");
-  if (!b.marketingChannels?.length) m.push("Canales / plataformas");
-  if (!b.brandKit?.voiceTone?.toneTags?.length) m.push("Tono de marca");
-  return m;
+  return missingCriticalLabels(b);
 }
 
 export function OnboardingSummary({
@@ -51,12 +45,14 @@ export function OnboardingSummary({
   onEdit,
   onEditSection,
   onCompleteWithEva,
+  onFixCritical,
 }: {
   business: Business;
   onConfirm: () => void;
   onEdit: () => void;
   onEditSection: (key: SummarySectionKey) => void;
   onCompleteWithEva: () => void;
+  onFixCritical?: () => void;
 }) {
   const b = business;
   const bk = b.brandKit;
@@ -83,14 +79,14 @@ export function OnboardingSummary({
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-loca-50 text-loca-600">
-          <Sparkles className="h-6 w-6" />
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift animate-float">
+          <Sparkles className="h-7 w-7" />
         </div>
-        <h2 className="mt-3 text-2xl font-bold tracking-tight">Eva entendió esto de tu marca</h2>
-        <p className="mt-1 text-sm text-zinc-500">Revisalo y editá cualquier sección con el lápiz ✏️</p>
+        <h2 className="mt-4 text-3xl font-bold tracking-tight text-zinc-900">Eva entendió esto de tu marca</h2>
+        <p className="mt-2 text-[15px] text-zinc-500">Revisalo y editá cualquier sección con el lápiz ✏️</p>
         {confidence != null && (
-          <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-loca-50 px-3 py-1 text-sm font-medium text-loca-700">
-            Eva pudo entender tu negocio en un {confidence}%
+          <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-loca-50 px-3.5 py-1.5 text-sm font-semibold text-loca-700 ring-1 ring-loca-100">
+            <Sparkles className="h-3.5 w-3.5" /> Eva entendió tu negocio en un {confidence}%
           </p>
         )}
       </div>
@@ -106,18 +102,25 @@ export function OnboardingSummary({
                   Te {missing.length === 1 ? "falta" : "faltan"} {missing.length}{" "}
                   {missing.length === 1 ? "dato" : "datos"} para generar la estrategia
                 </p>
-                <p className="text-sm text-amber-700">Eva puede sugerir lo que se pueda sin inventar. Lo demás lo completás vos.</p>
+                <p className="text-sm text-amber-700">Completalos de a uno. Eva puede sugerir lo que se pueda sin inventar.</p>
               </div>
             </div>
-            <Button variant="primary" size="lg" className="shrink-0" onClick={onCompleteWithEva}>
-              <Sparkles className="h-4 w-4" /> Completar pendientes con Eva
-            </Button>
+            <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+              {onFixCritical && (
+                <Button variant="primary" size="lg" onClick={onFixCritical}>
+                  <ArrowRight className="h-4 w-4" /> Completar lo que falta
+                </Button>
+              )}
+              <Button variant="outline" size="lg" onClick={onCompleteWithEva}>
+                <Sparkles className="h-4 w-4" /> Que Eva sugiera
+              </Button>
+            </div>
           </div>
         </Card>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <SummaryCard icon={ShoppingBag} title="Qué vende" onEdit={() => onEditSection("basicos")} danger={miss.basicos}>
+        <SummaryCard icon={ShoppingBag} title="Qué vende" onEdit={() => onEditSection("basicos")} danger={miss.basicos} onFix={onFixCritical}>
           {b.shortDescription || b.fullDescription || `${b.industry || "Tu negocio"}${b.subcategory ? ` · ${b.subcategory}` : ""}`}
         </SummaryCard>
 
@@ -133,7 +136,7 @@ export function OnboardingSummary({
               : "Audiencia por definir."}
         </SummaryCard>
 
-        <SummaryCard icon={Heart} title="Por qué la elegirían" onEdit={() => onEditSection("propuesta")} danger={miss.propuesta}>
+        <SummaryCard icon={Heart} title="Por qué la elegirían" onEdit={() => onEditSection("propuesta")} danger={miss.propuesta} onFix={onFixCritical}>
           {bi?.valuePropositions?.length ? (
             <ul className="space-y-0.5">
               {bi.valuePropositions.slice(0, 4).map((v, i) => (
@@ -175,9 +178,9 @@ export function OnboardingSummary({
 
         <SummaryCard icon={Share2} title="Canales y marketing" onEdit={() => onEditSection("canales")}>
           {channels.length ? (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap items-center gap-2">
               {channels.map((c) => (
-                <Badge key={c}>{c}</Badge>
+                <PlatformLogo key={c} channel={c} size={30} />
               ))}
             </div>
           ) : (
@@ -198,7 +201,7 @@ export function OnboardingSummary({
           )}
         </SummaryCard>
 
-        <SummaryCard icon={Target} title="Objetivos" onEdit={() => onEditSection("objetivos")} danger={miss.objetivos}>
+        <SummaryCard icon={Target} title="Objetivos" onEdit={() => onEditSection("objetivos")} danger={miss.objetivos} onFix={onFixCritical}>
           {bi?.recommendedGoal?.goal ? (
             <>
               <p className="font-medium text-zinc-800">{bi.recommendedGoal.goal}</p>
@@ -242,12 +245,14 @@ function SummaryCard({
   icon: Icon,
   title,
   onEdit,
+  onFix,
   danger,
   children,
 }: {
   icon: any;
   title: string;
   onEdit?: () => void;
+  onFix?: () => void;
   danger?: boolean;
   children: React.ReactNode;
 }) {
@@ -278,9 +283,9 @@ function SummaryCard({
       {danger ? (
         <div className="space-y-2">
           <p className="text-sm text-red-600">Necesitamos este dato para generar una estrategia correcta.</p>
-          {onEdit && (
-            <Button variant="danger" size="sm" onClick={onEdit}>
-              <Pencil className="h-3.5 w-3.5" /> Completar ahora
+          {(onFix || onEdit) && (
+            <Button variant="danger" size="sm" onClick={onFix || onEdit}>
+              <ArrowRight className="h-3.5 w-3.5" /> Completar este dato
             </Button>
           )}
         </div>

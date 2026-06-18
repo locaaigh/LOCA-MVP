@@ -68,15 +68,15 @@ export function ChannelSelector({
             type="button"
             onClick={() => toggle(ch.label)}
             className={cn(
-              "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition",
+              "flex items-center gap-2.5 rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition",
               active
-                ? "border-loca-500 bg-loca-50 text-loca-700"
-                : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
+                ? "border-loca-400 bg-loca-50 text-loca-700 ring-2 ring-loca-100"
+                : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
             )}
           >
-            <Icon className="h-4 w-4 shrink-0" />
+            <Icon className={cn("h-5 w-5 shrink-0", active ? "text-loca-600" : "text-zinc-400")} />
             <span className="min-w-0 flex-1 truncate">{ch.label}</span>
-            {active && <Check className="h-3.5 w-3.5 shrink-0" />}
+            {active && <Check className="h-4 w-4 shrink-0 text-loca-600" />}
           </button>
         );
       })}

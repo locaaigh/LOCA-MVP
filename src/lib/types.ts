@@ -163,6 +163,8 @@ export interface Business {
   productsServices: ProductService[];
   audience: Audience;
   goals: Goals;
+  // Información estratégica ampliada (opcional, no bloquea el onboarding inicial)
+  communicationNeeds?: string;
   // Identidad visual + inteligencia de negocio (autocompletado desde la web)
   brandKit?: BrandKit;
   businessIntelligence?: BusinessIntelligence;
@@ -269,6 +271,9 @@ export interface ContentItem {
   videoScript?: VideoScript;
   photoBrief?: PhotoBrief;
   channel: Channel;
+  // Redes adicionales donde se publica el mismo contenido (crosspost). Opcional.
+  // Si está vacío, se infiere en presentación (ej: Instagram → Facebook si el negocio lo usa).
+  distributionPlatforms?: Channel[];
   format: ContentFormat;
   objective: string;
   contentPillar: string;
@@ -282,6 +287,12 @@ export interface ContentItem {
   lastManualEditAt?: string;
   manuallyEditedFields?: string[];
   requiresReviewAfterEdit?: boolean;
+  // Feedback visual del cliente (cambio de imagen/video). El cliente NO ve
+  // prompt/concepto: solo elige tags. Esto alimenta internamente a Eva.
+  selectedVisualFeedbackTags?: string[];
+  customVisualFeedback?: string;
+  visualChangeRequestedAt?: string;
+  visualChangeCount?: number;
   createdAt: string;
   updatedAt: string;
 }
