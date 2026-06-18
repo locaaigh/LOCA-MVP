@@ -23,7 +23,8 @@ export function ProductServiceCard({
   const price =
     ps.priceMin != null
       ? `${ps.currency} ${ps.priceMin}${ps.priceMax != null ? `–${ps.priceMax}` : ""}`
-      : null;
+      : "Sin precio";
+  const origin = originBadge(ps);
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white p-3">
       <div className="flex min-w-0 items-center gap-3">
@@ -39,10 +40,14 @@ export function ProductServiceCard({
               </span>
             )}
           </p>
-          <p className="text-xs text-zinc-400">
-            {ps.type === "producto" ? "Producto" : "Servicio"}
-            {price ? ` · ${price}` : ""}
-          </p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-zinc-400">
+              {ps.type === "producto" ? "Producto" : "Servicio"} · {price}
+            </span>
+            {origin && (
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${origin.cls}`}>{origin.label}</span>
+            )}
+          </div>
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
@@ -306,4 +311,19 @@ export function ProductServiceImporter({
       )}
     </div>
   );
+}
+
+// Badge de origen/estado del ítem detectado/sugerido.
+function originBadge(ps: ProductService): { label: string; cls: string } | null {
+  if (ps.shouldReview) return { label: "Revisar", cls: "bg-amber-50 text-amber-700" };
+  switch (ps.importSource) {
+    case "website":
+      return { label: "Encontrado en web", cls: "bg-emerald-50 text-emerald-700" };
+    case "md":
+      return { label: "Confirmado por tu IA", cls: "bg-emerald-50 text-emerald-700" };
+    case "eva":
+      return { label: "Sugerido por Eva", cls: "bg-loca-50 text-loca-700" };
+    default:
+      return null;
+  }
 }

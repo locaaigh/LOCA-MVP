@@ -43,6 +43,7 @@ import { emptyBrandKit } from "@/lib/store";
 import { api } from "@/lib/api";
 import { uid, copyToClipboard, nowIso, downloadFile } from "@/lib/utils";
 import { externalAiPrompt, emptyMdTemplate, parseExternalMarkdown, isAnalysisComplete } from "@/lib/md-import";
+import { suggestPending } from "@/lib/eva-suggest";
 import { Check, Globe, Sparkles, ArrowRight, Plus, Bot, Copy, Upload, FileText, Download, Pencil } from "lucide-react";
 import type { FieldStatusKind } from "@/lib/types";
 
@@ -85,6 +86,16 @@ export default function OnboardingPage() {
     if (draftBackup) setB(draftBackup);
     setDraftBackup(null);
     setEditSection(null);
+  }
+
+  function completeWithEva() {
+    const { patch, statuses, stillMissing } = suggestPending(b);
+    setB((prev) => ({ ...prev, ...patch, fieldStatuses: { ...prev.fieldStatuses, ...statuses } }));
+    if (stillMissing.length) {
+      show(`Eva sugirió lo que pudo. Todavía necesitás (datos reales): ${stillMissing.join(", ")}.`);
+    } else {
+      show("Eva completó los pendientes con sugerencias. Revisalas y editá lo que quieras 💗");
+    }
   }
 
   // Al cambiar de paso, siempre empezar arriba (especialmente en mobile).
@@ -138,11 +149,14 @@ export default function OnboardingPage() {
           name: p.name,
           category: p.category || "",
           shortDescription: p.shortDescription || "",
-          priceMin: p.price,
+          // No inventamos precio: solo si vino explícito.
+          priceMin: typeof p.price === "number" ? p.price : undefined,
           currency: p.currency || "ARS",
           isTopSeller: !!p.isTopSeller,
           saved: true,
-          importSource: "website",
+          importSource: (p.source as any) || "website",
+          confidence: p.confidence,
+          shouldReview: p.shouldReview,
         }));
       }
       if (ff.audience) {
@@ -284,6 +298,7 @@ export default function OnboardingPage() {
               onConfirm={finish}
               onEdit={() => setStep(1)}
               onEditSection={openSection}
+              onCompleteWithEva={completeWithEva}
             />
           )}
         </div>
@@ -538,6 +553,9 @@ function StepWebsite({
 
       {mode === "web" && (
         <Card className="space-y-5">
+          <p className="rounded-lg bg-zinc-50 p-3 text-xs text-zinc-500">
+            Eva va a leer tu web y completar todo lo que encuentre. Lo que no esté claro queda como sugerido o pendiente.
+          </p>
           <HelpField label="¿Tu negocio tiene página web?">
             <YesNoChoice value={b.hasWebsite} onChange={(v) => set({ hasWebsite: v })} />
           </HelpField>
@@ -1100,12 +1118,58 @@ function StepProducts({
     setEditingId(null);
     show("Guardado ✓");
   };
+  const addMany = (list: ProductService[]) => set({ productsServices: [...items, ...list] });
+
+  // Sugerencias seguras por industria (marcadas como sugeridas, sin precio).
+  const suggestByEva = () => {
+    const base = getFieldExample("productName", b.industry) || "Producto principal";
+    addMany([
+      { ...emptyPS("producto"), name: base, saved: true, importSource: "eva", confidence: "low", shouldReview: true },
+      { ...emptyPS("servicio"), name: "Servicio principal", saved: true, importSource: "eva", confidence: "low", shouldReview: true },
+    ]);
+    show("Eva sugirió algunos. Revisalos y editá nombres/precios.");
+  };
+  const useExamples = () => {
+    addMany([
+      {
+        ...emptyPS("producto"),
+        name: getFieldExample("productName", b.industry) || "Producto",
+        shortDescription: getFieldExample("productShort", b.industry),
+        saved: true,
+        importSource: "eva",
+        shouldReview: true,
+      },
+    ]);
+    show("Cargamos un ejemplo de tu industria. Editalo con tus datos.");
+  };
+
+  const detected = items.some((x) => x.importSource && x.importSource !== "manual");
 
   return (
     <div className="space-y-4">
       <p className="rounded-lg bg-zinc-50 p-3 text-sm text-zinc-500">
-        No hace falta cargar todo tu catálogo. Empezá por tus productos o servicios más importantes.
+        {detected
+          ? "Eva detectó estos productos/servicios. Revisalos rápido: podés editar, eliminar o sumar otros. No agregamos precios si no aparecen en tu web."
+          : "No hace falta cargar todo tu catálogo. Empezá por tus productos o servicios más importantes."}
       </p>
+
+      {/* Estado vacío: acciones rápidas */}
+      {items.length === 0 && (
+        <div className="rounded-xl border border-dashed border-zinc-300 p-4 text-center">
+          <p className="text-sm text-zinc-500">No pudimos detectar productos o servicios con seguridad.</p>
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
+            <Button size="sm" variant="outline" onClick={suggestByEva}>
+              <Sparkles className="h-4 w-4" /> Que Eva sugiera según mi negocio
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => add("producto")}>
+              <Plus className="h-4 w-4" /> Agregar manualmente
+            </Button>
+            <Button size="sm" variant="ghost" onClick={useExamples}>
+              Usar ejemplos de mi industria
+            </Button>
+          </div>
+        </div>
+      )}
 
       <ProductServiceImporter
         onImport={(imported) => {

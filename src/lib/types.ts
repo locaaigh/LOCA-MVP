@@ -52,7 +52,7 @@ export type AiProvider = "openai" | "mock";
 // Estado de aprobación del flujo guiado (Formulario → Estrategia → Calendario → Contenidos)
 export type ApprovalStatus = "draft" | "pending_review" | "approved" | "needs_changes";
 
-export type ProductImportSource = "manual" | "csv" | "xlsx" | "website";
+export type ProductImportSource = "manual" | "csv" | "xlsx" | "website" | "md" | "eva";
 
 // ── Usuario ──────────────────────────────────────────────────
 export interface User {
@@ -84,6 +84,11 @@ export interface ProductService {
   isTopSeller: boolean;
   saved?: boolean; // UI: si el usuario ya lo guardó (card minimizada)
   importSource?: ProductImportSource;
+  // Estado de confianza del ítem detectado/sugerido
+  confidence?: Confidence;
+  shouldReview?: boolean;
+  benefit?: string; // beneficio principal (si se detecta)
+  cta?: string; // CTA asociado: comprar / consultar / reservar…
 }
 
 // ── Audiencia ────────────────────────────────────────────────

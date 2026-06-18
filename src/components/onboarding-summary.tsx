@@ -30,13 +30,18 @@ export type SummarySectionKey =
   | "comerciales"
   | "keywords";
 
+// Calidad mínima para que Eva no genere una estrategia genérica.
 function missingCritical(b: Business): string[] {
   const m: string[] = [];
   if (!b.name?.trim()) m.push("Nombre del negocio");
   if (!b.industry) m.push("Industria");
   if (!b.shortDescription?.trim()) m.push("Descripción corta");
-  if (!b.competitiveAdvantages?.length) m.push("Ventaja competitiva");
+  if (!b.productsServices?.some((p) => p.name?.trim())) m.push("Al menos un producto o servicio");
+  if (!b.audience?.ageRanges?.length && !b.audience?.segments?.length) m.push("Audiencia principal");
+  if (!b.competitiveAdvantages?.length) m.push("Propuesta de valor / diferenciación");
   if (!b.goals?.primaryContentGoal) m.push("Objetivo principal");
+  if (!b.marketingChannels?.length) m.push("Canales / plataformas");
+  if (!b.brandKit?.voiceTone?.toneTags?.length) m.push("Tono de marca");
   return m;
 }
 
@@ -45,11 +50,13 @@ export function OnboardingSummary({
   onConfirm,
   onEdit,
   onEditSection,
+  onCompleteWithEva,
 }: {
   business: Business;
   onConfirm: () => void;
   onEdit: () => void;
   onEditSection: (key: SummarySectionKey) => void;
+  onCompleteWithEva: () => void;
 }) {
   const b = business;
   const bk = b.brandKit;
@@ -87,6 +94,27 @@ export function OnboardingSummary({
           </p>
         )}
       </div>
+
+      {/* Pendientes: resumen accionable arriba */}
+      {missing.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/60">
+          <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+              <div>
+                <p className="font-semibold text-amber-800">
+                  Te {missing.length === 1 ? "falta" : "faltan"} {missing.length}{" "}
+                  {missing.length === 1 ? "dato" : "datos"} para generar la estrategia
+                </p>
+                <p className="text-sm text-amber-700">Eva puede sugerir lo que se pueda sin inventar. Lo demás lo completás vos.</p>
+              </div>
+            </div>
+            <Button variant="primary" size="lg" className="shrink-0" onClick={onCompleteWithEva}>
+              <Sparkles className="h-4 w-4" /> Completar pendientes con Eva
+            </Button>
+          </div>
+        </Card>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <SummaryCard icon={ShoppingBag} title="Qué vende" onEdit={() => onEditSection("basicos")} danger={miss.basicos}>
@@ -195,20 +223,9 @@ export function OnboardingSummary({
         </SummaryCard>
       </div>
 
-      {missing.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50/60">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-            <div>
-              <p className="font-semibold text-amber-800">Te faltan algunos datos clave</p>
-              <p className="text-sm text-amber-700">
-                Para que Eva genere una buena estrategia, completá: {missing.join(", ")}.
-              </p>
-            </div>
-          </div>
-        </Card>
-      )}
-
+      <p className="text-center text-xs text-zinc-400">
+        Antes de generar la estrategia, confirmá que Eva entendió bien tu negocio.
+      </p>
       <div className="flex flex-col gap-2 sm:flex-row">
         <Button variant="success" size="xl" className="flex-1" disabled={missing.length > 0} onClick={onConfirm}>
           <Sparkles className="h-5 w-5" /> Confirmar y generar estrategia

@@ -525,9 +525,14 @@ export function buildBasicAnalysis(raw: RawWebContent, url: string): WebsiteAnal
   brandKit.brandKeywords = topKeywords(fullText, 8);
 
   const channels = bi.socialLinks.map((s) => s.platform);
+  const offerings = extractOfferings(raw);
 
   const fieldStatuses: Record<string, FieldStatus> = {};
   const found: WebsiteFoundFields = { brandKit, businessIntelligence: bi };
+  if (offerings && offerings.length) {
+    found.productsServices = offerings;
+    fieldStatuses["productsServices"] = { status: "review", confidence: "low", source: "website" };
+  }
 
   const setFound = (key: keyof WebsiteFoundFields, val: any, conf: Confidence = "high") => {
     (found as any)[key] = val;
@@ -612,6 +617,46 @@ export function buildBasicAnalysis(raw: RawWebContent, url: string): WebsiteAnal
     notes: raw.reachable ? [] : ["No se pudo leer la web."],
     mode: "basic",
   };
+}
+
+// Detección conservadora de productos/servicios desde headings/nav.
+// Sin IA esto es heurístico → todo va como "sugerido/revisar", nunca confirmado.
+const GENERIC_HEADINGS =
+  /(inicio|home|contacto|contact|nosotros|about|sobre|blog|men[uú]|carrito|cart|login|registr|preguntas|faq|t[eé]rminos|privacidad|newsletter|suscrib|seguinos|footer|menú principal)/i;
+
+export function extractOfferings(raw: RawWebContent): WebsiteFoundFields["productsServices"] {
+  const origin = (() => {
+    try {
+      return new URL(raw.url).origin;
+    } catch {
+      return "";
+    }
+  })();
+  const paths = raw.internalLinks.map((l) => l.replace(origin, "").toLowerCase());
+  const hasProductPaths = paths.some((p) => /\/(productos?|shop|tienda|catalogo|catálogo|menu|planes|pricing|precios)/.test(p));
+  const hasServicePaths = paths.some((p) => /\/(servicios?|tratamientos|soluciones|features)/.test(p));
+  const text = (raw.text + " " + raw.headings.join(" ")).toLowerCase();
+  const hasSignals = hasProductPaths || hasServicePaths || /servicios|productos|planes|catálogo|catalogo/.test(text);
+  if (!hasSignals) return [];
+
+  const type: "producto" | "servicio" = hasServicePaths && !hasProductPaths ? "servicio" : "producto";
+
+  // Candidatos: headings cortos, no genéricos.
+  const candidates = uniq(raw.headings)
+    .map((h) => h.trim())
+    .filter((h) => {
+      const words = h.split(/\s+/).length;
+      return words >= 1 && words <= 4 && !GENERIC_HEADINGS.test(h) && !/[.!?]$/.test(h) && h.length >= 3;
+    })
+    .slice(0, 5);
+
+  return candidates.map((name) => ({
+    name,
+    type,
+    source: "website",
+    confidence: "low" as const,
+    shouldReview: true,
+  }));
 }
 
 export function domainName(url: string): string {

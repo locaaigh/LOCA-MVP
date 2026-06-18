@@ -234,6 +234,10 @@ const KEY_ALIASES: Record<string, string> = {
   publico_objetivo_principal: "audienceSegments",
   edad_aproximada: "audienceAge",
   dolores_o_problemas: "audiencePain",
+  // productos / servicios
+  productos_principales: "__products",
+  servicios_principales: "__services",
+  producto_o_servicio_mas_importante: "__top",
 };
 
 const LIST_FIELDS = new Set([
@@ -286,6 +290,34 @@ export function parseExternalMarkdown(md: string): WebsiteAnalysis {
     if (!key) continue;
 
     const { status, clean } = interpret(m[2]);
+
+    // Productos / servicios → crear cards
+    if (key === "__products" || key === "__services") {
+      if (status !== "missing" && clean) {
+        const type = key === "__services" ? "servicio" : "producto";
+        for (const name of splitList(clean)) {
+          (found.productsServices ||= []).push({
+            name,
+            type,
+            source: "md",
+            confidence: status === "found" ? "high" : status === "suggested" ? "medium" : "low",
+            shouldReview: status !== "found",
+          });
+        }
+        fieldStatuses["productsServices"] = { status: status === "found" ? "found" : "review", source: "external_ai" };
+        missingSet.delete("productsServices");
+      }
+      continue;
+    }
+    if (key === "__top") {
+      if (clean && found.productsServices?.length) {
+        const match = found.productsServices.find((p) => p.name.toLowerCase().includes(clean.toLowerCase().slice(0, 6)));
+        if (match) match.isTopSeller = true;
+        else found.productsServices[0].isTopSeller = true;
+      }
+      continue;
+    }
+
     const statusKey = statusKeyFor(key);
     // No degradar un estado ya bueno con uno peor del mismo campo
     const prev = fieldStatuses[statusKey]?.status;
