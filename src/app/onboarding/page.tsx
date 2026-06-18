@@ -846,7 +846,7 @@ function AiImportScreen({
               </Button>
             </div>
             <p className="mt-2 text-[13px] font-medium text-zinc-500">
-              Pedile a tu IA que te devuelva un archivo <span className="font-semibold text-zinc-700">.md</span>. No PDF ni Word.
+              Pedile un archivo <span className="font-semibold text-zinc-700">.md</span> o, si no puede adjuntar, un <span className="font-semibold text-zinc-700">bloque de código Markdown</span> para copiar con un clic. No uses PDF, Word ni Google Docs.
             </p>
 
             <button

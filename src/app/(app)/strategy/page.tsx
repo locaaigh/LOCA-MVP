@@ -9,7 +9,9 @@ import { Badge, Button, Card, EmptyState, EvaLoading, Modal, PageHeader, useToas
 import { ApprovalActions, FeedbackPanel, ProgressTracker, StickyApproveBar, buildFlowSteps } from "@/components/flow";
 import { STRATEGY_FEEDBACK, applyStructuredFeedback } from "@/lib/feedback";
 import { PlatformLogo } from "@/components/platform-logo";
-import { missingCriticalLabels } from "@/lib/business-questions";
+import { PendingFlow } from "@/components/pending-flow";
+import { missingCriticalLabels, pendingQuestions } from "@/lib/business-questions";
+import { suggestPending } from "@/lib/eva-suggest";
 import {
   Sparkles,
   Download,
@@ -21,7 +23,6 @@ import {
   ListChecks,
   Lock,
 } from "lucide-react";
-import Link from "next/link";
 
 export default function StrategyPage() {
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function StrategyPage() {
   const business = useStore((s) => s.businesses.find((b) => b.id === s.activeBusinessId) || null);
   const strategy = useStore((s) => (business ? s.strategies[business.id] : undefined));
   const setFlow = useStore((s) => s.setFlow);
+  const upsertBusiness = useStore((s) => s.upsertBusiness);
   const flow = useFlow(business?.id);
   const gen = useGenerators();
   const { show, node } = useToast();
@@ -63,23 +65,38 @@ export default function StrategyPage() {
 
   if (!business) return null;
 
-  // Guard: sin info crítica no generamos estrategia (evita estrategias genéricas).
+  // Guard: sin info crítica no generamos estrategia. En vez de dejar al usuario
+  // perdido, lo metemos directo en el flujo de pendientes crítico (1-de-N).
   if (criticalMissing.length > 0 && !strategy) {
     return (
       <div className="space-y-5">
         {node}
         <ProgressTracker steps={buildFlowSteps(flow, true)} />
-        <EmptyState
-          icon={Lock}
-          title="Falta información crítica para generar una estrategia útil"
-          description={`Completá estos datos para que Eva no genere algo genérico: ${criticalMissing.join(", ")}.`}
-        >
-          <Link href="/settings">
-            <Button>
-              <Sparkles className="h-4 w-4" /> Completar información del negocio
-            </Button>
-          </Link>
-        </EmptyState>
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-200/70 bg-amber-50/50 p-4">
+          <Lock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+          <div>
+            <p className="text-lg font-bold text-amber-900">
+              Falta información crítica para generar una estrategia útil. Completemos esto primero.
+            </p>
+            <p className="text-sm text-amber-700">
+              Necesitamos {criticalMissing.length} {criticalMissing.length === 1 ? "dato" : "datos"} para que Eva no genere algo genérico.
+            </p>
+          </div>
+        </div>
+        <div className="mx-auto max-w-xl">
+          <PendingFlow
+            business={business}
+            questions={pendingQuestions(business).filter((q) => q.critical)}
+            applyPatch={(patch) => upsertBusiness({ ...business!, ...patch })}
+            onSuggest={() => {
+              const { patch, statuses } = suggestPending(business!);
+              upsertBusiness({ ...business!, ...patch, fieldStatuses: { ...business!.fieldStatuses, ...statuses } });
+              show("Eva sugirió lo que pudo sin inventar. Revisalo 💗");
+            }}
+            onDone={() => show("Listo. Ya podés generar tu estrategia.")}
+            doneLabel="Generar mi estrategia"
+          />
+        </div>
       </div>
     );
   }

@@ -2,7 +2,20 @@
 
 import { api } from "./api";
 import { useStore } from "./store";
-import type { Business, CalendarItem, ContentItem } from "./types";
+import type { Business, CalendarItem, Channel, ContentItem } from "./types";
+
+// Crosspost: si el negocio usa Instagram y Facebook, los posts de Instagram
+// nacen con distribución explícita ["Instagram","Facebook"] (un solo contenido,
+// no se duplican cards). LinkedIn/otras quedan como piezas separadas.
+function withCrosspost(content: ContentItem, business: Business): ContentItem {
+  if (content.distributionPlatforms?.length) return content;
+  const usesFacebook = (business.marketingChannels || []).some((c) => /face/i.test(c));
+  const platforms: Channel[] = [content.channel];
+  if (/insta/i.test(content.channel) && usesFacebook && !platforms.includes("Facebook")) {
+    platforms.push("Facebook");
+  }
+  return platforms.length > 1 ? { ...content, distributionPlatforms: platforms } : content;
+}
 
 // Hook con las acciones de generación, atadas al store.
 export function useGenerators() {
@@ -33,7 +46,7 @@ export function useGenerators() {
     const strategy = store.strategies[business.id];
     if (!strategy) throw new Error("Generá la estrategia primero");
     const res = await api.content(business, strategy, item);
-    const content = res.data;
+    const content = withCrosspost(res.data, business);
     store.upsertContent(content);
     store.updateCalendarItem({ ...item, status: "generado" });
     return content;
@@ -75,7 +88,7 @@ export function useGenerators() {
     for (const item of pending) {
       try {
         const res = await api.content(business, strategy, item);
-        st().upsertContent(res.data);
+        st().upsertContent(withCrosspost(res.data, business));
         st().updateCalendarItem({ ...item, status: "generado" });
       } catch {
         /* continúa */
@@ -103,7 +116,7 @@ export function useGenerators() {
     for (const item of pending) {
       try {
         const res = await api.content(business, strategy, item);
-        store.upsertContent(res.data);
+        store.upsertContent(withCrosspost(res.data, business));
         store.updateCalendarItem({ ...item, status: "generado" });
       } catch {
         /* continúa con el resto */

@@ -7,6 +7,7 @@ import { useStore } from "@/lib/store";
 import { AiStatusBadge, useAiStatus } from "@/components/ai-status";
 import { Badge, Button, Card, Field, Input, Modal, PageHeader, useToast } from "@/components/ui";
 import { PendingFlow } from "@/components/pending-flow";
+import { SearchableCountrySelect } from "@/components/inputs";
 import { suggestPending } from "@/lib/eva-suggest";
 import {
   completionPercent,
@@ -157,7 +158,10 @@ export default function SettingsPage() {
           </Field>
           <div className="grid gap-3 sm:grid-cols-3">
             <Field label="País">
-              <Input value={business.country} onChange={(e) => upsertBusiness({ ...business, country: e.target.value })} />
+              <SearchableCountrySelect
+                value={business.country}
+                onChange={(v) => upsertBusiness({ ...business, country: v })}
+              />
             </Field>
             <Field label="Ciudad">
               <Input value={business.city} onChange={(e) => upsertBusiness({ ...business, city: e.target.value })} />
