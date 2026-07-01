@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateContentPiece } from "@/lib/ai/service";
-import type { Business, CalendarItem, Strategy } from "@/lib/types";
+import { contentAgent } from "@/lib/ai/agents";
+import { resolveCalendarItem, jsonError } from "@/lib/repository/resolve";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,16 +8,24 @@ export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
-    const { business, strategy, calendarItem } = (await req.json()) as {
-      business: Business;
-      strategy: Strategy;
-      calendarItem: CalendarItem;
+    const { businessId, calendarItemId } = (await req.json()) as {
+      businessId: string;
+      calendarItemId: string;
     };
-    if (!business || !strategy || !calendarItem)
-      return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
-    const result = await generateContentPiece(business, strategy, calendarItem);
+    if (!businessId || !calendarItemId)
+      return NextResponse.json({ error: "Faltan businessId o calendarItemId" }, { status: 400 });
+
+    const resolved = resolveCalendarItem(req, businessId, calendarItemId);
+    if ("error" in resolved) return jsonError(resolved);
+
+    const result = await contentAgent.run({
+      business: resolved.business,
+      strategy: resolved.strategy,
+      calendarItem: resolved.calendarItem,
+    });
     return NextResponse.json(result);
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Error generando contenido" }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Error generando contenido";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

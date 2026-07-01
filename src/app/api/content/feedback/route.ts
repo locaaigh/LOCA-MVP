@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { regenerateContentWithFeedback } from "@/lib/ai/service";
-import type { Business, ContentItem } from "@/lib/types";
+import { contentFeedbackAgent } from "@/lib/ai/agents";
+import { resolveContent, jsonError } from "@/lib/repository/resolve";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,16 +8,25 @@ export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
-    const { business, item, feedback } = (await req.json()) as {
-      business: Business;
-      item: ContentItem;
+    const { businessId, contentId, feedback } = (await req.json()) as {
+      businessId: string;
+      contentId: string;
       feedback: string;
     };
-    if (!business || !item || !feedback)
+    if (!businessId || !contentId || !feedback)
       return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
-    const result = await regenerateContentWithFeedback(business, item, feedback);
+
+    const resolved = resolveContent(req, businessId, contentId);
+    if ("error" in resolved) return jsonError(resolved);
+
+    const result = await contentFeedbackAgent.run({
+      business: resolved.business,
+      item: resolved.content,
+      feedbackText: feedback,
+    });
     return NextResponse.json(result);
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Error aplicando feedback" }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Error aplicando feedback";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

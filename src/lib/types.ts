@@ -47,7 +47,7 @@ export type PublishStatus =
 
 export type ImageStatus = "pendiente" | "generando" | "generada" | "error";
 
-export type AiProvider = "openai" | "mock";
+export type AiProvider = "openai" | "anthropic" | "mock";
 
 // Estado de aprobación del flujo guiado (Formulario → Estrategia → Calendario → Contenidos)
 export type ApprovalStatus = "draft" | "pending_review" | "approved" | "needs_changes";

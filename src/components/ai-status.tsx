@@ -4,19 +4,31 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Badge } from "@/components/ui";
 
-let cached: { hasOpenAI: boolean } | null = null;
+interface AiStatus {
+  hasTextAI: boolean;
+  hasImageAI: boolean;
+  textProvider: string;
+  textModel: string;
+}
+
+let cached: AiStatus | null = null;
 
 export function useAiStatus() {
-  const [status, setStatus] = useState<{ hasOpenAI: boolean } | null>(cached);
+  const [status, setStatus] = useState<AiStatus | null>(cached);
   useEffect(() => {
     if (cached) return;
     api
       .status()
       .then((s) => {
-        cached = s;
-        setStatus(s);
+        cached = {
+          hasTextAI: s.hasTextAI,
+          hasImageAI: s.hasImageAI,
+          textProvider: s.textProvider,
+          textModel: s.textModel,
+        };
+        setStatus(cached);
       })
-      .catch(() => setStatus({ hasOpenAI: false }));
+      .catch(() => setStatus({ hasTextAI: false, hasImageAI: false, textProvider: "none", textModel: "" }));
   }, []);
   return status;
 }
@@ -24,9 +36,14 @@ export function useAiStatus() {
 export function AiStatusBadge() {
   const status = useAiStatus();
   if (!status) return null;
-  return status.hasOpenAI ? (
-    <Badge tone="green">IA real activada</Badge>
-  ) : (
-    <Badge tone="yellow">Modo demo · sin API key</Badge>
-  );
+  if (!status.hasTextAI && !status.hasImageAI) {
+    return <Badge tone="yellow">Modo demo · sin API key</Badge>;
+  }
+  const label =
+    status.textProvider === "anthropic"
+      ? "Claude activado"
+      : status.textProvider === "openai"
+        ? "IA real activada"
+        : "IA parcial";
+  return <Badge tone="green">{label}</Badge>;
 }

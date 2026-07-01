@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateGoogleAdsStrategy, generateMetaAdsStrategy } from "@/lib/ai/service";
-import type { Business } from "@/lib/types";
+import { googleAdsAgent, metaAdsAgent } from "@/lib/ai/agents";
+import { resolveBusiness, jsonError } from "@/lib/repository/resolve";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,18 +8,23 @@ export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
-    const { business, platform } = (await req.json()) as {
-      business: Business;
+    const { businessId, platform } = (await req.json()) as {
+      businessId: string;
       platform: "meta" | "google";
     };
-    if (!business || !platform)
+    if (!businessId || !platform)
       return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
+
+    const resolved = resolveBusiness(req, businessId);
+    if ("error" in resolved) return jsonError(resolved);
+
     const result =
       platform === "meta"
-        ? await generateMetaAdsStrategy(business)
-        : await generateGoogleAdsStrategy(business);
+        ? await metaAdsAgent.run({ business: resolved.business })
+        : await googleAdsAgent.run({ business: resolved.business });
     return NextResponse.json(result);
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Error generando ads" }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Error generando ads";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

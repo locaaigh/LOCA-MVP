@@ -48,6 +48,7 @@ export const EMPTY_FLOW: FlowState = {
   content: "draft",
 };
 import { DEMO_BUSINESSES, DEMO_USER } from "./demo";
+import { sanitizeBusiness } from "./sanitize";
 import { nowIso, uid } from "./utils";
 
 export function emptyBusiness(userId: string): Business {
@@ -287,7 +288,9 @@ export const useStore = create<AppState>()(
     {
       name: "loca-store",
       onRehydrateStorage: () => (state) => {
-        if (state) state.hydrated = true;
+        if (!state) return;
+        state.businesses = state.businesses.map(sanitizeBusiness);
+        state.hydrated = true;
       },
     }
   )

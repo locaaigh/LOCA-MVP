@@ -190,9 +190,10 @@ export default function SettingsPage() {
           <h2 className="text-lg font-bold tracking-tight text-zinc-900">Generación con IA</h2>
           <AiStatusBadge />
         </div>
-        {status?.hasOpenAI ? (
+        {status?.hasTextAI ? (
           <p className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 ring-1 ring-inset ring-emerald-100">
-            Tu API key está configurada. Eva genera textos e imágenes reales.
+            Eva usa {status.textProvider === "anthropic" ? "Claude (Anthropic)" : "OpenAI"} para textos
+            {status.hasImageAI ? " e imágenes reales." : ". Las imágenes usan placeholder o OpenAI si está configurado."}
           </p>
         ) : (
           <div className="space-y-2 text-sm text-zinc-600">
@@ -201,7 +202,9 @@ export default function SettingsPage() {
               La app funciona completa igual.
             </p>
             <p>Para activar IA real, agregá tu clave en un archivo <code className="rounded bg-zinc-100 px-1">.env.local</code>:</p>
-            <pre className="overflow-x-auto rounded-lg bg-zinc-900 p-3 text-xs text-zinc-100">OPENAI_API_KEY=sk-...</pre>
+            <pre className="overflow-x-auto rounded-lg bg-zinc-900 p-3 text-xs text-zinc-100">{`ANTHROPIC_API_KEY=sk-ant-...
+AI_TEXT_PROVIDER=anthropic
+# opcional: OPENAI_API_KEY=sk-... (imágenes)`}</pre>
             <p className="text-xs text-zinc-400">Reiniciá el servidor (<code>npm run dev</code>) después de agregarla.</p>
           </div>
         )}

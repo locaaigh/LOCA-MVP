@@ -1,6 +1,22 @@
 import type { Business, User } from "./types";
 import { nowIso } from "./utils";
 
+const DEMO_BRAND_KIT = {
+  colors: {
+    primary: "#ec4899",
+    palette: [
+      { name: "Rosa LOCA", hex: "#ec4899", role: "primary" as const, source: "user" as const, confidence: "high" as const },
+      { name: "Lima", hex: "#84cc16", role: "accent" as const, source: "user" as const, confidence: "high" as const },
+    ],
+  },
+  typography: {},
+  logos: [],
+  visualStyle: { mood: ["Cálido", "Artesanal"] },
+  voiceTone: { toneTags: ["Cercano", "Auténtico", "Cálido"] },
+  brandKeywords: [],
+  avoidList: [],
+};
+
 export const DEMO_USER: User = {
   id: "user_demo",
   email: "demo@loca.app",
@@ -42,6 +58,7 @@ export const DEMO_BUSINESSES: Business[] = [
     websiteUrl: "",
     websiteExtractionStatus: "idle",
     brandColors: ["#ec4899", "#84cc16", "#18181b"],
+    brandKit: DEMO_BRAND_KIT,
     productsServices: [
       {
         id: "ps_cafe_filtrado",
@@ -143,6 +160,7 @@ export const DEMO_BUSINESSES: Business[] = [
     websiteUrl: "https://casanativa.example",
     websiteExtractionStatus: "idle",
     brandColors: ["#ec4899", "#84cc16", "#ffffff"],
+    brandKit: DEMO_BRAND_KIT,
     productsServices: [
       {
         id: "ps_macetas",

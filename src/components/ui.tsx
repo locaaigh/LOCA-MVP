@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { normalizeChipValues } from "@/lib/sanitize";
 import { Loader2, X } from "lucide-react";
 import * as React from "react";
 
@@ -135,12 +136,13 @@ export function ChipSelect({
   allowCustom?: boolean;
 }) {
   const [custom, setCustom] = React.useState("");
+  const chips = React.useMemo(() => normalizeChipValues(value), [value]);
   const toggle = (opt: string) => {
-    onChange(value.includes(opt) ? value.filter((v) => v !== opt) : [...value, opt]);
+    onChange(chips.includes(opt) ? chips.filter((v) => v !== opt) : [...chips, opt]);
   };
   const addCustom = () => {
     const c = custom.trim();
-    if (c && !value.includes(c)) onChange([...value, c]);
+    if (c && !chips.includes(c)) onChange([...chips, c]);
     setCustom("");
   };
   return (
@@ -153,7 +155,7 @@ export function ChipSelect({
             onClick={() => toggle(opt)}
             className={cn(
               "rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition",
-              value.includes(opt)
+              chips.includes(opt)
                 ? "border-loca-400 bg-loca-50 text-loca-700 ring-2 ring-loca-100"
                 : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
             )}
@@ -161,7 +163,7 @@ export function ChipSelect({
             {opt}
           </button>
         ))}
-        {value
+        {chips
           .filter((v) => !options.includes(v))
           .map((v) => (
             <button

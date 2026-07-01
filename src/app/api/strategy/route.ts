@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateBusinessStrategy } from "@/lib/ai/service";
-import type { Business } from "@/lib/types";
+import { strategyAgent } from "@/lib/ai/agents";
+import { resolveBusiness, jsonError } from "@/lib/repository/resolve";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,14 +8,19 @@ export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
-    const { business, feedback } = (await req.json()) as {
-      business: Business;
+    const { businessId, feedback } = (await req.json()) as {
+      businessId: string;
       feedback?: string;
     };
-    if (!business) return NextResponse.json({ error: "Falta business" }, { status: 400 });
-    const result = await generateBusinessStrategy(business, feedback);
+    if (!businessId) return NextResponse.json({ error: "Falta businessId" }, { status: 400 });
+
+    const resolved = resolveBusiness(req, businessId);
+    if ("error" in resolved) return jsonError(resolved);
+
+    const result = await strategyAgent.run({ business: resolved.business, feedback });
     return NextResponse.json(result);
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Error generando estrategia" }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Error generando estrategia";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

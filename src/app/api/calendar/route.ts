@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateContentCalendar } from "@/lib/ai/service";
-import type { Business, Strategy } from "@/lib/types";
+import { calendarAgent } from "@/lib/ai/agents";
+import { resolveStrategy, jsonError } from "@/lib/repository/resolve";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,17 +8,25 @@ export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
-    const { business, strategy, count, feedback } = (await req.json()) as {
-      business: Business;
-      strategy: Strategy;
+    const { businessId, count, feedback } = (await req.json()) as {
+      businessId: string;
       count: number;
       feedback?: string;
     };
-    if (!business || !strategy)
-      return NextResponse.json({ error: "Falta business o strategy" }, { status: 400 });
-    const result = await generateContentCalendar(business, strategy, count || 16, feedback);
+    if (!businessId) return NextResponse.json({ error: "Falta businessId" }, { status: 400 });
+
+    const resolved = resolveStrategy(req, businessId);
+    if ("error" in resolved) return jsonError(resolved);
+
+    const result = await calendarAgent.run({
+      business: resolved.business,
+      strategy: resolved.strategy,
+      count: count || 16,
+      feedback,
+    });
     return NextResponse.json(result);
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Error generando calendario" }, { status: 500 });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Error generando calendario";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

@@ -88,12 +88,18 @@ async function fetchHtml(url: string, timeoutMs = 7000): Promise<string | null> 
     const res = await fetch(url, {
       signal: ctrl.signal,
       redirect: "follow",
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; LOCA-Eva/1.0)" },
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
+      },
     });
     if (!res.ok) return null;
-    const ct = res.headers.get("content-type") || "";
-    if (!ct.includes("html") && !ct.includes("text")) return null;
-    return await res.text();
+    const ct = (res.headers.get("content-type") || "").toLowerCase();
+    if (ct && !ct.includes("html") && !ct.includes("text") && !ct.includes("xml")) return null;
+    const text = await res.text();
+    return text.length > 200 ? text : null;
   } catch {
     return null;
   } finally {

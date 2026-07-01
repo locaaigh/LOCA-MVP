@@ -87,7 +87,7 @@ export function ProductServiceForm({
   async function generateWithEva() {
     setAiLoading(true);
     try {
-      const res = await api.productDescription(business, ps);
+      const res = await api.productDescription(business.id, ps, business);
       onChange({
         shortDescription: res.data.shortDescription,
         longDescription: res.data.longDescription,

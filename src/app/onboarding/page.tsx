@@ -156,6 +156,7 @@ export default function OnboardingPage() {
     setB((prev) => {
       const next: Business = { ...prev };
       if (ff.name) next.name = ff.name;
+      if (ff.websiteUrl) next.websiteUrl = ff.websiteUrl;
       if (ff.industry) next.industry = ff.industry;
       if (ff.subcategory) next.subcategory = ff.subcategory;
       if (ff.businessType) next.businessType = ff.businessType;
@@ -258,7 +259,12 @@ export default function OnboardingPage() {
     try {
       const res = await api.extractWebsite(clean);
       const next = applyAnalysis(res.data);
-      show(res.meta?.warning || "Listo. Eva leyó tu web y completó lo que encontró.");
+      const s = res.data.summary;
+      const base =
+        s.completedFieldsCount > 0
+          ? `Eva detectó ${s.completedFieldsCount} campos${s.reviewFieldsCount ? ` y sugirió ${s.reviewFieldsCount} más` : ""}.`
+          : "Eva no encontró datos en esa URL.";
+      show(res.meta?.warning || base);
       routeAfterImport(next);
     } catch {
       set({ websiteExtractionStatus: "error" });

@@ -2,7 +2,6 @@
 
 import type {
   AiMeta,
-  Business,
   CalendarItem,
   ContentItem,
   GoogleAdsStrategy,
@@ -13,11 +12,26 @@ import type {
   Strategy,
   WebsiteAnalysis,
 } from "./types";
+import { locaUserHeaders, syncRepositoryToServer } from "./repository/client-sync";
 
-async function post<T>(url: string, body: unknown): Promise<T> {
+async function aiPost<T>(
+  url: string,
+  body: unknown,
+  syncOpts?: { includeBusiness?: import("./types").Business }
+): Promise<R<T>> {
+  await syncRepositoryToServer(syncOpts);
+  const business = syncOpts?.includeBusiness;
+  return post<R<T>>(url, body, business);
+}
+
+async function post<T>(
+  url: string,
+  body: unknown,
+  business?: import("./types").Business
+): Promise<T> {
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...locaUserHeaders(business) },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -32,30 +46,52 @@ type R<T> = { data: T; meta: AiMeta };
 export const api = {
   status: () =>
     fetch("/api/status").then(
-      (r) => r.json() as Promise<{ hasOpenAI: boolean; textModel: string; imageModel: string }>
+      (r) =>
+        r.json() as Promise<{
+          hasTextAI: boolean;
+          hasImageAI: boolean;
+          textProvider: string;
+          textModel: string;
+          imageProvider: string;
+          imageModel: string;
+          // legacy
+          hasOpenAI?: boolean;
+        }>
     ),
-  strategy: (business: Business, feedback?: string) =>
-    post<R<Strategy>>("/api/strategy", { business, feedback }),
-  calendar: (business: Business, strategy: Strategy, count: number, feedback?: string) =>
-    post<R<CalendarItem[]>>("/api/calendar", { business, strategy, count, feedback }),
-  content: (business: Business, strategy: Strategy, calendarItem: CalendarItem) =>
-    post<R<ContentItem>>("/api/content", { business, strategy, calendarItem }),
-  feedback: (business: Business, item: ContentItem, feedback: string) =>
-    post<R<ContentItem>>("/api/content/feedback", { business, item, feedback }),
-  image: (prompt: string, format: ImageFormat, label?: string, concept?: string) =>
-    post<{
+
+  strategy: (businessId: string, feedback?: string) =>
+    aiPost<Strategy>("/api/strategy", { businessId, feedback }),
+
+  calendar: (businessId: string, count: number, feedback?: string) =>
+    aiPost<CalendarItem[]>("/api/calendar", { businessId, count, feedback }),
+
+  content: (businessId: string, calendarItemId: string) =>
+    aiPost<ContentItem>("/api/content", { businessId, calendarItemId }),
+
+  feedback: (businessId: string, contentId: string, feedback: string) =>
+    aiPost<ContentItem>("/api/content/feedback", { businessId, contentId, feedback }),
+
+  image: (businessId: string, contentId: string) =>
+    aiPost<{
       imageUrl: string;
       prompt: string;
       provider: "openai" | "mock";
       status: "generada" | "error";
       error?: string;
-    }>("/api/image", { prompt, format, label, concept }),
-  metaAds: (business: Business) =>
-    post<R<MetaAdsStrategy>>("/api/ads", { business, platform: "meta" }),
-  googleAds: (business: Business) =>
-    post<R<GoogleAdsStrategy>>("/api/ads", { business, platform: "google" }),
-  extractWebsite: (url: string) =>
-    post<R<WebsiteAnalysis>>("/api/extract", { url }),
-  productDescription: (business: Business, draft: ProductService) =>
-    post<R<ProductDescriptionSuggestion>>("/api/product-description", { business, draft }),
+    }>("/api/image", { businessId, contentId }),
+
+  metaAds: (businessId: string) =>
+    aiPost<MetaAdsStrategy>("/api/ads", { businessId, platform: "meta" }),
+
+  googleAds: (businessId: string) =>
+    aiPost<GoogleAdsStrategy>("/api/ads", { businessId, platform: "google" }),
+
+  extractWebsite: (url: string) => post<R<WebsiteAnalysis>>("/api/extract", { url }),
+
+  productDescription: (businessId: string, draft: ProductService, business?: import("./types").Business) =>
+    aiPost<ProductDescriptionSuggestion>(
+      "/api/product-description",
+      { businessId, draft },
+      business ? { includeBusiness: business } : undefined
+    ),
 };

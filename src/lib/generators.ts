@@ -2,11 +2,8 @@
 
 import { api } from "./api";
 import { useStore } from "./store";
-import type { Business, CalendarItem, Channel, ContentItem } from "./types";
+import type { Business, CalendarItem, Channel, ContentItem, GoogleAdsStrategy, MetaAdsStrategy } from "./types";
 
-// Crosspost: si el negocio usa Instagram y Facebook, los posts de Instagram
-// nacen con distribución explícita ["Instagram","Facebook"] (un solo contenido,
-// no se duplican cards). LinkedIn/otras quedan como piezas separadas.
 function withCrosspost(content: ContentItem, business: Business): ContentItem {
   if (content.distributionPlatforms?.length) return content;
   const usesFacebook = (business.marketingChannels || []).some((c) => /face/i.test(c));
@@ -17,12 +14,11 @@ function withCrosspost(content: ContentItem, business: Business): ContentItem {
   return platforms.length > 1 ? { ...content, distributionPlatforms: platforms } : content;
 }
 
-// Hook con las acciones de generación, atadas al store.
 export function useGenerators() {
   const store = useStore();
 
   async function generateStrategy(business: Business, feedback?: string) {
-    const res = await api.strategy(business, feedback);
+    const res = await api.strategy(business.id, feedback);
     store.setStrategy(business.id, { ...res.data, status: "pending_review" });
     store.setFlow(business.id, { strategy: "pending_review" });
     return res.meta;
@@ -31,30 +27,25 @@ export function useGenerators() {
   async function generateCalendar(business: Business, count: number, feedback?: string) {
     let strategy = store.strategies[business.id];
     if (!strategy) {
-      const s = await api.strategy(business);
+      const s = await api.strategy(business.id);
       store.setStrategy(business.id, { ...s.data, status: "pending_review" });
       strategy = s.data;
     }
-    const res = await api.calendar(business, strategy, count, feedback);
+    const res = await api.calendar(business.id, count, feedback);
     store.setCalendar(business.id, res.data);
     store.setFlow(business.id, { calendar: "pending_review" });
     return res.meta;
   }
 
-  // Genera la pieza de contenido para un item del calendario (si no existe)
   async function generateContentForItem(business: Business, item: CalendarItem) {
-    const strategy = store.strategies[business.id];
-    if (!strategy) throw new Error("Generá la estrategia primero");
-    const res = await api.content(business, strategy, item);
+    if (!store.strategies[business.id]) throw new Error("Generá la estrategia primero");
+    const res = await api.content(business.id, item.id);
     const content = withCrosspost(res.data, business);
     store.upsertContent(content);
     store.updateCalendarItem({ ...item, status: "generado" });
     return content;
   }
 
-  // Flujo nuevo: tras aprobar estrategia, generar el PAQUETE completo de
-  // contenidos. El calendario de ideas se arma internamente (auto-aprobado) y
-  // no se le muestra al cliente como paso previo.
   async function generateMonthContents(
     business: Business,
     count = 16,
@@ -62,24 +53,21 @@ export function useGenerators() {
   ) {
     const st = () => useStore.getState();
 
-    // 1) Estrategia (si no existe)
     let strategy = st().strategies[business.id];
     if (!strategy) {
-      const s = await api.strategy(business);
+      const s = await api.strategy(business.id);
       st().setStrategy(business.id, { ...s.data, status: "pending_review" });
       strategy = s.data;
     }
 
-    // 2) Calendario interno (si no existe) — auto-aprobado, no es un paso del cliente
     let cal = st().calendars[business.id] || [];
     if (!cal.length) {
-      const res = await api.calendar(business, strategy, count);
+      const res = await api.calendar(business.id, count);
       st().setCalendar(business.id, res.data);
       st().setFlow(business.id, { calendar: "approved" });
       cal = res.data;
     }
 
-    // 3) Contenidos completos para cada item sin pieza
     const existing = new Set(
       st().contents.filter((c) => c.businessId === business.id).map((c) => c.calendarItemId)
     );
@@ -87,7 +75,7 @@ export function useGenerators() {
     let done = 0;
     for (const item of pending) {
       try {
-        const res = await api.content(business, strategy, item);
+        const res = await api.content(business.id, item.id);
         st().upsertContent(withCrosspost(res.data, business));
         st().updateCalendarItem({ ...item, status: "generado" });
       } catch {
@@ -100,13 +88,11 @@ export function useGenerators() {
     return pending.length;
   }
 
-  // Genera contenido para todos los items que aún no tienen pieza.
   async function generateAllContent(
     business: Business,
     onProgress?: (done: number, total: number) => void
   ) {
-    const strategy = store.strategies[business.id];
-    if (!strategy) throw new Error("Generá la estrategia primero");
+    if (!store.strategies[business.id]) throw new Error("Generá la estrategia primero");
     const items = store.calendars[business.id] || [];
     const existingItemIds = new Set(
       store.contents.filter((c) => c.businessId === business.id).map((c) => c.calendarItemId)
@@ -115,11 +101,11 @@ export function useGenerators() {
     let done = 0;
     for (const item of pending) {
       try {
-        const res = await api.content(business, strategy, item);
+        const res = await api.content(business.id, item.id);
         store.upsertContent(withCrosspost(res.data, business));
         store.updateCalendarItem({ ...item, status: "generado" });
       } catch {
-        /* continúa con el resto */
+        /* continúa */
       }
       done++;
       onProgress?.(done, pending.length);
@@ -130,39 +116,35 @@ export function useGenerators() {
   async function generateImage(content: ContentItem, business: Business) {
     store.updateContent(content.id, { imageStatus: "generando" });
     try {
-      const res = await api.image(
-        content.imagePrompt,
-        content.imageFormat,
-        business.name,
-        content.visualConcept
-      );
+      const res = await api.image(business.id, content.id);
       store.updateContent(content.id, {
-        imageUrl: res.imageUrl,
-        imageProvider: res.provider,
-        imageStatus: res.status,
-        imageError: res.error,
+        imageUrl: res.data.imageUrl,
+        imageProvider: res.data.provider,
+        imageStatus: res.data.status,
+        imageError: res.data.error,
       });
-      return res;
-    } catch (e: any) {
-      store.updateContent(content.id, { imageStatus: "error", imageError: e?.message });
+      return res.data;
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Error";
+      store.updateContent(content.id, { imageStatus: "error", imageError: msg });
       throw e;
     }
   }
 
   async function applyFeedback(business: Business, content: ContentItem, feedback: string) {
-    const res = await api.feedback(business, content, feedback);
+    const res = await api.feedback(business.id, content.id, feedback);
     store.upsertContent(res.data);
     return res;
   }
 
   async function generateAds(business: Business, platform: "meta" | "google") {
-    const res = platform === "meta" ? await api.metaAds(business) : await api.googleAds(business);
+    const res = platform === "meta" ? await api.metaAds(business.id) : await api.googleAds(business.id);
     store.setAdStrategy({
       id: `ad_${platform}_${business.id}`,
       businessId: business.id,
       platform,
-      meta: platform === "meta" ? (res.data as any) : undefined,
-      google: platform === "google" ? (res.data as any) : undefined,
+      meta: platform === "meta" ? (res.data as MetaAdsStrategy) : undefined,
+      google: platform === "google" ? (res.data as GoogleAdsStrategy) : undefined,
       createdAt: new Date().toISOString(),
     });
     return res.meta;
