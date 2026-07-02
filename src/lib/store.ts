@@ -49,6 +49,7 @@ export const EMPTY_FLOW: FlowState = {
 };
 import { DEMO_BUSINESSES, DEMO_USER } from "./demo";
 import { sanitizeBusiness } from "./sanitize";
+import { mergeStrategyJob } from "./strategy-job-utils";
 import { nowIso, uid } from "./utils";
 
 export function emptyBusiness(userId: string): Business {
@@ -240,7 +241,14 @@ export const useStore = create<AppState>()(
 
         const demoBusinesses = st.businesses.filter((b) => b.isDemo);
         const localReal = st.businesses.filter((b) => !b.isDemo);
-        const businesses = [...demoBusinesses, ...newer(localReal, snap.businesses)];
+        const mergedReal = newer(localReal, snap.businesses).map((b) => {
+          const local = localReal.find((l) => l.id === b.id);
+          const server = snap.businesses.find((s) => s.id === b.id);
+          if (!local || !server) return b;
+          const strategyJob = mergeStrategyJob(local.strategyJob, server.strategyJob);
+          return strategyJob !== b.strategyJob ? { ...b, strategyJob } : b;
+        });
+        const businesses = [...demoBusinesses, ...mergedReal];
 
         const demoIds = new Set(demoBusinesses.map((b) => b.id));
         const strategies: Record<string, Strategy> = { ...snap.strategies };

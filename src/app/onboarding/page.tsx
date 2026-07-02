@@ -4,6 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useStore, emptyBusiness } from "@/lib/store";
+import { canGenerateStrategy, requiresAuthForStrategy } from "@/lib/auth/user";
+import { hasSupabaseClientConfig } from "@/lib/supabase/client";
+import { completeOnboardingAndGoToStrategy, prepareFinalBusiness, resumeOnboardingDraftIfAny } from "@/lib/onboarding/complete";
+import { saveOnboardingDraft } from "@/lib/onboarding-draft";
+import { OnboardingSignupModal } from "@/components/onboarding-signup-modal";
 import {
   INDUSTRIES,
   SUBCATEGORIES,
@@ -82,9 +87,12 @@ type Phase = "select" | "web" | "ai" | "pending" | "wizard";
 export default function OnboardingPage() {
   const router = useRouter();
   const user = useStore((s) => s.user);
+  const hydrated = useStore((s) => s.hydrated);
   const login = useStore((s) => s.login);
-  const upsertBusiness = useStore((s) => s.upsertBusiness);
   const { show, node } = useToast();
+
+  const [signupOpen, setSignupOpen] = useState(false);
+  const [pendingBusiness, setPendingBusiness] = useState<Business | null>(null);
 
   // Fase de la experiencia. La pantalla inicial NO es el paso 1 del wizard:
   // "select" (elección de método) → "web" / "ai" (pantallas únicas) →
@@ -127,6 +135,14 @@ export default function OnboardingPage() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [step]);
+
+  // Retomar borrador tras confirmación de email (?resume=1).
+  useEffect(() => {
+    if (!hydrated || !canGenerateStrategy(user)) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("resume") !== "1") return;
+    void resumeOnboardingDraftIfAny(router);
+  }, [hydrated, user, router]);
 
   // set normal: si el usuario edita un campo que Eva había marcado, pasa a "Editado por vos".
   const set = (patch: Partial<Business>) =>
@@ -318,27 +334,36 @@ export default function OnboardingPage() {
   }
 
   function finish() {
-    let uid_ = user?.id;
+    const finalBiz = prepareFinalBusiness(b, user?.id || "anon");
+
+    // Con Supabase: cuenta real obligatoria antes de generar estrategia.
+    if (requiresAuthForStrategy()) {
+      if (!canGenerateStrategy(user)) {
+        setPendingBusiness(finalBiz);
+        saveOnboardingDraft(finalBiz);
+        setSignupOpen(true);
+        return;
+      }
+      void completeOnboardingAndGoToStrategy(
+        prepareFinalBusiness(b, user!.id),
+        router
+      );
+      return;
+    }
+
+    // Modo local sin Supabase (dev/demo sin backend).
     if (!user) {
       login(`negocio_${Date.now()}@loca.app`);
-      uid_ = useStore.getState().user?.id;
+      const localId = useStore.getState().user?.id;
+      if (!localId) return;
+      void completeOnboardingAndGoToStrategy(
+        prepareFinalBusiness(b, localId),
+        router
+      );
+      return;
     }
-    // Compatibilidad: si el Brand Kit tiene colores, los reflejamos en brandColors
-    // (que usan las previews y cards de contenido).
-    const bkColors = b.brandKit?.colors;
-    const brandColors = bkColors?.primary
-      ? [bkColors.primary, bkColors.accent || bkColors.secondary || "#84cc16", bkColors.background || "#ffffff"]
-      : b.brandColors;
 
-    const finalBiz: Business = {
-      ...b,
-      brandColors,
-      productsServices: b.productsServices.map((p) => ({ ...p, saved: true })),
-      userId: uid_ || b.userId,
-      onboardingComplete: true,
-    };
-    upsertBusiness(finalBiz);
-    router.push("/strategy?generate=1");
+    void completeOnboardingAndGoToStrategy(finalBiz, router);
   }
 
   const onSummary = phase === "wizard" && step === SUMMARY_STEP;
@@ -449,6 +474,11 @@ export default function OnboardingPage() {
                   onEditSection={openSection}
                   onCompleteWithEva={completeWithEva}
                   onFixCritical={() => setCriticalOpen(true)}
+                  confirmLabel={
+                    requiresAuthForStrategy() && !canGenerateStrategy(user)
+                      ? "Confirmar y crear cuenta"
+                      : "Confirmar y continuar"
+                  }
                 />
               )}
             </div>
@@ -497,6 +527,15 @@ export default function OnboardingPage() {
           </Button>
         </div>
       </Modal>
+
+      {hasSupabaseClientConfig() && pendingBusiness && (
+        <OnboardingSignupModal
+          open={signupOpen}
+          business={pendingBusiness}
+          onClose={() => setSignupOpen(false)}
+          router={router}
+        />
+      )}
 
       <EvaChatBubble raised={phase === "wizard"} />
     </main>

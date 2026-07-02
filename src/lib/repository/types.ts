@@ -7,6 +7,8 @@ export interface DataRepository {
   sync(snapshot: AppSnapshotInput): Promise<void>;
   getBusiness(userId: string, businessId: string): Promise<Business | null>;
   getStrategy(userId: string, businessId: string): Promise<Strategy | null>;
+  upsertStrategy(userId: string, businessId: string, strategy: Strategy): Promise<void>;
+  patchBusiness(userId: string, businessId: string, patch: Partial<Business>): Promise<Business | null>;
   getCalendarItem(
     userId: string,
     businessId: string,

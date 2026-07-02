@@ -47,6 +47,7 @@ export function OnboardingSummary({
   onEditSection,
   onCompleteWithEva,
   onFixCritical,
+  confirmLabel = "Confirmar y generar estrategia",
 }: {
   business: Business;
   onConfirm: () => void;
@@ -54,6 +55,7 @@ export function OnboardingSummary({
   onEditSection: (key: SummarySectionKey) => void;
   onCompleteWithEva: () => void;
   onFixCritical?: () => void;
+  confirmLabel?: string;
 }) {
   const b = business;
   const bk = b.brandKit;
@@ -232,7 +234,7 @@ export function OnboardingSummary({
       </p>
       <div className="flex flex-col gap-2 sm:flex-row">
         <Button variant="success" size="xl" className="flex-1" disabled={missing.length > 0} onClick={onConfirm}>
-          <Sparkles className="h-5 w-5" /> Confirmar y generar estrategia
+          <Sparkles className="h-5 w-5" /> {confirmLabel}
         </Button>
         <Button variant="outline" size="xl" onClick={onEdit}>
           <Pencil className="h-4 w-4" /> Editar todo

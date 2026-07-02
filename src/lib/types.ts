@@ -60,6 +60,15 @@ export interface BusinessFlowState {
   content: ApprovalStatus;
 }
 
+export type StrategyJobStatus = "generating" | "completed" | "failed";
+
+/** Estado del job de generación de estrategia en segundo plano (persistido en el negocio). */
+export interface StrategyJob {
+  status: StrategyJobStatus;
+  error?: string;
+  updatedAt: string;
+}
+
 export type ProductImportSource = "manual" | "csv" | "xlsx" | "website" | "md" | "eva";
 
 // ── Usuario ──────────────────────────────────────────────────
@@ -185,6 +194,8 @@ export interface Business {
   isDemo?: boolean;
   // Snapshot del flujo guiado, embebido para que sobreviva al sync/hidratación
   flowState?: BusinessFlowState;
+  /** Generación de estrategia en segundo plano (servidor). */
+  strategyJob?: StrategyJob;
   createdAt: string;
   updatedAt: string;
 }

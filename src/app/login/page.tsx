@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { enterDemoMode } from "@/lib/auth/session";
 import { toLocaUser } from "@/lib/auth/user";
+import { hasOnboardingDraft } from "@/lib/onboarding-draft";
+import { resumeOnboardingDraftIfAny } from "@/lib/onboarding/complete";
 import { getSupabaseBrowser, hasSupabaseClientConfig } from "@/lib/supabase/client";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { Logo } from "@/components/brand";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const login = useStore((s) => s.login);
   const clearUserData = useStore((s) => s.clearUserData);
   const setUser = useStore((s) => s.setUser);
@@ -22,8 +25,22 @@ export default function LoginPage() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   const supabaseEnabled = hasSupabaseClientConfig();
+  const sessionExpired = searchParams.get("reason") === "session_expired";
+  const fromOnboarding = searchParams.get("from") === "onboarding";
 
-  // Si ya hay sesión activa, ir directo al dashboard.
+  async function afterAuth(supabaseUser: Parameters<typeof toLocaUser>[0]) {
+    const newUser = toLocaUser(supabaseUser);
+    const prev = useStore.getState().user;
+    if (prev?.id !== newUser.id) clearUserData();
+    setUser(newUser);
+    if (await resumeOnboardingDraftIfAny(router)) return;
+    if (fromOnboarding) {
+      router.push("/onboarding");
+      return;
+    }
+    router.push("/dashboard");
+  }
+
   useEffect(() => {
     if (!supabaseEnabled) {
       setCheckingSession(false);
@@ -31,11 +48,19 @@ export default function LoginPage() {
     }
     getSupabaseBrowser()
       .auth.getUser()
-      .then(({ data }) => {
-        if (data.user) router.replace("/dashboard");
-        else setCheckingSession(false);
+      .then(async ({ data }) => {
+        if (data.user) {
+          if (hasOnboardingDraft()) {
+            await afterAuth(data.user);
+            return;
+          }
+          router.replace("/dashboard");
+        } else {
+          setCheckingSession(false);
+        }
       })
       .catch(() => setCheckingSession(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, supabaseEnabled]);
 
   const submit = async (e: React.FormEvent) => {
@@ -66,15 +91,7 @@ export default function LoginPage() {
         );
         return;
       }
-      // Actualizar el store antes de navegar evita el rebote login ↔ dashboard.
-      // La hidratación desde el servidor la hace AuthProvider en SIGNED_IN.
-      if (data.user) {
-        const newUser = toLocaUser(data.user);
-        const prev = useStore.getState().user;
-        if (prev?.id !== newUser.id) clearUserData();
-        setUser(newUser);
-      }
-      router.push("/dashboard");
+      if (data.user) await afterAuth(data.user);
     } finally {
       setLoading(false);
     }
@@ -110,8 +127,17 @@ export default function LoginPage() {
         <Card className="p-8 shadow-glow">
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Hola de nuevo 👋</h1>
           <p className="mt-1.5 text-sm text-zinc-500">
-            {supabaseEnabled ? "Ingresá con tu email y contraseña." : "Ingresá tu email para continuar."}
+            {fromOnboarding
+              ? "Iniciá sesión para que Eva genere tu estrategia con los datos que completaste."
+              : supabaseEnabled
+                ? "Ingresá con tu email y contraseña."
+                : "Ingresá tu email para continuar."}
           </p>
+          {sessionExpired && (
+            <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
+              Tu sesión expiró. Volvé a iniciar sesión para continuar.
+            </p>
+          )}
           <form onSubmit={submit} className="mt-7 space-y-4">
             <Field label="Email">
               <Input
@@ -136,7 +162,7 @@ export default function LoginPage() {
             )}
             {error && <p className="text-sm font-medium text-red-600">{error}</p>}
             <Button type="submit" size="lg" className="w-full" disabled={loading}>
-              {loading ? "Entrando…" : "Entrar"}
+              {loading ? "Entrando…" : fromOnboarding ? "Entrar y generar estrategia" : "Entrar"}
             </Button>
           </form>
           <div className="mt-6 flex items-center gap-3">
@@ -162,5 +188,19 @@ export default function LoginPage() {
         </Card>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="loca-soft-bg flex min-h-screen items-center justify-center px-5 py-10">
+          <p className="text-sm text-zinc-400">Cargando…</p>
+        </main>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

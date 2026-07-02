@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AppSnapshotInput } from "@/lib/schemas";
+import { mergeStrategyJob } from "@/lib/strategy-job-utils";
 import type { Business, CalendarItem, ContentItem, Strategy } from "@/lib/types";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { DataRepository } from "./types";
@@ -39,7 +40,20 @@ export const supabaseRepository: DataRepository = {
     const now = new Date().toISOString();
     const client = db();
 
-    const bizRows = snapshot.businesses.map((b) => ({
+    const mergedBusinesses: Business[] = [];
+    for (const b of snapshot.businesses as Business[]) {
+      const existing = await this.getBusiness(userId, b.id);
+      if (existing?.strategyJob) {
+        mergedBusinesses.push({
+          ...b,
+          strategyJob: mergeStrategyJob(b.strategyJob, existing.strategyJob),
+        });
+      } else {
+        mergedBusinesses.push(b);
+      }
+    }
+
+    const bizRows = mergedBusinesses.map((b) => ({
       id: b.id,
       user_id: userId,
       data: b,
@@ -172,6 +186,45 @@ export const supabaseRepository: DataRepository = {
       .eq("business_id", businessId)
       .maybeSingle();
     return (data?.data as Strategy | undefined) ?? null;
+  },
+
+  async upsertStrategy(userId, businessId, strategy) {
+    const now = new Date().toISOString();
+    const { error } = await db()
+      .from("strategies")
+      .upsert(
+        {
+          business_id: businessId,
+          user_id: userId,
+          data: strategy,
+          updated_at: now,
+        },
+        { onConflict: "user_id,business_id" }
+      );
+    if (error) throw new Error(`Guardar estrategia: ${error.message}`);
+  },
+
+  async patchBusiness(userId, businessId, patch) {
+    const existing = await this.getBusiness(userId, businessId);
+    if (!existing) return null;
+    const updated: Business = {
+      ...existing,
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    };
+    const { error } = await db()
+      .from("businesses")
+      .upsert(
+        {
+          id: businessId,
+          user_id: userId,
+          data: updated,
+          updated_at: updated.updatedAt,
+        },
+        { onConflict: "user_id,id" }
+      );
+    if (error) throw new Error(`Actualizar negocio: ${error.message}`);
+    return updated;
   },
 
   async getCalendarItem(userId, businessId, itemId) {

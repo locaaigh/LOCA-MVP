@@ -19,7 +19,6 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [checkEmail, setCheckEmail] = useState(false);
 
   const supabaseEnabled = hasSupabaseClientConfig();
 
@@ -29,7 +28,6 @@ export default function SignupPage() {
     setError("");
 
     if (!supabaseEnabled) {
-      // Fallback sin Supabase: cuenta local (modo demo)
       signup(email.trim(), name.trim() || email.split("@")[0]);
       router.push("/onboarding");
       return;
@@ -53,43 +51,19 @@ export default function SignupPage() {
         );
         return;
       }
-      if (data.session?.user) {
-        // Sesión inmediata (confirmación de email desactivada)
-        const newUser = toLocaUser(data.session.user);
-        const prev = useStore.getState().user;
-        if (prev?.id !== newUser.id) clearUserData();
-        setUser(newUser);
-        router.push("/onboarding");
-      } else {
-        // Supabase requiere confirmar el email
-        setCheckEmail(true);
+      if (!data.session?.user) {
+        setError("No se pudo crear la sesión. Probá iniciar sesión.");
+        return;
       }
+      const newUser = toLocaUser(data.session.user);
+      const prev = useStore.getState().user;
+      if (prev?.id !== newUser.id) clearUserData();
+      setUser(newUser);
+      router.push("/dashboard");
     } finally {
       setLoading(false);
     }
   };
-
-  if (checkEmail) {
-    return (
-      <main className="loca-soft-bg flex min-h-screen items-center justify-center px-5 py-10">
-        <div className="w-full max-w-md">
-          <Card className="p-8 text-center shadow-glow">
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Revisá tu email 📬</h1>
-            <p className="mt-3 text-sm text-zinc-500">
-              Te mandamos un link a <strong>{email}</strong> para confirmar tu cuenta. Después de
-              confirmar, iniciá sesión.
-            </p>
-            <Link
-              href="/login"
-              className="mt-6 inline-block font-semibold text-loca-600 hover:underline"
-            >
-              Ir a iniciar sesión
-            </Link>
-          </Card>
-        </div>
-      </main>
-    );
-  }
 
   return (
     <main className="loca-soft-bg flex min-h-screen items-center justify-center px-5 py-10">
@@ -103,7 +77,7 @@ export default function SignupPage() {
         <Card className="p-8 shadow-glow">
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Creá tu cuenta</h1>
           <p className="mt-1.5 text-sm text-zinc-500">Empezá gratis, sin tarjeta. Toma 2 minutos.</p>
-          <form onSubmit={submit} className="mt-7 space-y-4">
+          <form onSubmit={submit} className="space-y-4">
             <Field label="Nombre">
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tu nombre" />
             </Field>

@@ -3,7 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore, useFlow } from "@/lib/store";
+import { canGenerateStrategy, requiresAuthForStrategy } from "@/lib/auth/user";
+import { prepareFinalBusiness } from "@/lib/onboarding/complete";
+import { saveOnboardingDraft } from "@/lib/onboarding-draft";
+import { OnboardingSignupModal } from "@/components/onboarding-signup-modal";
 import { useGenerators } from "@/lib/generators";
+import { startStrategyInBackground, isStrategyGenerating, restartStrategyGeneration } from "@/lib/strategy-job";
+import { isStrategyJobStale } from "@/lib/strategy-job-utils";
 import { exportStrategyHtml } from "@/lib/exports";
 import { Badge, Button, Card, EmptyState, EvaLoading, Modal, PageHeader, useToast } from "@/components/ui";
 import { ApprovalActions, FeedbackPanel, ProgressTracker, StickyApproveBar, buildFlowSteps } from "@/components/flow";
@@ -12,6 +18,7 @@ import { PlatformLogo } from "@/components/platform-logo";
 import { PendingFlow } from "@/components/pending-flow";
 import { missingCriticalLabels, pendingQuestions } from "@/lib/business-questions";
 import { suggestPending } from "@/lib/eva-suggest";
+import type { Business } from "@/lib/types";
 import {
   Sparkles,
   Download,
@@ -28,6 +35,7 @@ export default function StrategyPage() {
   const router = useRouter();
   const params = useSearchParams();
   const business = useStore((s) => s.businesses.find((b) => b.id === s.activeBusinessId) || null);
+  const user = useStore((s) => s.user);
   const strategy = useStore((s) => (business ? s.strategies[business.id] : undefined));
   const setFlow = useStore((s) => s.setFlow);
   const upsertBusiness = useStore((s) => s.upsertBusiness);
@@ -38,20 +46,93 @@ export default function StrategyPage() {
   const [loading, setLoading] = useState(false);
   const [showFull, setShowFull] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [signupOpen, setSignupOpen] = useState(false);
+  const [pendingBusiness, setPendingBusiness] = useState<Business | null>(null);
   const autoTriggered = useRef(false);
+  const staleRetried = useRef(false);
 
-  // Falta info crítica → no se puede generar una estrategia útil.
+  const needsSignup =
+    requiresAuthForStrategy() && !canGenerateStrategy(user);
+
+  const strategyGenerating = business ? isStrategyGenerating(business.id) : false;
+  const strategyFailed = business?.strategyJob?.status === "failed";
+
   const criticalMissing = business ? missingCriticalLabels(business) : [];
 
-  // Auto-generar al venir del onboarding (?generate=1), solo si no faltan críticos.
-  useEffect(() => {
-    if (!business || autoTriggered.current) return;
-    if (params.get("generate") === "1" && !strategy && criticalMissing.length === 0) {
-      autoTriggered.current = true;
-      generate();
+  function openSignupGate() {
+    if (!business) return;
+    const draft = prepareFinalBusiness(
+      { ...business, onboardingComplete: true },
+      user?.id || "anon"
+    );
+    saveOnboardingDraft(draft);
+    setPendingBusiness(draft);
+    setSignupOpen(true);
+  }
+
+  async function runGenerate(feedback?: string) {
+    if (!business) return;
+    setLoading(true);
+    try {
+      const meta = await gen.generateStrategy(business, feedback);
+      show(meta?.warning || (feedback ? "Estrategia actualizada ✨" : "Estrategia lista ✨"));
+      setShowFeedback(false);
+    } catch (e: any) {
+      show(e?.message || "Error");
+    } finally {
+      setLoading(false);
     }
+  }
+
+  function tryGenerate(feedback?: string) {
+    if (needsSignup) {
+      openSignupGate();
+      return;
+    }
+    if (feedback) {
+      void runGenerate(feedback);
+      return;
+    }
+    if (strategyFailed) {
+      restartStrategyGeneration(business!.id);
+      return;
+    }
+    startStrategyInBackground(business!.id);
+  }
+
+  // Auto-generar si el usuario ya está logueado o viene con ?generate=1 (legacy).
+  useEffect(() => {
+    if (!business || autoTriggered.current || strategy || criticalMissing.length > 0) return;
+
+    const jobStatus = business.strategyJob?.status;
+    if (jobStatus === "completed" || jobStatus === "generating") return;
+
+    const shouldAutoStart =
+      params.get("generate") === "1" ||
+      (canGenerateStrategy(user) && business.onboardingComplete && jobStatus !== "failed");
+
+    if (!shouldAutoStart) return;
+
+    autoTriggered.current = true;
+    if (needsSignup) {
+      openSignupGate();
+      return;
+    }
+    tryGenerate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [business, strategy, params]);
+  }, [business, strategy, params, needsSignup, user, criticalMissing.length]);
+
+  // Job colgado (p. ej. dev mató el background): reintentar una vez.
+  useEffect(() => {
+    if (!business || strategy || staleRetried.current) return;
+    if (
+      business.strategyJob?.status === "generating" &&
+      isStrategyJobStale(business.strategyJob)
+    ) {
+      staleRetried.current = true;
+      startStrategyInBackground(business.id);
+    }
+  }, [business, strategy, show]);
 
   // La burbuja de Eva puede pedir "modificar"
   useEffect(() => {
@@ -93,25 +174,12 @@ export default function StrategyPage() {
               upsertBusiness({ ...business!, ...patch, fieldStatuses: { ...business!.fieldStatuses, ...statuses } });
               show("Eva sugirió lo que pudo sin inventar. Revisalo 💗");
             }}
-            onDone={() => show("Listo. Ya podés generar tu estrategia.")}
+            onDone={() => tryGenerate()}
             doneLabel="Generar mi estrategia"
           />
         </div>
       </div>
     );
-  }
-
-  async function generate(feedback?: string) {
-    setLoading(true);
-    try {
-      const meta = await gen.generateStrategy(business!, feedback);
-      show(meta?.warning || (feedback ? "Estrategia actualizada ✨" : "Estrategia lista ✨"));
-      setShowFeedback(false);
-    } catch (e: any) {
-      show(e?.message || "Error");
-    } finally {
-      setLoading(false);
-    }
   }
 
   function approve() {
@@ -122,7 +190,7 @@ export default function StrategyPage() {
 
   function applyFeedback(values: string[], custom: string) {
     const instruction = applyStructuredFeedback(STRATEGY_FEEDBACK, values, custom);
-    generate(instruction);
+    tryGenerate(instruction);
   }
 
   const approved = flow.strategy === "approved";
@@ -145,16 +213,49 @@ export default function StrategyPage() {
         )}
       </PageHeader>
 
-      {loading && !strategy && <EvaLoading text="Eva está preparando tu estrategia…" />}
+      {(loading || strategyGenerating) && !strategy && (
+        <div className="space-y-4">
+          <EvaLoading text="Eva está preparando tu estrategia…" />
+          {strategyGenerating && (
+            <p className="text-center text-sm text-zinc-500">
+              Tarda ~1 minuto. Podés navegar por el dashboard mientras tanto.
+            </p>
+          )}
+          {strategyGenerating && (
+            <div className="flex justify-center">
+              <Button variant="outline" size="sm" onClick={() => restartStrategyGeneration(business!.id)}>
+                Reintentar generación
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
-      {!strategy && !loading && (
+      {!strategy && !loading && !strategyGenerating && (
         <EmptyState
           icon={Sparkles}
-          title="Generá tu estrategia"
-          description="Eva la arma en segundos a partir de tu negocio."
+          title={
+            needsSignup
+              ? "Creá tu cuenta para continuar"
+              : strategyFailed
+                ? "No se pudo generar la estrategia"
+                : "Generá tu estrategia"
+          }
+          description={
+            needsSignup
+              ? "Tu negocio está listo. Creá una cuenta para que Eva genere tu estrategia y guarde todo en la nube."
+              : strategyFailed
+                ? business.strategyJob?.error || "Hubo un error. Podés reintentar."
+                : "Eva la arma en ~1 minuto a partir de tu negocio."
+          }
         >
-          <Button onClick={() => generate()} loading={loading}>
-            <Sparkles className="h-4 w-4" /> Generar estrategia
+          <Button onClick={() => tryGenerate()} loading={loading || strategyGenerating}>
+            <Sparkles className="h-4 w-4" />{" "}
+            {needsSignup
+              ? "Crear cuenta y continuar"
+              : strategyFailed
+                ? "Reintentar generación"
+                : "Generar estrategia"}
           </Button>
         </EmptyState>
       )}
@@ -314,6 +415,15 @@ export default function StrategyPage() {
           </div>
         )}
       </Modal>
+
+      {needsSignup && pendingBusiness && (
+        <OnboardingSignupModal
+          open={signupOpen}
+          business={pendingBusiness}
+          onClose={() => setSignupOpen(false)}
+          router={router}
+        />
+      )}
     </div>
   );
 }

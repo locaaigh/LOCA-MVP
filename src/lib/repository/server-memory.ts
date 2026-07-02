@@ -24,6 +24,40 @@ export const serverMemoryRepository: DataRepository = {
     return (snap?.strategies[businessId] as Strategy | undefined) ?? null;
   },
 
+  async upsertStrategy(userId, businessId, strategy) {
+    const snap = store.get(userId);
+    if (!snap) {
+      store.set(userId, {
+        userId,
+        businesses: [],
+        strategies: { [businessId]: strategy },
+        calendars: {},
+        contents: [],
+        syncedAt: new Date().toISOString(),
+      });
+      return;
+    }
+    store.set(userId, {
+      ...snap,
+      strategies: { ...snap.strategies, [businessId]: strategy },
+    });
+  },
+
+  async patchBusiness(userId, businessId, patch) {
+    const snap = store.get(userId);
+    if (!snap) return null;
+    const idx = snap.businesses.findIndex((b) => b.id === businessId);
+    if (idx < 0) return null;
+    const updated = {
+      ...snap.businesses[idx],
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    } as Business;
+    const businesses = snap.businesses.map((b, i) => (i === idx ? updated : b));
+    store.set(userId, { ...snap, businesses });
+    return updated;
+  },
+
   async getCalendarItem(userId, businessId, itemId) {
     const snap = store.get(userId);
     const items = (snap?.calendars[businessId] ?? []) as CalendarItem[];

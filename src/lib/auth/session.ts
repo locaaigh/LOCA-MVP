@@ -9,11 +9,24 @@ import { useStore } from "@/lib/store";
 async function hydrateFromServer() {
   try {
     const res = await fetch("/api/snapshot");
+    if (res.status === 401) {
+      await handleAuthFailure();
+      return;
+    }
     if (!res.ok) return;
     const snap = await res.json();
     useStore.getState().hydrateFromServer(snap);
   } catch {
     /* sin conexión: seguimos con los datos locales */
+  }
+}
+
+/** Sesión inválida o expirada: limpiar estado local y mandar a login. */
+export async function handleAuthFailure(reason = "session_expired"): Promise<void> {
+  await signOutSupabase();
+  useStore.getState().logout();
+  if (typeof window !== "undefined") {
+    window.location.assign(`/login?reason=${reason}`);
   }
 }
 

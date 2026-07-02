@@ -1,6 +1,9 @@
 "use client";
 
 import type { Business, ContentItem } from "@/lib/types";
+import { handleAuthFailure } from "@/lib/auth/session";
+import { isLocalOnlyUser } from "@/lib/auth/user";
+import { hasSupabaseClientConfig } from "@/lib/supabase/client";
 import { useStore } from "@/lib/store";
 
 export type SyncOptions = {
@@ -12,6 +15,12 @@ export type SyncOptions = {
 /** Sincroniza el estado local con el repositorio del servidor antes de llamadas de IA. */
 export async function syncRepositoryToServer(opts?: SyncOptions): Promise<void> {
   const s = useStore.getState();
+
+  // Demo o usuario local sin sesión real: no sincronizar contra Supabase.
+  if (s.user?.isDemo || (hasSupabaseClientConfig() && isLocalOnlyUser(s.user))) {
+    return;
+  }
+
   let businesses = s.businesses;
   if (opts?.includeBusiness) {
     const b = opts.includeBusiness;
@@ -20,11 +29,11 @@ export async function syncRepositoryToServer(opts?: SyncOptions): Promise<void> 
       idx >= 0 ? businesses.map((x, i) => (i === idx ? b : x)) : [...businesses, b];
   }
 
-  // El estado del flujo (estrategia/calendario/contenido aprobados) viaja
-  // dentro del negocio: así otro navegador puede reconstruir dónde estabas.
+  // strategyJob lo escribe solo el servidor (/api/strategy/start); no pisarlo en sync.
   businesses = businesses.map((b) => {
+    const { strategyJob: _job, ...rest } = b;
     const flow = s.flows[b.id];
-    return flow ? { ...b, flowState: flow } : b;
+    return flow ? { ...rest, flowState: flow } : rest;
   });
 
   let contents = s.contents;
@@ -57,6 +66,11 @@ export async function syncRepositoryToServer(opts?: SyncOptions): Promise<void> 
       contents,
     }),
   });
+
+  if (res.status === 401) {
+    await handleAuthFailure();
+    throw new Error("Tu sesión expiró. Volvé a iniciar sesión.");
+  }
 
   if (!res.ok) {
     const e = await res.json().catch(() => ({}));

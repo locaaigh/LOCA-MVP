@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useStore, useFlow } from "@/lib/store";
+import { isStrategyGenerating } from "@/lib/strategy-job";
 import { Badge, Button, Card, SectionLabel } from "@/components/ui";
 import { AiStatusBadge } from "@/components/ai-status";
 import { EvaAvatar } from "@/components/brand";
@@ -24,13 +25,20 @@ export default function DashboardPage() {
   if (!business) return null;
 
   const strategy = strategies[business.id];
+  const strategyGenerating = isStrategyGenerating(business.id);
   const calendar = calendars[business.id] || [];
   const bizContents = contents.filter((c) => c.businessId === business.id);
   const approved = bizContents.filter((c) => c.status === "aprobado").length;
   const images = bizContents.filter((c) => c.imageStatus === "generada").length;
 
-  const nextStep =
-    flow.strategy !== "approved"
+  const nextStep = strategyGenerating
+    ? {
+        title: "Eva está generando tu estrategia",
+        desc: "Tarda ~1 minuto. Podés seguir navegando mientras tanto.",
+        href: "/strategy",
+        cta: "Ver progreso",
+      }
+    : flow.strategy !== "approved"
       ? {
           title: strategy ? "Revisá y aprobá tu estrategia" : "Generá tu estrategia",
           desc: "Es el primer paso. Eva la arma a partir de tu negocio.",

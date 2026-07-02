@@ -8,6 +8,7 @@ import { signOutSupabase } from "@/lib/auth/session";
 import { hasSupabaseClientConfig } from "@/lib/supabase/client";
 import { Logo } from "@/components/brand";
 import { EvaChatBubble } from "@/components/eva-chat";
+import { StrategyJobTracker } from "@/components/strategy-job-tracker";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -20,6 +21,7 @@ import {
   LogOut,
   Plus,
   ChevronDown,
+  Loader2,
 } from "lucide-react";
 
 const NAV = [
@@ -41,6 +43,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const activeId = useStore((s) => s.activeBusinessId);
   const setActive = useStore((s) => s.setActiveBusiness);
   const logout = useStore((s) => s.logout);
+  const strategyGenerating = useStore((s) => {
+    const id = s.activeBusinessId;
+    if (!id) return false;
+    const biz = s.businesses.find((b) => b.id === id);
+    return biz?.strategyJob?.status === "generating";
+  });
 
   useEffect(() => {
     if (hydrated && !user) router.replace("/login");
@@ -126,6 +134,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <item.icon className="h-[18px] w-[18px]" />
                 </span>
                 {item.label}
+                {item.href === "/strategy" && strategyGenerating && (
+                  <Loader2 className="ml-auto h-4 w-4 animate-spin text-loca-500" />
+                )}
               </Link>
             );
           })}
@@ -178,6 +189,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               >
                 <item.icon className="h-4 w-4" />
                 {item.label}
+                {item.href === "/strategy" && strategyGenerating && (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-loca-500" />
+                )}
               </Link>
             );
           })}
@@ -193,6 +207,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <EvaChatBubble raised={isReviewPage} />
+      <StrategyJobTracker />
     </div>
   );
 }
