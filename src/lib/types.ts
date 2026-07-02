@@ -52,6 +52,14 @@ export type AiProvider = "openai" | "anthropic" | "gemini" | "mock";
 // Estado de aprobación del flujo guiado (Formulario → Estrategia → Calendario → Contenidos)
 export type ApprovalStatus = "draft" | "pending_review" | "approved" | "needs_changes";
 
+// Estado del flujo guiado (Estrategia → Calendario → Contenidos). Viaja dentro
+// del negocio al sincronizar para poder reconstruirlo en otro navegador.
+export interface BusinessFlowState {
+  strategy: ApprovalStatus;
+  calendar: ApprovalStatus;
+  content: ApprovalStatus;
+}
+
 export type ProductImportSource = "manual" | "csv" | "xlsx" | "website" | "md" | "eva";
 
 // ── Usuario ──────────────────────────────────────────────────
@@ -175,6 +183,8 @@ export interface Business {
   externalAiImport?: ExternalAiImport;
   onboardingComplete: boolean;
   isDemo?: boolean;
+  // Snapshot del flujo guiado, embebido para que sobreviva al sync/hidratación
+  flowState?: BusinessFlowState;
   createdAt: string;
   updatedAt: string;
 }

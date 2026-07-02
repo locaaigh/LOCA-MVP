@@ -241,7 +241,35 @@ export const useStore = create<AppState>()(
         const localRealContents = st.contents.filter((c) => !demoIds.has(c.businessId));
         const contents = [...localDemoContents, ...newer(localRealContents, snap.contents)];
 
+        // Restaurar el flujo guiado que viaja embebido en cada negocio.
+        // Fallback para datos previos a flowState: si hay calendario/contenidos,
+        // los pasos anteriores estuvieron necesariamente aprobados (el flujo
+        // guiado no permite generarlos sin aprobar el paso previo).
+        const flows: Record<string, FlowState> = { ...st.flows };
+        for (const b of businesses) {
+          const existing = flows[b.id];
+          const fromServer = b.flowState;
+          const hasCalendar = (calendars[b.id]?.length ?? 0) > 0;
+          const hasContents = contents.some((c) => c.businessId === b.id);
+          const inferred: FlowState = {
+            strategy: hasCalendar || hasContents ? "approved" : EMPTY_FLOW.strategy,
+            calendar: hasContents ? "approved" : EMPTY_FLOW.calendar,
+            content: EMPTY_FLOW.content,
+          };
+          const pick = (key: keyof FlowState): ApprovalStatus => {
+            if (existing && existing[key] !== "draft") return existing[key];
+            if (fromServer && fromServer[key] !== "draft") return fromServer[key];
+            return inferred[key];
+          };
+          flows[b.id] = {
+            strategy: pick("strategy"),
+            calendar: pick("calendar"),
+            content: pick("content"),
+          };
+        }
+
         set({
+          flows,
           businesses,
           strategies,
           calendars,

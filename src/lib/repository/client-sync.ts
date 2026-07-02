@@ -20,6 +20,13 @@ export async function syncRepositoryToServer(opts?: SyncOptions): Promise<void> 
       idx >= 0 ? businesses.map((x, i) => (i === idx ? b : x)) : [...businesses, b];
   }
 
+  // El estado del flujo (estrategia/calendario/contenido aprobados) viaja
+  // dentro del negocio: así otro navegador puede reconstruir dónde estabas.
+  businesses = businesses.map((b) => {
+    const flow = s.flows[b.id];
+    return flow ? { ...b, flowState: flow } : b;
+  });
+
   let contents = s.contents;
   if (opts?.includeContent) {
     const c = opts.includeContent;

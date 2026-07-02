@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { getSupabaseBrowser, hasSupabaseClientConfig } from "@/lib/supabase/client";
 import { useStore } from "@/lib/store";
+import { syncRepositoryToServer } from "@/lib/repository/client-sync";
 import type { User } from "@/lib/types";
 
 function toLocaUser(u: SupabaseUser): User {
@@ -33,6 +34,34 @@ async function hydrateFromServer() {
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const hydratedOnce = useRef(false);
+
+  // Sync automático (debounced): persiste aprobaciones y cambios de estado
+  // que no pasan por una llamada de IA (p. ej. "Aprobar todo").
+  useEffect(() => {
+    if (!hasSupabaseClientConfig()) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const unsub = useStore.subscribe((state, prev) => {
+      if (!state.user || state.user.isDemo) return;
+      if (
+        state.contents === prev.contents &&
+        state.flows === prev.flows &&
+        state.strategies === prev.strategies &&
+        state.calendars === prev.calendars &&
+        state.businesses === prev.businesses
+      )
+        return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        syncRepositoryToServer().catch(() => {
+          /* reintenta en el próximo cambio */
+        });
+      }, 2500);
+    });
+    return () => {
+      unsub();
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
 
   useEffect(() => {
     if (!hasSupabaseClientConfig()) return;
