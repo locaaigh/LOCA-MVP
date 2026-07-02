@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { api } from "@/lib/api";
-import { getSupabaseBrowser, hasSupabaseClientConfig } from "@/lib/supabase/client";
+import { signOutSupabase } from "@/lib/auth/session";
+import { hasSupabaseClientConfig } from "@/lib/supabase/client";
 import { AiStatusBadge, useAiStatus } from "@/components/ai-status";
 import { Badge, Button, Card, Field, Input, Modal, PageHeader, useToast } from "@/components/ui";
 import { PendingFlow } from "@/components/pending-flow";
@@ -253,7 +254,7 @@ AI_TEXT_PROVIDER=anthropic
           onClick={async () => {
             if (!confirm("¿Borrar los datos locales y cerrar sesión?")) return;
             if (hasSupabaseClientConfig()) {
-              await getSupabaseBrowser().auth.signOut();
+              await signOutSupabase();
             }
             resetAll();
             router.replace("/login");

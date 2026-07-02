@@ -125,6 +125,8 @@ interface AppState {
   signup: (email: string, name: string) => void;
   login: (email: string) => void;
   loginDemo: () => void;
+  /** Borra negocios/contenidos locales; no toca la nube ni el usuario. */
+  clearUserData: () => void;
   logout: () => void;
   /** Setea el usuario desde la sesión de Supabase (auth real). */
   setUser: (user: User | null) => void;
@@ -192,18 +194,31 @@ export const useStore = create<AppState>()(
         };
         set({ user });
       },
-      loginDemo: () => {
-        const state = get();
-        const hasDemo = state.businesses.some((b) => b.isDemo);
+      loginDemo: () =>
         set({
           user: DEMO_USER,
-          businesses: hasDemo
-            ? state.businesses
-            : [...DEMO_BUSINESSES, ...state.businesses],
-          activeBusinessId: state.activeBusinessId || DEMO_BUSINESSES[0].id,
-        });
+          businesses: [...DEMO_BUSINESSES],
+          activeBusinessId: DEMO_BUSINESSES[0].id,
+          strategies: {},
+          calendars: {},
+          contents: [],
+          adStrategies: [],
+          flows: {},
+        }),
+      clearUserData: () =>
+        set({
+          businesses: [],
+          activeBusinessId: null,
+          strategies: {},
+          calendars: {},
+          contents: [],
+          adStrategies: [],
+          flows: {},
+        }),
+      logout: () => {
+        get().clearUserData();
+        set({ user: null });
       },
-      logout: () => set({ user: null, activeBusinessId: null }),
       setUser: (user) => set({ user }),
 
       hydrateFromServer: (snap) => {
@@ -371,17 +386,10 @@ export const useStore = create<AppState>()(
           },
         })),
 
-      resetAll: () =>
-        set({
-          user: null,
-          businesses: [],
-          activeBusinessId: null,
-          strategies: {},
-          calendars: {},
-          contents: [],
-          adStrategies: [],
-          flows: {},
-        }),
+      resetAll: () => {
+        get().clearUserData();
+        set({ user: null });
+      },
     }),
     {
       name: "loca-store",

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useStore } from "@/lib/store";
-import { getSupabaseBrowser, hasSupabaseClientConfig } from "@/lib/supabase/client";
+import { signOutSupabase } from "@/lib/auth/session";
+import { hasSupabaseClientConfig } from "@/lib/supabase/client";
 import { Logo } from "@/components/brand";
 import { EvaChatBubble } from "@/components/eva-chat";
 import { cn } from "@/lib/utils";
@@ -135,7 +136,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <button
             onClick={async () => {
               if (hasSupabaseClientConfig()) {
-                await getSupabaseBrowser().auth.signOut();
+                await signOutSupabase();
               }
               logout();
               router.replace("/login");

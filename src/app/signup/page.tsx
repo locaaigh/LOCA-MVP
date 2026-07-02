@@ -5,12 +5,15 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { getSupabaseBrowser, hasSupabaseClientConfig } from "@/lib/supabase/client";
+import { toLocaUser } from "@/lib/auth/user";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { Logo } from "@/components/brand";
 
 export default function SignupPage() {
   const router = useRouter();
   const signup = useStore((s) => s.signup);
+  const clearUserData = useStore((s) => s.clearUserData);
+  const setUser = useStore((s) => s.setUser);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -50,8 +53,12 @@ export default function SignupPage() {
         );
         return;
       }
-      if (data.session) {
+      if (data.session?.user) {
         // Sesión inmediata (confirmación de email desactivada)
+        const newUser = toLocaUser(data.session.user);
+        const prev = useStore.getState().user;
+        if (prev?.id !== newUser.id) clearUserData();
+        setUser(newUser);
         router.push("/onboarding");
       } else {
         // Supabase requiere confirmar el email
