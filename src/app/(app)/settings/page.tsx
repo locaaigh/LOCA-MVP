@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
+import { api } from "@/lib/api";
+import { getSupabaseBrowser, hasSupabaseClientConfig } from "@/lib/supabase/client";
 import { AiStatusBadge, useAiStatus } from "@/components/ai-status";
 import { Badge, Button, Card, Field, Input, Modal, PageHeader, useToast } from "@/components/ui";
 import { PendingFlow } from "@/components/pending-flow";
@@ -218,7 +220,10 @@ AI_TEXT_PROVIDER=anthropic
               <span className="flex items-center gap-2 font-semibold text-zinc-800">{b.name} {b.isDemo && <Badge tone="yellow">demo</Badge>}</span>
               <button
                 onClick={() => {
+                  if (!confirm(`¿Eliminar "${b.name}" y todos sus contenidos? Esta acción no se puede deshacer.`)) return;
                   deleteBusiness(b.id);
+                  // Borrado explícito en el servidor (el sync nunca borra negocios)
+                  api.deleteBusiness(b.id).catch(() => {});
                   show("Negocio eliminado");
                 }}
                 className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-red-50 hover:text-red-500"
@@ -239,11 +244,17 @@ AI_TEXT_PROVIDER=anthropic
           </div>
           <h2 className="text-lg font-bold tracking-tight text-red-600">Zona de peligro</h2>
         </div>
-        <p className="text-sm text-zinc-500">Borra todos los datos locales (negocios, estrategias, contenidos).</p>
+        <p className="text-sm text-zinc-500">
+          Borra los datos de este navegador y cierra la sesión. Tus datos guardados en la nube no se tocan.
+        </p>
         <Button
           variant="danger"
           size="lg"
-          onClick={() => {
+          onClick={async () => {
+            if (!confirm("¿Borrar los datos locales y cerrar sesión?")) return;
+            if (hasSupabaseClientConfig()) {
+              await getSupabaseBrowser().auth.signOut();
+            }
             resetAll();
             router.replace("/login");
           }}

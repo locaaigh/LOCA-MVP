@@ -1,7 +1,7 @@
 import type { ImageFormat } from "@/lib/types";
 
 export type TextProviderId = "openai" | "anthropic";
-export type ImageProviderId = "openai";
+export type ImageProviderId = "openai" | "gemini";
 
 export interface TextProvider {
   id: TextProviderId;

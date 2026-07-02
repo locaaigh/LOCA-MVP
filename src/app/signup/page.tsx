@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
+import { getSupabaseBrowser, hasSupabaseClientConfig } from "@/lib/supabase/client";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { Logo } from "@/components/brand";
 
@@ -12,13 +13,76 @@ export default function SignupPage() {
   const signup = useStore((s) => s.signup);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [checkEmail, setCheckEmail] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const supabaseEnabled = hasSupabaseClientConfig();
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
-    signup(email.trim(), name.trim() || email.split("@")[0]);
-    router.push("/onboarding");
+    setError("");
+
+    if (!supabaseEnabled) {
+      // Fallback sin Supabase: cuenta local (modo demo)
+      signup(email.trim(), name.trim() || email.split("@")[0]);
+      router.push("/onboarding");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const supabase = getSupabaseBrowser();
+      const { data, error: err } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: { name: name.trim() || email.split("@")[0] },
+        },
+      });
+      if (err) {
+        setError(
+          /already registered/i.test(err.message)
+            ? "Ese email ya tiene cuenta. Probá iniciar sesión."
+            : err.message
+        );
+        return;
+      }
+      if (data.session) {
+        // Sesión inmediata (confirmación de email desactivada)
+        router.push("/onboarding");
+      } else {
+        // Supabase requiere confirmar el email
+        setCheckEmail(true);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (checkEmail) {
+    return (
+      <main className="loca-soft-bg flex min-h-screen items-center justify-center px-5 py-10">
+        <div className="w-full max-w-md">
+          <Card className="p-8 text-center shadow-glow">
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Revisá tu email 📬</h1>
+            <p className="mt-3 text-sm text-zinc-500">
+              Te mandamos un link a <strong>{email}</strong> para confirmar tu cuenta. Después de
+              confirmar, iniciá sesión.
+            </p>
+            <Link
+              href="/login"
+              className="mt-6 inline-block font-semibold text-loca-600 hover:underline"
+            >
+              Ir a iniciar sesión
+            </Link>
+          </Card>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="loca-soft-bg flex min-h-screen items-center justify-center px-5 py-10">
@@ -45,8 +109,21 @@ export default function SignupPage() {
                 required
               />
             </Field>
-            <Button type="submit" size="lg" className="w-full">
-              Crear cuenta y empezar
+            {supabaseEnabled && (
+              <Field label="Contraseña">
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Mínimo 6 caracteres"
+                  required
+                  minLength={6}
+                />
+              </Field>
+            )}
+            {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+            <Button type="submit" size="lg" className="w-full" disabled={loading}>
+              {loading ? "Creando cuenta…" : "Crear cuenta y empezar"}
             </Button>
           </form>
           <p className="mt-7 text-center text-sm text-zinc-500">

@@ -20,12 +20,21 @@ export function ContentPreview({
   business: Business;
   className?: string;
 }) {
+  const placeholderConcept =
+    content.imageStatus === "generando"
+      ? "Generando imagen con IA…"
+      : content.imageStatus === "error"
+        ? content.imageError || "Error al generar imagen"
+        : content.imageStatus === "pendiente"
+          ? "Sin imagen — generá una desde la pieza"
+          : "Imagen no disponible";
+
   const img =
     content.imageUrl ||
     brandedPlaceholder({
       format: content.imageFormat,
       label: business.name,
-      concept: "Modo demo: imagen simulada",
+      concept: placeholderConcept,
     });
   const brandColor = business.brandColors?.[0] || "#ec4899";
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
+import { api } from "@/lib/api";
 import { useGenerators } from "@/lib/generators";
 import { Badge, Button, Card, Field, Input, Modal, Select, Textarea, useToast } from "@/components/ui";
 import { ContentPreview } from "@/components/content-preview";
@@ -84,9 +85,14 @@ export default function ContentDetailPage() {
     setImgLoading(true);
     try {
       const res = await gen.generateImage(c, business!);
-      show(res.provider === "mock" ? "Imagen simulada (modo demo)" : "Imagen generada ✨");
-    } catch (e: any) {
-      show(e?.message || "Error al generar imagen");
+      if (res.provider === "mock") {
+        show("Imagen simulada (modo demo)");
+      } else {
+        show(`Imagen generada con ${res.provider === "gemini" ? "Gemini" : "OpenAI"} ✨`);
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Error al generar imagen";
+      show(msg);
     } finally {
       setImgLoading(false);
     }
@@ -343,6 +349,7 @@ export default function ContentDetailPage() {
           <button
             onClick={() => {
               deleteContent(c.id);
+              api.deleteContent(c.id).catch(() => {});
               router.push("/content");
             }}
             className="text-sm text-red-500 hover:underline"
@@ -378,7 +385,11 @@ function ImageStatusBadge({ status, provider }: { status: string; provider?: str
       </span>
     );
   if (status === "generada")
-    return <Badge tone={provider === "openai" ? "green" : "yellow"}>{provider === "openai" ? "Imagen IA" : "Modo demo: simulada"}</Badge>;
+    return (
+      <Badge tone={provider === "openai" || provider === "gemini" ? "green" : "yellow"}>
+        {provider === "openai" ? "Imagen IA (OpenAI)" : provider === "gemini" ? "Imagen IA (Gemini)" : "Modo demo: simulada"}
+      </Badge>
+    );
   if (status === "error") return <Badge tone="red">Error</Badge>;
   return <Badge>Pendiente</Badge>;
 }

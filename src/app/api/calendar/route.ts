@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     };
     if (!businessId) return NextResponse.json({ error: "Falta businessId" }, { status: 400 });
 
-    const resolved = resolveStrategy(req, businessId);
+    const resolved = await resolveStrategy(req, businessId);
     if ("error" in resolved) return jsonError(resolved);
 
     const result = await calendarAgent.run({

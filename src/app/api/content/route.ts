@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     if (!businessId || !calendarItemId)
       return NextResponse.json({ error: "Faltan businessId o calendarItemId" }, { status: 400 });
 
-    const resolved = resolveCalendarItem(req, businessId, calendarItemId);
+    const resolved = await resolveCalendarItem(req, businessId, calendarItemId);
     if ("error" in resolved) return jsonError(resolved);
 
     const result = await contentAgent.run({
@@ -23,6 +23,10 @@ export async function POST(req: NextRequest) {
       strategy: resolved.strategy,
       calendarItem: resolved.calendarItem,
     });
+
+    // Persistir la pieza apenas se crea: /api/image la va a necesitar.
+    await resolved.ctx.repo.upsertContent(resolved.ctx.userId, result.data);
+
     return NextResponse.json(result);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Error generando contenido";

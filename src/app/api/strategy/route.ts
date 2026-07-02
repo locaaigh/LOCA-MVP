@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     };
     if (!businessId) return NextResponse.json({ error: "Falta businessId" }, { status: 400 });
 
-    const resolved = resolveBusiness(req, businessId);
+    const resolved = await resolveBusiness(req, businessId);
     if ("error" in resolved) return jsonError(resolved);
 
     const result = await strategyAgent.run({ business: resolved.business, feedback });

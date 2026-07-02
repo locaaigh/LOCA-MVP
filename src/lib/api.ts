@@ -12,14 +12,20 @@ import type {
   Strategy,
   WebsiteAnalysis,
 } from "./types";
-import { locaUserHeaders, syncRepositoryToServer } from "./repository/client-sync";
+import {
+  locaUserHeaders,
+  syncRepositoryToServer,
+  type SyncOptions,
+} from "./repository/client-sync";
 
 async function aiPost<T>(
   url: string,
   body: unknown,
-  syncOpts?: { includeBusiness?: import("./types").Business }
+  syncOpts?: SyncOptions & { skipSync?: boolean }
 ): Promise<R<T>> {
-  await syncRepositoryToServer(syncOpts);
+  // skipSync: en batch, /api/content ya persistió la pieza en el servidor;
+  // repetir el sync completo por cada imagen es innecesario y pesado.
+  if (!syncOpts?.skipSync) await syncRepositoryToServer(syncOpts);
   const business = syncOpts?.includeBusiness;
   return post<R<T>>(url, body, business);
 }
@@ -71,14 +77,18 @@ export const api = {
   feedback: (businessId: string, contentId: string, feedback: string) =>
     aiPost<ContentItem>("/api/content/feedback", { businessId, contentId, feedback }),
 
-  image: (businessId: string, contentId: string) =>
+  image: (
+    businessId: string,
+    contentId: string,
+    syncOpts?: SyncOptions & { skipSync?: boolean }
+  ) =>
     aiPost<{
       imageUrl: string;
       prompt: string;
-      provider: "openai" | "mock";
+      provider: "openai" | "gemini" | "mock";
       status: "generada" | "error";
       error?: string;
-    }>("/api/image", { businessId, contentId }),
+    }>("/api/image", { businessId, contentId }, syncOpts),
 
   metaAds: (businessId: string) =>
     aiPost<MetaAdsStrategy>("/api/ads", { businessId, platform: "meta" }),
@@ -87,6 +97,18 @@ export const api = {
     aiPost<GoogleAdsStrategy>("/api/ads", { businessId, platform: "google" }),
 
   extractWebsite: (url: string) => post<R<WebsiteAnalysis>>("/api/extract", { url }),
+
+  deleteBusiness: (businessId: string) =>
+    fetch(`/api/business?id=${encodeURIComponent(businessId)}`, {
+      method: "DELETE",
+      headers: locaUserHeaders(),
+    }),
+
+  deleteContent: (contentId: string) =>
+    fetch(`/api/content/delete?id=${encodeURIComponent(contentId)}`, {
+      method: "DELETE",
+      headers: locaUserHeaders(),
+    }),
 
   productDescription: (businessId: string, draft: ProductService, business?: import("./types").Business) =>
     aiPost<ProductDescriptionSuggestion>(

@@ -81,7 +81,13 @@ export default function ContentStudioPage() {
     if (!business) return;
     setLoading(true);
     try {
-      const n = await gen.generateMonthContents(business, 16, (d, t) => setProgress(`Generando ${d}/${t}…`));
+      const n = await gen.generateMonthContents(business, 16, (d, t, phase) =>
+        setProgress(
+          phase === "imagen"
+            ? `Textos listos ✓ — generando imágenes ${d}/${t}… (van apareciendo en las piezas)`
+            : `Generando contenido ${d}/${t}…`
+        )
+      );
       show(n > 0 ? "Contenidos listos 🎉" : "Ya están todos generados");
     } catch (e: any) {
       show(e?.message || "Error");

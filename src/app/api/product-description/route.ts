@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     if (!businessId || !draft)
       return NextResponse.json({ error: "Faltan businessId o draft" }, { status: 400 });
 
-    const resolved = resolveBusiness(req, businessId);
+    const resolved = await resolveBusiness(req, businessId);
     if ("error" in resolved) return jsonError(resolved);
 
     const parsedDraft = productServiceSchema.safeParse(draft);

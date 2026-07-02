@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
+import { getSupabaseBrowser, hasSupabaseClientConfig } from "@/lib/supabase/client";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { Logo } from "@/components/brand";
 
@@ -12,12 +13,45 @@ export default function LoginPage() {
   const login = useStore((s) => s.login);
   const loginDemo = useStore((s) => s.loginDemo);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const supabaseEnabled = hasSupabaseClientConfig();
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
-    login(email.trim());
-    router.push("/dashboard");
+    setError("");
+
+    if (!supabaseEnabled) {
+      // Fallback sin Supabase: sesión local (modo demo)
+      login(email.trim());
+      router.push("/dashboard");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const supabase = getSupabaseBrowser();
+      const { error: err } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (err) {
+        setError(
+          /invalid login credentials/i.test(err.message)
+            ? "Email o contraseña incorrectos"
+            : /email not confirmed/i.test(err.message)
+              ? "Confirmá tu email antes de entrar (revisá tu casilla)"
+              : err.message
+        );
+        return;
+      }
+      router.push("/dashboard");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -31,7 +65,9 @@ export default function LoginPage() {
         </div>
         <Card className="p-8 shadow-glow">
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Hola de nuevo 👋</h1>
-          <p className="mt-1.5 text-sm text-zinc-500">Ingresá tu email para continuar.</p>
+          <p className="mt-1.5 text-sm text-zinc-500">
+            {supabaseEnabled ? "Ingresá con tu email y contraseña." : "Ingresá tu email para continuar."}
+          </p>
           <form onSubmit={submit} className="mt-7 space-y-4">
             <Field label="Email">
               <Input
@@ -42,8 +78,21 @@ export default function LoginPage() {
                 required
               />
             </Field>
-            <Button type="submit" size="lg" className="w-full">
-              Entrar
+            {supabaseEnabled && (
+              <Field label="Contraseña">
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  minLength={6}
+                />
+              </Field>
+            )}
+            {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+            <Button type="submit" size="lg" className="w-full" disabled={loading}>
+              {loading ? "Entrando…" : "Entrar"}
             </Button>
           </form>
           <div className="mt-6 flex items-center gap-3">
@@ -60,7 +109,7 @@ export default function LoginPage() {
               router.push("/dashboard");
             }}
           >
-            Probar en modo demo
+            Probar demo
           </Button>
           <p className="mt-7 text-center text-sm text-zinc-500">
             ¿No tenés cuenta?{" "}

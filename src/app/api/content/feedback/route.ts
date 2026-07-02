@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     if (!businessId || !contentId || !feedback)
       return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
 
-    const resolved = resolveContent(req, businessId, contentId);
+    const resolved = await resolveContent(req, businessId, contentId);
     if ("error" in resolved) return jsonError(resolved);
 
     const result = await contentFeedbackAgent.run({
@@ -24,6 +24,9 @@ export async function POST(req: NextRequest) {
       item: resolved.content,
       feedbackText: feedback,
     });
+
+    await resolved.ctx.repo.upsertContent(resolved.ctx.userId, result.data);
+
     return NextResponse.json(result);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Error aplicando feedback";

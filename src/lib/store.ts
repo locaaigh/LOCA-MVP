@@ -126,6 +126,15 @@ interface AppState {
   login: (email: string) => void;
   loginDemo: () => void;
   logout: () => void;
+  /** Setea el usuario desde la sesión de Supabase (auth real). */
+  setUser: (user: User | null) => void;
+  /** Reemplaza los datos del negocio con lo que vino del servidor (hidratación). */
+  hydrateFromServer: (snapshot: {
+    businesses: Business[];
+    strategies: Record<string, Strategy>;
+    calendars: Record<string, CalendarItem[]>;
+    contents: ContentItem[];
+  }) => void;
 
   // business
   upsertBusiness: (b: Business) => void;
@@ -195,6 +204,54 @@ export const useStore = create<AppState>()(
         });
       },
       logout: () => set({ user: null, activeBusinessId: null }),
+      setUser: (user) => set({ user }),
+
+      hydrateFromServer: (snap) => {
+        const st = get();
+        // Merge por id: gana el más reciente (updatedAt). Los negocios demo
+        // locales se conservan; el resto viene del servidor.
+        const newer = <T extends { id: string; updatedAt?: string }>(
+          local: T[],
+          server: T[]
+        ): T[] => {
+          const byId = new Map<string, T>();
+          for (const item of server) byId.set(item.id, item);
+          for (const item of local) {
+            const s = byId.get(item.id);
+            if (!s || (item.updatedAt || "") > (s.updatedAt || "")) byId.set(item.id, item);
+          }
+          return [...byId.values()];
+        };
+
+        const demoBusinesses = st.businesses.filter((b) => b.isDemo);
+        const localReal = st.businesses.filter((b) => !b.isDemo);
+        const businesses = [...demoBusinesses, ...newer(localReal, snap.businesses)];
+
+        const demoIds = new Set(demoBusinesses.map((b) => b.id));
+        const strategies: Record<string, Strategy> = { ...snap.strategies };
+        for (const [bid, s] of Object.entries(st.strategies)) {
+          if (demoIds.has(bid) || !strategies[bid]) strategies[bid] = s;
+        }
+        const calendars: Record<string, CalendarItem[]> = { ...snap.calendars };
+        for (const [bid, items] of Object.entries(st.calendars)) {
+          if (demoIds.has(bid) || !calendars[bid]) calendars[bid] = items;
+        }
+
+        const localDemoContents = st.contents.filter((c) => demoIds.has(c.businessId));
+        const localRealContents = st.contents.filter((c) => !demoIds.has(c.businessId));
+        const contents = [...localDemoContents, ...newer(localRealContents, snap.contents)];
+
+        set({
+          businesses,
+          strategies,
+          calendars,
+          contents,
+          activeBusinessId:
+            st.activeBusinessId && businesses.some((b) => b.id === st.activeBusinessId)
+              ? st.activeBusinessId
+              : businesses[0]?.id ?? null,
+        });
+      },
 
       upsertBusiness: (b) => {
         const businesses = get().businesses;
@@ -207,11 +264,24 @@ export const useStore = create<AppState>()(
         set({ businesses: next, activeBusinessId: b.id });
       },
       deleteBusiness: (id) => {
-        set((s) => ({
-          businesses: s.businesses.filter((b) => b.id !== id),
-          activeBusinessId: s.activeBusinessId === id ? null : s.activeBusinessId,
-          contents: s.contents.filter((c) => c.businessId !== id),
-        }));
+        set((s) => {
+          const businesses = s.businesses.filter((b) => b.id !== id);
+          const { [id]: _s, ...strategies } = s.strategies;
+          const { [id]: _c, ...calendars } = s.calendars;
+          const { [id]: _f, ...flows } = s.flows;
+          return {
+            businesses,
+            strategies,
+            calendars,
+            flows,
+            activeBusinessId:
+              s.activeBusinessId === id
+                ? businesses[0]?.id ?? null
+                : s.activeBusinessId,
+            contents: s.contents.filter((c) => c.businessId !== id),
+            adStrategies: s.adStrategies.filter((a) => a.businessId !== id),
+          };
+        });
       },
       setActiveBusiness: (id) => set({ activeBusinessId: id }),
       getActiveBusiness: () => {

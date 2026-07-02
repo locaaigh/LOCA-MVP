@@ -13,7 +13,7 @@ export interface ImageAgentInput {
 export interface ImageAgentOutput {
   imageUrl: string;
   prompt: string;
-  provider: "openai" | "mock";
+  provider: "openai" | "gemini" | "mock";
   status: "generada" | "error";
   error?: string;
 }
@@ -37,14 +37,14 @@ export const imageAgent: Agent<ImageAgentInput, ImageAgentOutput> = {
     try {
       const { imageUrl } = await imageProvider.generate({ prompt, format });
       return {
-        data: { imageUrl, prompt, provider: "openai", status: "generada" },
-        meta: { provider: "openai" },
+        data: { imageUrl, prompt, provider: imageProvider.id, status: "generada" },
+        meta: { provider: imageProvider.id },
       };
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       return {
         data: {
-          imageUrl: brandedPlaceholder({ format, label, concept: "No se pudo generar (ver settings)" }),
+          imageUrl: brandedPlaceholder({ format, label, concept: "Error al generar imagen" }),
           prompt,
           provider: "mock",
           status: "error",

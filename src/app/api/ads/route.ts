@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     if (!businessId || !platform)
       return NextResponse.json({ error: "Faltan datos" }, { status: 400 });
 
-    const resolved = resolveBusiness(req, businessId);
+    const resolved = await resolveBusiness(req, businessId);
     if ("error" in resolved) return jsonError(resolved);
 
     const result =
