@@ -10,6 +10,7 @@ import { hasSupabaseClientConfig } from "@/lib/supabase/client";
 import { AiStatusBadge, useAiStatus } from "@/components/ai-status";
 import { Badge, Button, Card, Field, Input, Modal, PageHeader, useToast } from "@/components/ui";
 import { PendingFlow } from "@/components/pending-flow";
+import { MetaConnectionCard } from "@/components/meta-connection-card";
 import { SearchableCountrySelect } from "@/components/inputs";
 import { suggestPending } from "@/lib/eva-suggest";
 import {
@@ -187,6 +188,11 @@ export default function SettingsPage() {
         <h2 className="text-lg font-bold tracking-tight text-zinc-900">Cuenta</h2>
         <p className="flex items-center gap-2 text-sm text-zinc-500">{user?.email} {user?.isDemo && <Badge tone="yellow">Demo</Badge>}</p>
       </Card>
+
+      {/* ── Conexión Instagram/Facebook (Meta) ── */}
+      {business && (
+        <MetaConnectionCard businessId={business.id} isDemo={!!user?.isDemo || !!business.isDemo} />
+      )}
 
       <Card className="space-y-3">
         <div className="flex items-center justify-between">
