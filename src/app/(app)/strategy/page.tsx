@@ -13,7 +13,12 @@ import { isStrategyJobStale } from "@/lib/strategy-job-utils";
 import { exportStrategyHtml } from "@/lib/exports";
 import { Badge, Button, Card, EmptyState, EvaLoading, Modal, PageHeader, useToast } from "@/components/ui";
 import { ApprovalActions, FeedbackPanel, ProgressTracker, StickyApproveBar, buildFlowSteps } from "@/components/flow";
-import { STRATEGY_FEEDBACK, applyStructuredFeedback } from "@/lib/feedback";
+import {
+  STRATEGY_SECTION_FEEDBACK,
+  STRATEGY_SECTION_LABELS,
+  applyStrategySectionFeedback,
+  type StrategySectionKey,
+} from "@/lib/feedback";
 import { PlatformLogo } from "@/components/platform-logo";
 import { PendingFlow } from "@/components/pending-flow";
 import { missingCriticalLabels, pendingQuestions } from "@/lib/business-questions";
@@ -29,6 +34,7 @@ import {
   Zap,
   ListChecks,
   Lock,
+  Pencil,
 } from "lucide-react";
 
 export default function StrategyPage() {
@@ -45,7 +51,7 @@ export default function StrategyPage() {
 
   const [loading, setLoading] = useState(false);
   const [showFull, setShowFull] = useState(false);
-  const [showFeedback, setShowFeedback] = useState(false);
+  const [editSection, setEditSection] = useState<StrategySectionKey | null>(null);
   const [signupOpen, setSignupOpen] = useState(false);
   const [pendingBusiness, setPendingBusiness] = useState<Business | null>(null);
   const autoTriggered = useRef(false);
@@ -76,7 +82,7 @@ export default function StrategyPage() {
     try {
       const meta = await gen.generateStrategy(business, feedback);
       show(meta?.warning || (feedback ? "Estrategia actualizada ✨" : "Estrategia lista ✨"));
-      setShowFeedback(false);
+      setEditSection(null);
     } catch (e: any) {
       show(e?.message || "Error");
     } finally {
@@ -100,27 +106,31 @@ export default function StrategyPage() {
     startStrategyInBackground(business!.id);
   }
 
-  // Auto-generar si el usuario ya está logueado o viene con ?generate=1 (legacy).
+  // Auto-generar al llegar desde onboarding (?generate=1) o con negocio recién completado.
   useEffect(() => {
     if (!business || autoTriggered.current || strategy || criticalMissing.length > 0) return;
 
-    const jobStatus = business.strategyJob?.status;
-    if (jobStatus === "completed" || jobStatus === "generating") return;
-
     const shouldAutoStart =
       params.get("generate") === "1" ||
-      (canGenerateStrategy(user) && business.onboardingComplete && jobStatus !== "failed");
+      (canGenerateStrategy(user) && business.onboardingComplete);
 
     if (!shouldAutoStart) return;
+
+    const jobStatus = business.strategyJob?.status;
+    const activelyGenerating =
+      jobStatus === "generating" && !isStrategyJobStale(business.strategyJob);
+
+    // Ya hay un job en curso: solo mostrar loading.
+    if (activelyGenerating) return;
 
     autoTriggered.current = true;
     if (needsSignup) {
       openSignupGate();
       return;
     }
-    tryGenerate();
+    restartStrategyGeneration(business.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [business, strategy, params, needsSignup, user, criticalMissing.length]);
+  }, [business, strategy, params, needsSignup, user, criticalMissing.length, business?.strategyJob?.status]);
 
   // Job colgado (p. ej. dev mató el background): reintentar una vez.
   useEffect(() => {
@@ -133,16 +143,6 @@ export default function StrategyPage() {
       startStrategyInBackground(business.id);
     }
   }, [business, strategy, show]);
-
-  // La burbuja de Eva puede pedir "modificar"
-  useEffect(() => {
-    const onEva = (e: Event) => {
-      const action = (e as CustomEvent).detail?.action;
-      if (action === "modificar") setShowFeedback(true);
-    };
-    window.addEventListener("eva:action", onEva);
-    return () => window.removeEventListener("eva:action", onEva);
-  }, []);
 
   if (!business) return null;
 
@@ -183,13 +183,15 @@ export default function StrategyPage() {
   }
 
   function approve() {
-    setFlow(business!.id, { strategy: "approved" });
+    if (!business) return;
+    setFlow(business.id, { strategy: "approved" });
     show("Estrategia aprobada 🎉 Eva está generando tus contenidos.");
-    setTimeout(() => router.push("/content?generate=1"), 600);
+    void gen.generateMonthContents(business, 16);
+    router.push("/content?generate=1");
   }
 
-  function applyFeedback(values: string[], custom: string) {
-    const instruction = applyStructuredFeedback(STRATEGY_FEEDBACK, values, custom);
+  function applySectionFeedback(section: StrategySectionKey, values: string[], custom: string) {
+    const instruction = applyStrategySectionFeedback(section, values, custom);
     tryGenerate(instruction);
   }
 
@@ -269,17 +271,37 @@ export default function StrategyPage() {
               tone="loca"
               label="Posicionamiento"
               text={strategy.brandPositioning}
+              onEdit={() => setEditSection("brandPositioning")}
             />
-            <HeroCard icon={Target} tone="lima" label="Objetivo del mes" text={strategy.monthlyGoal} />
+            <HeroCard
+              icon={Target}
+              tone="lima"
+              label="Objetivo del mes"
+              text={strategy.monthlyGoal}
+              onEdit={() => setEditSection("monthlyGoal")}
+            />
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            <MiniCard icon={Users} label="Audiencia principal" text={strategy.audienceSummary} />
-            <MiniCard icon={MessageCircle} label="Tono de voz" text={strategy.toneOfVoice} />
+            <MiniCard
+              icon={Users}
+              label="Audiencia principal"
+              text={strategy.audienceSummary}
+              onEdit={() => setEditSection("audienceSummary")}
+            />
+            <MiniCard
+              icon={MessageCircle}
+              label="Tono de voz"
+              text={strategy.toneOfVoice}
+              onEdit={() => setEditSection("toneOfVoice")}
+            />
             <Card>
-              <div className="mb-3 flex items-center gap-2 text-zinc-500">
-                <Megaphone className="h-4 w-4" />
-                <span className="text-xs font-semibold uppercase tracking-wide">Canales</span>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-zinc-500">
+                  <Megaphone className="h-4 w-4" />
+                  <span className="text-xs font-semibold uppercase tracking-wide">Canales</span>
+                </div>
+                <CardEditButton label="Canales y CTA" onClick={() => setEditSection("channels")} />
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {strategy.recommendedChannels.map((c) => (
@@ -301,7 +323,10 @@ export default function StrategyPage() {
           </div>
 
           <Card>
-            <h3 className="mb-4 text-lg font-bold tracking-tight text-zinc-900">Pilares de contenido</h3>
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <h3 className="text-lg font-bold tracking-tight text-zinc-900">Pilares de contenido</h3>
+              <CardEditButton label="Pilares de contenido" onClick={() => setEditSection("contentPillars")} />
+            </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {strategy.contentPillars.map((p) => (
                 <div key={p.name} className="rounded-2xl bg-loca-50 p-4 ring-1 ring-inset ring-loca-100/60 transition hover:-translate-y-0.5 hover:shadow-card">
@@ -313,9 +338,12 @@ export default function StrategyPage() {
           </Card>
 
           <Card>
-            <div className="mb-4 flex items-center gap-2">
-              <ListChecks className="h-5 w-5 text-loca-600" />
-              <h3 className="text-lg font-bold tracking-tight text-zinc-900">Próximas acciones</h3>
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <ListChecks className="h-5 w-5 text-loca-600" />
+                <h3 className="text-lg font-bold tracking-tight text-zinc-900">Próximas acciones</h3>
+              </div>
+              <CardEditButton label="Próximas acciones" onClick={() => setEditSection("nextActions")} />
             </div>
             <ol className="space-y-3">
               {strategy.nextActions.slice(0, 3).map((a, i) => (
@@ -337,25 +365,29 @@ export default function StrategyPage() {
           <ApprovalActions
             approved={approved}
             onApprove={approve}
-            onModify={() => setShowFeedback(true)}
             approveLabel="Aprobar estrategia"
             approvedLabel="Estrategia aprobada"
-            modifyLabel="Modificar"
             nextLabel="Ver contenidos →"
             onNext={() => router.push("/content?generate=1")}
           />
         </StickyApproveBar>
       )}
 
-      {/* Modificar estrategia (modal) */}
-      <Modal open={showFeedback} onClose={() => setShowFeedback(false)} title="Modificar estrategia">
-        <FeedbackPanel
-          title="¿Qué querés cambiar?"
-          options={STRATEGY_FEEDBACK}
-          onApply={applyFeedback}
-          onCancel={() => setShowFeedback(false)}
-          loading={loading}
-        />
+      {/* Modificar una sección (modal por card) */}
+      <Modal
+        open={!!editSection}
+        onClose={() => setEditSection(null)}
+        title={editSection ? `Modificar ${STRATEGY_SECTION_LABELS[editSection]}` : ""}
+      >
+        {editSection && (
+          <FeedbackPanel
+            title={`¿Qué querés cambiar en ${STRATEGY_SECTION_LABELS[editSection]}?`}
+            options={STRATEGY_SECTION_FEEDBACK[editSection]}
+            onApply={(values, custom) => applySectionFeedback(editSection, values, custom)}
+            onCancel={() => setEditSection(null)}
+            loading={loading}
+          />
+        )}
       </Modal>
 
       {/* Vista completa en modal */}
@@ -428,40 +460,71 @@ export default function StrategyPage() {
   );
 }
 
+function CardEditButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`Modificar ${label}`}
+      className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-loca-50 hover:text-loca-600"
+    >
+      <Pencil className="h-4 w-4" />
+    </button>
+  );
+}
+
 function HeroCard({
   icon: Icon,
   label,
   text,
   tone,
+  onEdit,
 }: {
   icon: any;
   label: string;
   text: string;
   tone: "loca" | "lima";
+  onEdit?: () => void;
 }) {
   return (
     <Card className={tone === "loca" ? "bg-loca-50 shadow-glow" : "bg-lima-50"}>
-      <div className="flex items-center gap-2.5">
-        <span
-          className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
-            tone === "loca" ? "bg-white/70 text-loca-600" : "bg-white/70 text-lima-600"
-          }`}
-        >
-          <Icon className="h-5 w-5" />
-        </span>
-        <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{label}</span>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5">
+          <span
+            className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
+              tone === "loca" ? "bg-white/70 text-loca-600" : "bg-white/70 text-lima-600"
+            }`}
+          >
+            <Icon className="h-5 w-5" />
+          </span>
+          <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{label}</span>
+        </div>
+        {onEdit && <CardEditButton label={label} onClick={onEdit} />}
       </div>
       <p className="mt-4 text-lg font-medium leading-snug text-zinc-800">{text}</p>
     </Card>
   );
 }
 
-function MiniCard({ icon: Icon, label, text }: { icon: any; label: string; text: string }) {
+function MiniCard({
+  icon: Icon,
+  label,
+  text,
+  onEdit,
+}: {
+  icon: any;
+  label: string;
+  text: string;
+  onEdit?: () => void;
+}) {
   return (
     <Card>
-      <div className="mb-3 flex items-center gap-2 text-zinc-500">
-        <Icon className="h-4 w-4" />
-        <span className="text-xs font-semibold uppercase tracking-wide">{label}</span>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-zinc-500">
+          <Icon className="h-4 w-4" />
+          <span className="text-xs font-semibold uppercase tracking-wide">{label}</span>
+        </div>
+        {onEdit && <CardEditButton label={label} onClick={onEdit} />}
       </div>
       <p className="text-sm leading-relaxed text-zinc-600">{text}</p>
     </Card>

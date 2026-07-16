@@ -47,7 +47,7 @@ export function OnboardingSummary({
   onEditSection,
   onCompleteWithEva,
   onFixCritical,
-  confirmLabel = "Confirmar y generar estrategia",
+  confirmLabel = "Confirmar y preparar estrategia",
 }: {
   business: Business;
   onConfirm: () => void;

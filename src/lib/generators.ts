@@ -1,5 +1,6 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { api } from "./api";
 import { useStore } from "./store";
 import type { Business, CalendarItem, Channel, ContentItem, GoogleAdsStrategy, MetaAdsStrategy } from "./types";
@@ -36,6 +37,38 @@ function createLimiter(limit: number) {
 
 // Máximo de imágenes generándose a la vez (no saturar el rate limit de Gemini).
 const IMAGE_CONCURRENCY = 2;
+
+/** Evita duplicar batch al aprobar estrategia y al montar /content?generate=1. */
+const contentGenInFlight = new Set<string>();
+const contentGenListeners = new Set<() => void>();
+
+function markContentGen(businessId: string, generating: boolean) {
+  if (generating) contentGenInFlight.add(businessId);
+  else contentGenInFlight.delete(businessId);
+  contentGenListeners.forEach((l) => l());
+}
+
+function subscribeContentGen(cb: () => void) {
+  contentGenListeners.add(cb);
+  return () => {
+    contentGenListeners.delete(cb);
+  };
+}
+
+export function isMonthContentGenerating(businessId?: string | null): boolean {
+  const id = businessId ?? useStore.getState().activeBusinessId;
+  if (!id) return false;
+  return contentGenInFlight.has(id);
+}
+
+/** Versión reactiva: re-renderiza cuando arranca/termina el batch de contenidos. */
+export function useMonthContentGenerating(businessId?: string | null): boolean {
+  return useSyncExternalStore(
+    subscribeContentGen,
+    () => (businessId ? contentGenInFlight.has(businessId) : false),
+    () => false
+  );
+}
 
 export function useGenerators() {
   const store = useStore();
@@ -94,6 +127,9 @@ export function useGenerators() {
     count = 16,
     onProgress?: ProgressFn
   ) {
+    if (contentGenInFlight.has(business.id)) return 0;
+    markContentGen(business.id, true);
+    try {
     const st = () => useStore.getState();
 
     let strategy = st().strategies[business.id];
@@ -118,6 +154,9 @@ export function useGenerators() {
     await generateBatch(business, pending, onProgress);
     st().setFlow(business.id, { content: "pending_review" });
     return pending.length;
+    } finally {
+      markContentGen(business.id, false);
+    }
   }
 
   async function generateAllContent(

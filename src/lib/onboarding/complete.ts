@@ -4,7 +4,7 @@ import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.
 import type { Business } from "@/lib/types";
 import { syncRepositoryToServer } from "@/lib/repository/client-sync";
 import { clearOnboardingDraft, loadOnboardingDraft } from "@/lib/onboarding-draft";
-import { startStrategyInBackground } from "@/lib/strategy-job";
+import { restartStrategyGeneration } from "@/lib/strategy-job";
 import { useStore } from "@/lib/store";
 import { nowIso } from "@/lib/utils";
 
@@ -28,7 +28,7 @@ export function prepareFinalBusiness(b: Business, userId: string): Business {
   };
 }
 
-/** Persiste el negocio, sincroniza al servidor, arranca estrategia en background y va al dashboard. */
+/** Persiste el negocio, sincroniza al servidor, arranca estrategia en background y va a /strategy. */
 export async function completeOnboardingAndGoToStrategy(
   business: Business,
   router: AppRouterInstance
@@ -37,11 +37,12 @@ export async function completeOnboardingAndGoToStrategy(
   if (!userId) throw new Error("Necesitás iniciar sesión para continuar");
 
   const finalBiz = prepareFinalBusiness(business, userId);
-  useStore.getState().upsertBusiness(finalBiz);
-  await syncRepositoryToServer({ includeBusiness: finalBiz });
+  const freshBiz = { ...finalBiz, strategyJob: undefined };
+  useStore.getState().upsertBusiness(freshBiz);
+  await syncRepositoryToServer({ includeBusiness: freshBiz });
   clearOnboardingDraft();
-  startStrategyInBackground(finalBiz.id);
-  router.push("/dashboard");
+  restartStrategyGeneration(freshBiz.id);
+  router.push("/strategy?generate=1");
 }
 
 /** Retoma un borrador guardado antes del signup/login. */

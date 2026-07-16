@@ -47,19 +47,25 @@ function contextFor(pathname: string): EvaContext {
   }
   if (pathname.startsWith("/strategy")) {
     return {
-      intro: "Puedo ayudarte a entender o modificar esta estrategia.",
+      intro: "Puedo ayudarte a entender o ajustar esta estrategia, sección por sección.",
       actions: [
         {
           label: "Explicámela más simple",
           reply:
-            "Tu estrategia es el plan de qué comunicar y cómo. Arriba ves lo esencial: a quién le hablás, qué objetivo tenés este mes y de qué vas a postear. Si algo no te cierra, tocá “Modificar estrategia”.",
+            "Tu estrategia es el plan de qué comunicar y cómo. Arriba ves lo esencial: a quién le hablás, qué objetivo tenés este mes y de qué vas a postear. Si algo no te cierra, tocá el lápiz ✏️ en esa card.",
         },
-        { label: "Quiero cambiar el tono", reply: "Genial. Abro las opciones para cambiar el tono 👇", emit: "modificar" },
-        { label: "Quiero que venda más", reply: "Lo hacemos más vendedor. Abro las opciones 👇", emit: "modificar" },
+        {
+          label: "Quiero cambiar el tono",
+          reply: "Tocá el lápiz en la card “Tono de voz” y elegí las opciones que quieras.",
+        },
+        {
+          label: "Quiero que venda más",
+          reply: "Probá el lápiz en “Objetivo del mes”, “Canales” o “Pilares de contenido” y elegí ajustes más vendedores.",
+        },
         {
           label: "Qué hago ahora",
           reply:
-            "Si te gusta cómo quedó, tocá “Aprobar estrategia” y paso a armar tu calendario. Si querés ajustarla, tocá “Modificar”.",
+            "Si te gusta cómo quedó, tocá “Aprobar estrategia”. Si querés ajustar algo, usá el lápiz en la card que quieras cambiar.",
         },
       ],
     };

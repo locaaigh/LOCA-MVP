@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useStore } from "@/lib/store";
+import { useMonthContentGenerating } from "@/lib/generators";
 import { signOutSupabase } from "@/lib/auth/session";
 import { hasSupabaseClientConfig } from "@/lib/supabase/client";
 import { Logo } from "@/components/brand";
@@ -49,6 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const biz = s.businesses.find((b) => b.id === id);
     return biz?.strategyJob?.status === "generating";
   });
+  const contentGenerating = useMonthContentGenerating(activeId);
 
   useEffect(() => {
     if (hydrated && !user) router.replace("/login");
@@ -137,6 +139,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {item.href === "/strategy" && strategyGenerating && (
                   <Loader2 className="ml-auto h-4 w-4 animate-spin text-loca-500" />
                 )}
+                {item.href === "/content" && contentGenerating && (
+                  <Loader2 className="ml-auto h-4 w-4 animate-spin text-loca-500" />
+                )}
               </Link>
             );
           })}
@@ -190,6 +195,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <item.icon className="h-4 w-4" />
                 {item.label}
                 {item.href === "/strategy" && strategyGenerating && (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-loca-500" />
+                )}
+                {item.href === "/content" && contentGenerating && (
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-loca-500" />
                 )}
               </Link>

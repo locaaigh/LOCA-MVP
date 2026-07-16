@@ -99,7 +99,7 @@ export function OnboardingSignupModal({ open, business, onClose, router }: Props
         </Field>
         {error && <p className="text-sm font-medium text-red-600">{error}</p>}
         <Button type="submit" size="lg" className="w-full" disabled={loading}>
-          {loading ? "Creando cuenta…" : "Crear cuenta y continuar"}
+          {loading ? "Creando cuenta…" : "Crear cuenta y preparar estrategia"}
         </Button>
       </form>
       <p className="mt-5 text-center text-sm text-zinc-500">

@@ -115,17 +115,17 @@ export function ApprovalActions({
   approved,
   approveLabel,
   approvedLabel = "Aprobado",
-  modifyLabel,
+  modifyLabel = "Modificar",
   approveLoading,
   nextLabel,
   onNext,
 }: {
   onApprove: () => void;
-  onModify: () => void;
+  onModify?: () => void;
   approved?: boolean;
   approveLabel: string;
   approvedLabel?: string;
-  modifyLabel: string;
+  modifyLabel?: string;
   approveLoading?: boolean;
   nextLabel?: string;
   onNext?: () => void;
@@ -137,9 +137,11 @@ export function ApprovalActions({
           <Check className="h-4 w-4" /> {approvedLabel}
         </span>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={onModify}>
-            <Pencil className="h-3.5 w-3.5" /> {modifyLabel}
-          </Button>
+          {onModify && (
+            <Button variant="ghost" size="sm" onClick={onModify}>
+              <Pencil className="h-3.5 w-3.5" /> {modifyLabel}
+            </Button>
+          )}
           {nextLabel && onNext && (
             <Button variant="primary" size="lg" onClick={onNext}>
               {nextLabel}
@@ -151,13 +153,15 @@ export function ApprovalActions({
   }
   return (
     <div className="flex items-center gap-2">
-      <Button variant="success" size="lg" className="flex-1" onClick={onApprove} loading={approveLoading}>
+      <Button variant="success" size="lg" className={onModify ? "flex-1" : "w-full"} onClick={onApprove} loading={approveLoading}>
         {!approveLoading && <ThumbsUp className="h-4 w-4" />}
         {approveLabel}
       </Button>
-      <Button variant="ghost" size="md" onClick={onModify}>
-        <Pencil className="h-4 w-4" /> {modifyLabel}
-      </Button>
+      {onModify && (
+        <Button variant="ghost" size="md" onClick={onModify}>
+          <Pencil className="h-4 w-4" /> {modifyLabel}
+        </Button>
+      )}
     </div>
   );
 }

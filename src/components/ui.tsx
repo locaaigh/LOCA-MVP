@@ -240,7 +240,46 @@ export function Modal({
 }
 
 // ── Spinner de Eva ───────────────────────────────────────────
-export function EvaLoading({ text = "Eva está preparando todo…" }: { text?: string }) {
+export const EVA_THINKING_WEB = [
+  "Estoy analizando todo…",
+  "Estoy entendiendo tu negocio…",
+  "Estoy buscando cuál es tu público…",
+  "Sigo investigando tu página…",
+] as const;
+
+export const EVA_THINKING_MD = [
+  "Estoy leyendo tu resumen…",
+  "Estoy entendiendo tu negocio…",
+  "Estoy organizando los datos…",
+  "Revisando lo que falta…",
+] as const;
+
+export function EvaLoading({
+  text = "Eva está preparando todo…",
+  messages,
+  intervalMs = 2800,
+  hint = "Esto tarda solo unos segundos.",
+}: {
+  text?: string;
+  messages?: readonly string[];
+  intervalMs?: number;
+  hint?: string | null;
+}) {
+  const lines = messages?.length ? [...messages] : [text];
+  const [index, setIndex] = React.useState(0);
+
+  React.useEffect(() => {
+    setIndex(0);
+  }, [lines.join("|")]);
+
+  React.useEffect(() => {
+    if (lines.length <= 1) return;
+    const id = window.setInterval(() => {
+      setIndex((i) => (i + 1) % lines.length);
+    }, intervalMs);
+    return () => window.clearInterval(id);
+  }, [lines.length, intervalMs]);
+
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
       <div className="relative">
@@ -248,8 +287,10 @@ export function EvaLoading({ text = "Eva está preparando todo…" }: { text?: s
         <div className="h-16 w-16 rounded-full bg-gradient-to-br from-loca-500 to-loca-700 shadow-lift" />
         <Loader2 className="absolute inset-0 m-auto h-7 w-7 animate-spin text-white" />
       </div>
-      <p className="text-sm font-medium text-zinc-600">{text}</p>
-      <p className="text-xs text-zinc-400">Esto tarda solo unos segundos.</p>
+      <p key={index} className="min-h-[1.25rem] animate-fade-in-up text-sm font-medium text-zinc-600">
+        {lines[index]}
+      </p>
+      {hint ? <p className="text-xs text-zinc-400">{hint}</p> : null}
     </div>
   );
 }

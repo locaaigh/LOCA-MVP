@@ -3,7 +3,7 @@
 import { locaUserHeaders, syncRepositoryToServer } from "@/lib/repository/client-sync";
 import { isStrategyJobStale } from "@/lib/strategy-job-utils";
 import { useStore } from "@/lib/store";
-import type { Strategy } from "@/lib/types";
+import type { Business, Strategy } from "@/lib/types";
 import { nowIso } from "@/lib/utils";
 
 export function isStrategyGenerating(businessId?: string | null): boolean {
@@ -50,6 +50,41 @@ function applyStrategyFailed(businessId: string, error: string) {
 /** Jobs en vuelo para no duplicar fetch si ya hay uno corriendo. */
 const inFlight = new Set<string>();
 
+async function waitForStrategyFromServer(businessId: string, businessName: string) {
+  const maxMs = 120_000;
+  const started = Date.now();
+
+  while (Date.now() - started < maxMs) {
+    await new Promise((r) => setTimeout(r, 3000));
+    try {
+      const store = useStore.getState();
+      const biz = store.businesses.find((b) => b.id === businessId);
+      const res = await fetch("/api/snapshot", { headers: locaUserHeaders(biz) });
+      if (!res.ok) continue;
+
+      const snap = await res.json();
+      store.hydrateFromServer(snap);
+
+      const serverBiz = (snap.businesses as Business[] | undefined)?.find((b) => b.id === businessId);
+      const job = serverBiz?.strategyJob;
+      const strat = snap.strategies?.[businessId] as Strategy | undefined;
+
+      if (job?.status === "completed" && strat) {
+        applyStrategyResult(businessId, strat, businessName);
+        return;
+      }
+      if (job?.status === "failed") {
+        applyStrategyFailed(businessId, job.error || "No se pudo generar la estrategia");
+        return;
+      }
+    } catch {
+      /* polling best-effort */
+    }
+  }
+
+  applyStrategyFailed(businessId, "La generación tardó demasiado. Reintentá.");
+}
+
 export function restartStrategyGeneration(businessId: string, feedback?: string): void {
   inFlight.delete(businessId);
   const store = useStore.getState();
@@ -84,7 +119,10 @@ async function runStrategyJob(businessId: string, feedback?: string) {
       error?: string;
     };
 
-    if (res.status === 202 || body.status === "generating") return;
+    if (res.status === 202 || body.status === "generating") {
+      await waitForStrategyFromServer(businessId, biz.name);
+      return;
+    }
 
     if (res.ok && body.strategy) {
       applyStrategyResult(businessId, body.strategy, biz.name);

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore, useFlow } from "@/lib/store";
-import { useGenerators } from "@/lib/generators";
+import { useGenerators, useMonthContentGenerating } from "@/lib/generators";
 import { exportContentsCsv } from "@/lib/exports";
 import { Badge, Button, Card, EmptyState, EvaLoading, Modal, PageHeader, useToast } from "@/components/ui";
 import { ContentPreview } from "@/components/content-preview";
@@ -76,6 +76,7 @@ export default function ContentStudioPage() {
 
   const pending = buckets.revision;
   const strategyApproved = flow.strategy === "approved";
+  const contentGenerating = useMonthContentGenerating(business?.id);
 
   async function generateAll() {
     if (!business) return;
@@ -118,13 +119,15 @@ export default function ContentStudioPage() {
   }
 
   useEffect(() => {
-    if (!business || autoTriggered.current) return;
-    if (params.get("generate") === "1" && strategyApproved && contents.length === 0) {
-      autoTriggered.current = true;
-      generateAll();
-    }
+    if (!business || autoTriggered.current || !strategyApproved) return;
+    if (params.get("generate") !== "1") return;
+    autoTriggered.current = true;
+    // Si el batch ya arrancó desde "Aprobar estrategia", no lo duplicamos:
+    // el hook contentGenerating ya muestra el progreso.
+    if (contentGenerating) return;
+    void generateAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [business, strategyApproved, contents.length, params]);
+  }, [business, strategyApproved, params, contentGenerating]);
 
   useEffect(() => {
     if (business && contents.length > 0 && pending.length === 0 && flow.content !== "approved") {
@@ -164,10 +167,17 @@ export default function ContentStudioPage() {
         )}
       </PageHeader>
 
-      {loading && contents.length === 0 && <EvaLoading text="Eva está creando tus contenidos…" />}
-      {progress && <p className="text-sm font-medium text-loca-600">{progress}</p>}
+      {(loading || contentGenerating) && contents.length === 0 && (
+        <EvaLoading text="Eva está creando tus contenidos…" />
+      )}
+      {(contentGenerating || loading) && contents.length > 0 && (
+        <p className="text-sm font-medium text-loca-600">
+          {progress || "Eva sigue generando imágenes… las piezas van apareciendo abajo."}
+        </p>
+      )}
+      {progress && contents.length === 0 && <p className="text-sm font-medium text-loca-600">{progress}</p>}
 
-      {contents.length === 0 && !loading ? (
+      {contents.length === 0 && !loading && !contentGenerating ? (
         <EmptyState icon={FileText} title="Generá los contenidos del mes" description="Eva crea el texto e imagen de cada publicación de tu calendario.">
           <Button onClick={generateAll} loading={loading}>
             <Sparkles className="h-4 w-4" /> Generar contenidos del mes

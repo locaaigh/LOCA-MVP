@@ -23,7 +23,7 @@ import {
   foundingYearOptions,
 } from "@/lib/constants";
 import type { Business, ProductService, ProductServiceType, WebsiteAnalysis } from "@/lib/types";
-import { Button, Card, ChipSelect, Field, Input, Modal, Select, Textarea, useToast } from "@/components/ui";
+import { Button, Card, ChipSelect, EvaLoading, EVA_THINKING_MD, EVA_THINKING_WEB, Field, Input, Modal, Select, Textarea, useToast } from "@/components/ui";
 import {
   HelpField,
   SearchableCountrySelect,
@@ -474,11 +474,7 @@ export default function OnboardingPage() {
                   onEditSection={openSection}
                   onCompleteWithEva={completeWithEva}
                   onFixCritical={() => setCriticalOpen(true)}
-                  confirmLabel={
-                    requiresAuthForStrategy() && !canGenerateStrategy(user)
-                      ? "Confirmar y crear cuenta"
-                      : "Confirmar y continuar"
-                  }
+                  confirmLabel="Confirmar y preparar estrategia"
                 />
               )}
             </div>
@@ -786,47 +782,54 @@ function WebImportScreen({
         <Link href="/">
           <Logo className="text-2xl" />
         </Link>
-        <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-zinc-400 transition hover:text-zinc-700">
-          <ArrowLeft className="h-4 w-4" /> Volver
-        </button>
+        {!loading && (
+          <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-zinc-400 transition hover:text-zinc-700">
+            <ArrowLeft className="h-4 w-4" /> Volver
+          </button>
+        )}
       </div>
 
       <div className="flex flex-1 items-center justify-center px-4 py-6 sm:px-6">
-        <div className="w-full max-w-xl animate-fade-in-up text-center">
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift ring-8 ring-loca-50">
-            <Globe className="h-8 w-8" />
+        {loading ? (
+          <div className="w-full max-w-xl animate-fade-in-up">
+            <EvaLoading messages={EVA_THINKING_WEB} />
           </div>
-          <h1 className="text-[2rem] font-extrabold tracking-tight text-zinc-900 sm:text-[2.6rem] sm:leading-[1.05]">
-            Pegá la web de tu negocio
-          </h1>
-          <p className="mx-auto mt-3 max-w-md text-[15px] text-zinc-500 sm:text-base">
-            Eva va a leer tu sitio y detectar tu marca, productos, servicios y datos clave. Lo que no encuentre, queda pendiente.
-          </p>
-
-          <div className="mt-8 rounded-[1.75rem] border border-zinc-200/50 bg-white p-6 shadow-card sm:p-7">
-            <div className="relative">
-              <Globe className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-loca-400" />
-              <input
-                autoFocus
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !loading) onAnalyze(url);
-                }}
-                placeholder="https://tumarca.com"
-                className="loca-input h-[4.5rem] rounded-2xl pl-14 text-center text-lg sm:text-xl"
-              />
+        ) : (
+          <div className="w-full max-w-xl animate-fade-in-up text-center">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift ring-8 ring-loca-50">
+              <Globe className="h-8 w-8" />
             </div>
-            <Button size="xl" className="mt-4 w-full" onClick={() => onAnalyze(url)} loading={loading}>
-              {!loading && <Sparkles className="h-5 w-5" />}
-              {loading ? "Eva está leyendo tu web…" : "Analizar mi web"}
-            </Button>
-          </div>
+            <h1 className="text-[2rem] font-extrabold tracking-tight text-zinc-900 sm:text-[2.6rem] sm:leading-[1.05]">
+              Pegá la web de tu negocio
+            </h1>
+            <p className="mx-auto mt-3 max-w-md text-[15px] text-zinc-500 sm:text-base">
+              Eva va a leer tu sitio y detectar tu marca, productos, servicios y datos clave. Lo que no encuentre, queda pendiente.
+            </p>
 
-          <p className="mx-auto mt-4 max-w-md text-[13px] text-zinc-400">
-            No inventamos precios ni datos sensibles. Si algo no aparece en tu web, te lo vamos a pedir después.
-          </p>
-        </div>
+            <div className="mt-8 rounded-[1.75rem] border border-zinc-200/50 bg-white p-6 shadow-card sm:p-7">
+              <div className="relative">
+                <Globe className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-loca-400" />
+                <input
+                  autoFocus
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") onAnalyze(url);
+                  }}
+                  placeholder="https://tumarca.com"
+                  className="loca-input h-[4.5rem] rounded-2xl pl-14 text-center text-lg sm:text-xl"
+                />
+              </div>
+              <Button size="xl" className="mt-4 w-full" onClick={() => onAnalyze(url)}>
+                <Sparkles className="h-5 w-5" /> Analizar mi web
+              </Button>
+            </div>
+
+            <p className="mx-auto mt-4 max-w-md text-[13px] text-zinc-400">
+              No inventamos precios ni datos sensibles. Si algo no aparece en tu web, te lo vamos a pedir después.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -846,6 +849,7 @@ function AiImportScreen({
 }) {
   const [md, setMd] = useState("");
   const [fileName, setFileName] = useState("");
+  const [loading, setLoading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const prompt = externalAiPrompt(businessName);
   const { show, node } = useToast();
@@ -858,6 +862,19 @@ function AiImportScreen({
     setMd(await file.text());
     setFileName(file.name);
   }
+  async function handleLoad() {
+    if (!md.trim()) {
+      show("Subí el archivo .md o pegá el contenido primero.");
+      return;
+    }
+    setLoading(true);
+    const started = Date.now();
+    await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+    const minMs = 1200;
+    const elapsed = Date.now() - started;
+    if (elapsed < minMs) await new Promise((r) => setTimeout(r, minMs - elapsed));
+    onLoad(md, fileName);
+  }
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden loca-hero-bg">
@@ -869,12 +886,19 @@ function AiImportScreen({
         <Link href="/">
           <Logo className="text-2xl" />
         </Link>
-        <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-zinc-400 transition hover:text-zinc-700">
-          <ArrowLeft className="h-4 w-4" /> Volver
-        </button>
+        {!loading && (
+          <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-zinc-400 transition hover:text-zinc-700">
+            <ArrowLeft className="h-4 w-4" /> Volver
+          </button>
+        )}
       </div>
 
       <div className="flex flex-1 items-center justify-center px-4 py-6 sm:px-6">
+        {loading ? (
+          <div className="w-full max-w-xl animate-fade-in-up">
+            <EvaLoading messages={EVA_THINKING_MD} />
+          </div>
+        ) : (
         <div className="w-full max-w-xl animate-fade-in-up">
           <div className="text-center">
             <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift ring-8 ring-loca-50">
@@ -961,11 +985,12 @@ function AiImportScreen({
               </div>
             </div>
 
-            <Button size="xl" className="w-full" onClick={() => onLoad(md, fileName)}>
+            <Button size="xl" className="w-full" onClick={() => void handleLoad()}>
               <Sparkles className="h-5 w-5" /> Cargar información
             </Button>
           </div>
         </div>
+        )}
       </div>
     </div>
   );
