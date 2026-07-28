@@ -53,7 +53,11 @@ export const supabaseRepository: DataRepository = {
       }
     }
 
-    const bizRows = mergedBusinesses.map((b) => ({
+    // dedupe por id (se queda con la última ocurrencia): un upsert en lote
+    // con el mismo id repetido rompe con "ON CONFLICT DO UPDATE command
+    // cannot affect row a second time".
+    const dedupedBusinesses = [...new Map(mergedBusinesses.map((b) => [b.id, b])).values()];
+    const bizRows = dedupedBusinesses.map((b) => ({
       id: b.id,
       user_id: userId,
       data: b,
@@ -86,7 +90,7 @@ export const supabaseRepository: DataRepository = {
       if (error) throw new Error(`Sync estrategias: ${error.message}`);
     }
 
-    const calRows = Object.entries(snapshot.calendars)
+    const rawCalRows = Object.entries(snapshot.calendars)
       .filter(([businessId]) => bizIds.has(businessId))
       .flatMap(([businessId, items]) =>
         (items as CalendarItem[]).map((it) => ({
@@ -97,6 +101,7 @@ export const supabaseRepository: DataRepository = {
           updated_at: now,
         }))
       );
+    const calRows = [...new Map(rawCalRows.map((r) => [r.id, r])).values()];
     if (calRows.length) {
       const { error } = await client
         .from("calendar_items")
@@ -104,7 +109,7 @@ export const supabaseRepository: DataRepository = {
       if (error) throw new Error(`Sync calendario: ${error.message}`);
     }
 
-    const contentRows = (snapshot.contents as ContentItem[])
+    const rawContentRows = (snapshot.contents as ContentItem[])
       .filter((c) => bizIds.has(c.businessId))
       .map((c) => ({
         id: c.id,
@@ -113,6 +118,7 @@ export const supabaseRepository: DataRepository = {
         data: c,
         updated_at: now,
       }));
+    const contentRows = [...new Map(rawContentRows.map((r) => [r.id, r])).values()];
     if (contentRows.length) {
       const { error } = await client
         .from("contents")

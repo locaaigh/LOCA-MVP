@@ -180,7 +180,19 @@ export function BrandKitEditor({
                   className="w-full bg-transparent text-sm font-semibold text-zinc-800 outline-none"
                 />
                 <div className="mt-0.5 flex items-center gap-1.5">
-                  <span className="font-mono text-xs uppercase text-zinc-400">{c.hex}</span>
+                  <input
+                    value={c.hex}
+                    onChange={(e) => {
+                      const v = e.target.value.trim();
+                      updateColor(i, { hex: v === "" || v.startsWith("#") ? v : `#${v}` });
+                    }}
+                    maxLength={7}
+                    placeholder="#RRGGBB"
+                    className={`w-20 bg-transparent font-mono text-xs uppercase outline-none ${
+                      c.hex && !/^#[0-9a-fA-F]{6}$/.test(c.hex) ? "text-red-500" : "text-zinc-400"
+                    }`}
+                    aria-label="Código hex"
+                  />
                   <Badge tone={c.role === "primary" ? "pink" : "default"}>{ROLE_LABELS[c.role]}</Badge>
                 </div>
               </div>

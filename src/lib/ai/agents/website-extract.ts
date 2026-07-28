@@ -1,6 +1,8 @@
 import type { Confidence, WebsiteAnalysis } from "@/lib/types";
 import { fetchWebsite, buildBasicAnalysis, type RawWebContent } from "../website";
 import { getTextProvider } from "../providers";
+import { estimateTextCostUsd } from "../pricing";
+import type { TokenUsage } from "../providers/types";
 import { SYSTEM_EVA, websiteAnalysisPrompt } from "../prompts";
 import { asArray, asString } from "../shared/normalize";
 import type { Agent, AgentResult } from "../shared/result";
@@ -9,7 +11,10 @@ export interface WebsiteExtractAgentInput {
   url: string;
 }
 
-async function analyzeWebsiteContentWithAI(raw: RawWebContent): Promise<Record<string, unknown>> {
+async function analyzeWebsiteContentWithAI(
+  raw: RawWebContent,
+  onUsage?: (u: TokenUsage) => void
+): Promise<Record<string, unknown>> {
   const provider = getTextProvider();
   if (!provider) throw new Error("sin proveedor de texto");
   return (await provider.chatJson(
@@ -23,7 +28,8 @@ async function analyzeWebsiteContentWithAI(raw: RawWebContent): Promise<Record<s
       buttons: raw.buttons,
       socials: raw.socialLinks.map((s) => s.platform),
       text: raw.text,
-    })
+    }),
+    onUsage
   )) as Record<string, unknown>;
 }
 
@@ -181,10 +187,15 @@ export const websiteExtractAgent: Agent<WebsiteExtractAgentInput, WebsiteAnalysi
     }
 
     try {
-      const ai = await analyzeWebsiteContentWithAI(raw);
+      let usage: TokenUsage | undefined;
+      const ai = await analyzeWebsiteContentWithAI(raw, (u) => (usage = u));
       return {
         data: mergeAiIntoAnalysis(basic, ai),
-        meta: { provider: textProvider.id },
+        meta: {
+          provider: textProvider.id,
+          model: textProvider.model,
+          usage: usage && { ...usage, costUsd: estimateTextCostUsd(textProvider.model, usage) },
+        },
       };
     } catch (e: unknown) {
       const detail = e instanceof Error ? e.message : String(e);

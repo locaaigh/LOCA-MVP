@@ -248,7 +248,17 @@ export const useStore = create<AppState>()(
           const strategyJob = mergeStrategyJob(local.strategyJob, server.strategyJob);
           return strategyJob !== b.strategyJob ? { ...b, strategyJob } : b;
         });
-        const businesses = [...demoBusinesses, ...mergedReal];
+        // dedupe por id (prioridad a demo, igual que el orden de spread):
+        // un mismo id no debería aparecer en ambas listas, pero si pasa
+        // (ej. un negocio demo cuyo id también existe en el servidor) hay
+        // que evitar mandar duplicados al sync — Postgres rechaza un
+        // upsert en lote con la misma fila dos veces.
+        const seenIds = new Set<string>();
+        const businesses = [...demoBusinesses, ...mergedReal].filter((b) => {
+          if (seenIds.has(b.id)) return false;
+          seenIds.add(b.id);
+          return true;
+        });
 
         const demoIds = new Set(demoBusinesses.map((b) => b.id));
         const strategies: Record<string, Strategy> = { ...snap.strategies };

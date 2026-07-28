@@ -107,6 +107,44 @@ async function fetchHtml(url: string, timeoutMs = 7000): Promise<string | null> 
   }
 }
 
+// Colores/fuentes reales viven casi siempre en hojas de estilo externas
+// (Tailwind/Next.js/Webflow/Shopify/WordPress), nunca inline en el HTML.
+async function fetchCss(url: string, timeoutMs = 4000): Promise<string | null> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      redirect: "follow",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        Accept: "text/css,*/*;q=0.8",
+      },
+    });
+    if (!res.ok) return null;
+    const text = await res.text();
+    // Cap: bundles minificados pueden ser gigantes, no hace falta escanear todo.
+    return text.slice(0, 300_000);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+function extractStylesheetLinks(html: string, baseUrl: string): string[] {
+  const links = matchAll(
+    html,
+    /<link[^>]+rel=["']stylesheet["'][^>]*href=["']([^"']+)["']/i
+  );
+  const linksAltOrder = matchAll(
+    html,
+    /<link[^>]+href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/i
+  );
+  return uniq([...links, ...linksAltOrder]).map((h) => absolute(baseUrl, h));
+}
+
 function htmlToText(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -143,6 +181,32 @@ function metaContent(html: string, key: string, attr: "name" | "property"): stri
   if (m) return m[1];
   const re2 = new RegExp(`<meta[^>]*content=["']([^"']*)["'][^>]*${attr}=["']${key}["']`, "i");
   return html.match(re2)?.[1] || "";
+}
+
+// Reutilizable tanto para el HTML (colores/fuentes inline o en <style>)
+// como para el contenido de hojas de estilo externas ya fetcheadas.
+function extractColorsAndFonts(text: string): {
+  cssColors: string[];
+  fontFamilies: string[];
+  googleFonts: string[];
+} {
+  const cssColors = uniq([
+    ...matchAll(text, /#[0-9a-fA-F]{6}\b/),
+    ...matchAll(text, /#[0-9a-fA-F]{3}\b/),
+    // variables CSS de marca: --brand-color, --primary-color, etc.
+    ...matchAll(text, /--[\w-]*(?:color|brand|primary|accent)[\w-]*\s*:\s*(#[0-9a-fA-F]{3,8})/i),
+  ]);
+  const fontFamilies = uniq(
+    matchAll(text, /font-family\s*:\s*([^;}"']+)/i).map((f) =>
+      f.split(",")[0].replace(/['"]/g, "").trim()
+    )
+  ).filter((f) => f && !/^(inherit|initial|unset|var\()/i.test(f));
+  const googleFonts = uniq(
+    matchAll(text, /fonts\.googleapis\.com\/css2?\?[^"')]*family=([^"')&:]+)/i).map((f) =>
+      decodeURIComponent(f).replace(/\+/g, " ")
+    )
+  );
+  return { cssColors, fontFamilies, googleFonts };
 }
 
 function absolute(base: string, href: string): string {
@@ -187,21 +251,11 @@ function parsePage(html: string, baseUrl: string): Partial<RawWebContent> {
   const waMatch = html.match(/https?:\/\/wa\.me\/[0-9]+/i);
   const whatsapp = waMatch ? waMatch[0] : "";
 
-  // colores y fuentes
-  const cssColors = uniq([
-    ...matchAll(html, /#[0-9a-fA-F]{6}\b/),
-    ...matchAll(html, /#[0-9a-fA-F]{3}\b/),
-  ]);
-  const fontFamilies = uniq(
-    matchAll(html, /font-family\s*:\s*([^;}"']+)/i).map((f) =>
-      f.split(",")[0].replace(/['"]/g, "").trim()
-    )
-  ).filter((f) => f && !/^(inherit|initial|unset|var\()/i.test(f));
-  const googleFonts = uniq(
-    matchAll(html, /fonts\.googleapis\.com\/css2?\?[^"']*family=([^"'&:]+)/i).map((f) =>
-      decodeURIComponent(f).replace(/\+/g, " ")
-    )
-  );
+  // colores y fuentes (inline/<style> en el HTML; las hojas externas se
+  // fetchean y escanean aparte en fetchWebsite)
+  const { cssColors: htmlColors, fontFamilies, googleFonts } = extractColorsAndFonts(html);
+  const themeColor = metaContent(html, "theme-color", "name");
+  const cssColors = uniq([...htmlColors, ...(themeColor ? [themeColor] : [])]);
 
   // imágenes y logos
   const imgs = matchAll(html, /<img[^>]+src=["']([^"']+)["']/i).map((s) => absolute(baseUrl, s));
@@ -329,6 +383,21 @@ export async function fetchWebsite(url: string): Promise<RawWebContent> {
   });
   mergeRaw(base, home);
 
+  // Colores/fuentes reales viven casi siempre en hojas de estilo externas,
+  // no inline en el HTML — fetchear hasta 2 y escanearlas igual.
+  const stylesheetUrls = extractStylesheetLinks(homeHtml, full).slice(0, 2);
+  if (stylesheetUrls.length) {
+    const cssTexts = (await Promise.all(stylesheetUrls.map((u) => fetchCss(u)))).filter(
+      (t): t is string => !!t
+    );
+    if (cssTexts.length) {
+      const fromCss = extractColorsAndFonts(cssTexts.join("\n"));
+      base.cssColors = uniq([...base.cssColors, ...fromCss.cssColors]);
+      base.fontFamilies = uniq([...base.fontFamilies, ...fromCss.fontFamilies]);
+      base.googleFonts = uniq([...base.googleFonts, ...fromCss.googleFonts]);
+    }
+  }
+
   // Descubrir hasta 5 páginas internas relevantes.
   let origin = "";
   try {
@@ -398,15 +467,23 @@ export function buildBrandKitFromRaw(raw: RawWebContent): BrandKit {
   const darks = colors.filter((c) => luminance(c) <= 0.2).sort((a, b) => luminance(a) - luminance(b));
 
   const palette: BrandColor[] = [];
-  const add = (hex: string, role: BrandColor["role"], name: string, confidence: Confidence) => {
+  const add = (
+    hex: string,
+    role: BrandColor["role"],
+    name: string,
+    confidence: Confidence,
+    source: BrandColor["source"] = "detected"
+  ) => {
     if (!hex || palette.some((p) => p.hex === hex)) return;
-    palette.push({ hex, role, name, source: "detected", confidence });
+    palette.push({ hex, role, name, source, confidence });
   };
   if (saturated[0]) add(saturated[0], "primary", "Color principal", "medium");
   if (saturated[1]) add(saturated[1], "secondary", "Color secundario", "low");
   if (saturated[2]) add(saturated[2], "accent", "Color de acento", "low");
-  add(lights[0] || "#ffffff", "background", "Fondo", lights[0] ? "medium" : "low");
-  add(darks[0] || "#18181b", "text", "Texto", darks[0] ? "medium" : "low");
+  // Si no se detectó un color claro/oscuro real, el blanco/negro genérico
+  // se marca "inferred" (no "detected") para no mentirle al usuario.
+  add(lights[0] || "#ffffff", "background", "Fondo", lights[0] ? "medium" : "low", lights[0] ? "detected" : "inferred");
+  add(darks[0] || "#18181b", "text", "Texto", darks[0] ? "medium" : "low", darks[0] ? "detected" : "inferred");
 
   return {
     colors: {

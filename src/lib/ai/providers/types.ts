@@ -3,11 +3,20 @@ import type { ImageFormat } from "@/lib/types";
 export type TextProviderId = "openai" | "anthropic";
 export type ImageProviderId = "openai" | "gemini";
 
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
 export interface TextProvider {
   id: TextProviderId;
   model: string;
   isConfigured: () => boolean;
-  chatJson: (system: string, user: string) => Promise<unknown>;
+  chatJson: (
+    system: string,
+    user: string,
+    onUsage?: (usage: TokenUsage) => void
+  ) => Promise<unknown>;
 }
 
 export interface ImageGenerateInput {

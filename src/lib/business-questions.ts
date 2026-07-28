@@ -15,8 +15,8 @@ import {
   VALUE_SUGGESTIONS,
   ADVANTAGE_SUGGESTIONS,
   MARKETING_ACTIVITIES,
-  SEASONALITY_OPTIONS,
-  SPECIAL_DATES_OPTIONS,
+  seasonalityOptionsFor,
+  specialDatesOptionsFor,
 } from "./constants";
 import { emptyBrandKit } from "./store";
 
@@ -41,7 +41,7 @@ export interface BusinessQuestion {
   label: string;
   why: string;
   input: QInput;
-  options?: string[];
+  options?: string[] | ((b: Business) => string[]);
   allowCustom?: boolean;
   placeholder?: string;
   critical: boolean;
@@ -288,7 +288,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     label: "Temporadas fuertes",
     why: "Eva planifica contenido alrededor de tus picos de venta.",
     input: "chips",
-    options: SEASONALITY_OPTIONS,
+    options: (b) => seasonalityOptionsFor(b.industry),
     allowCustom: true,
     critical: false,
     get: (b) => b.seasonalityTags,
@@ -301,7 +301,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     label: "Fechas especiales",
     why: "Para sumar campañas en fechas clave de tu negocio.",
     input: "chips",
-    options: SPECIAL_DATES_OPTIONS,
+    options: (b) => specialDatesOptionsFor(b.industry),
     allowCustom: true,
     critical: false,
     get: (b) => b.specialDates,

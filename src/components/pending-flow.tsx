@@ -47,6 +47,11 @@ export function PendingFlow({
   const total = questions.length;
   const current = questions[Math.min(index, Math.max(0, total - 1))];
   const [value, setValue] = React.useState<any>(() => (current ? current.get(business) : ""));
+  const currentOptions = current
+    ? typeof current.options === "function"
+      ? current.options(business)
+      : current.options || []
+    : [];
 
   const isEmpty = (v: any) =>
     v == null || (typeof v === "string" && v.trim() === "") || (Array.isArray(v) && v.length === 0);
@@ -142,7 +147,7 @@ export function PendingFlow({
         ) : current.input === "select" ? (
           <Select value={value || ""} onChange={(e) => setValue(e.target.value)}>
             <option value="">Elegí una opción</option>
-            {(current.options || []).map((o) => (
+            {currentOptions.map((o) => (
               <option key={o} value={o}>{o}</option>
             ))}
           </Select>
@@ -150,7 +155,7 @@ export function PendingFlow({
           <ChannelSelector value={Array.isArray(value) ? value : []} onChange={setValue} />
         ) : (
           <ChipSelect
-            options={current.options || []}
+            options={currentOptions}
             value={Array.isArray(value) ? value : []}
             onChange={setValue}
             allowCustom={current.allowCustom}

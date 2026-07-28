@@ -3,6 +3,7 @@ import { imageAgent } from "@/lib/ai/agents";
 import { resolveContent, jsonError } from "@/lib/repository/resolve";
 import { hasSupabaseAdminConfig } from "@/lib/supabase/admin";
 import { uploadContentImage } from "@/lib/supabase/storage";
+import { logAiUsage } from "@/lib/ai-usage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,6 +52,12 @@ export async function POST(req: NextRequest) {
       imageUrl: result.data.status === "generada" ? result.data.imageUrl : undefined,
       imageStatus: result.data.status,
       imageError: result.data.error,
+    });
+    await logAiUsage({
+      userId: ctx.userId,
+      businessId,
+      agent: "image",
+      meta: result.meta,
     });
 
     return NextResponse.json(result);

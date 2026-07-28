@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { strategyAgent } from "@/lib/ai/agents";
 import { resolveBusiness, jsonError } from "@/lib/repository/resolve";
+import { logAiUsage } from "@/lib/ai-usage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,6 +19,12 @@ export async function POST(req: NextRequest) {
     if ("error" in resolved) return jsonError(resolved);
 
     const result = await strategyAgent.run({ business: resolved.business, feedback });
+    await logAiUsage({
+      userId: resolved.ctx.userId,
+      businessId: resolved.business.id,
+      agent: "strategy",
+      meta: result.meta,
+    });
     return NextResponse.json(result);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Error generando estrategia";

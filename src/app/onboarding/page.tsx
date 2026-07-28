@@ -17,8 +17,8 @@ import {
   ADVANTAGE_SUGGESTIONS,
   AGE_RANGES,
   MARKETING_ACTIVITIES,
-  SEASONALITY_OPTIONS,
-  SPECIAL_DATES_OPTIONS,
+  seasonalityOptionsFor,
+  specialDatesOptionsFor,
   GENDER_OPTIONS,
   foundingYearOptions,
 } from "@/lib/constants";
@@ -273,7 +273,7 @@ export default function OnboardingPage() {
     setWebLoading(true);
     set({ websiteUrl: clean, hasWebsite: true, websiteExtractionStatus: "loading" });
     try {
-      const res = await api.extractWebsite(clean);
+      const res = await api.extractWebsite(clean, b.id);
       const next = applyAnalysis(res.data);
       const s = res.data.summary;
       const base =
@@ -1190,6 +1190,27 @@ function StepBrand({
   const seasonalityHasOther = b.seasonalityTags.includes("Otra");
   const datesHasOther = b.specialDates.includes("Otra");
 
+  // Sugerencias por industria: se muestran las estáticas al instante y,
+  // si el catálogo en Supabase difiere (se puede editar sin redeploy),
+  // se actualizan en segundo plano. Si no hay Supabase o falla, se quedan
+  // las estáticas (mismo resultado).
+  const [dateOptions, setDateOptions] = useState(() => ({
+    seasonality: seasonalityOptionsFor(b.industry),
+    specialDates: specialDatesOptionsFor(b.industry),
+  }));
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/special-dates?industry=${encodeURIComponent(b.industry)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (!cancelled && json) setDateOptions(json);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [b.industry]);
+
   return (
     <Card className="space-y-5">
       <HelpField
@@ -1284,7 +1305,7 @@ function StepBrand({
             <OptionCards
               multi
               columns={3}
-              options={SEASONALITY_OPTIONS.map((s) => ({ value: s, label: s }))}
+              options={dateOptions.seasonality.map((s) => ({ value: s, label: s }))}
               value={b.seasonalityTags}
               onChange={(v) => set({ seasonalityTags: v })}
             />
@@ -1307,7 +1328,7 @@ function StepBrand({
             <OptionCards
               multi
               columns={2}
-              options={SPECIAL_DATES_OPTIONS.map((s) => ({ value: s, label: s }))}
+              options={dateOptions.specialDates.map((s) => ({ value: s, label: s }))}
               value={b.specialDates}
               onChange={(v) => set({ specialDates: v })}
             />

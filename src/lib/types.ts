@@ -413,6 +413,8 @@ export interface MetricsSnapshot {
 export interface AiMeta {
   provider: AiProvider;
   warning?: string;
+  model?: string;
+  usage?: { inputTokens: number; outputTokens: number; costUsd: number };
 }
 
 // ── Extracción de info desde la web del negocio ──────────────

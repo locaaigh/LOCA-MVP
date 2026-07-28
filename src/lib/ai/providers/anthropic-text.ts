@@ -20,7 +20,7 @@ export const anthropicTextProvider: TextProvider = {
   id: "anthropic",
   model: ANTHROPIC_MODEL,
   isConfigured: hasAnthropicText,
-  async chatJson(system, user) {
+  async chatJson(system, user, onUsage) {
     const res = await getClient().messages.create({
       model: ANTHROPIC_MODEL,
       max_tokens: 8192,
@@ -29,6 +29,7 @@ export const anthropicTextProvider: TextProvider = {
         "\n\nRespondé ÚNICAMENTE con un objeto JSON válido. Sin markdown, sin texto antes ni después.",
       messages: [{ role: "user", content: user }],
     });
+    onUsage?.({ inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens });
     const block = res.content.find((b) => b.type === "text");
     const txt = block?.type === "text" ? block.text : "{}";
     return parseJsonLoose(txt);

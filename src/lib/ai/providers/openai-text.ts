@@ -18,7 +18,7 @@ export const openaiTextProvider: TextProvider = {
   id: "openai",
   model: OPENAI_TEXT_MODEL,
   isConfigured: hasOpenAIText,
-  async chatJson(system, user) {
+  async chatJson(system, user, onUsage) {
     const res = await getClient().chat.completions.create({
       model: OPENAI_TEXT_MODEL,
       messages: [
@@ -27,6 +27,10 @@ export const openaiTextProvider: TextProvider = {
       ],
       temperature: 0.8,
       response_format: { type: "json_object" },
+    });
+    onUsage?.({
+      inputTokens: res.usage?.prompt_tokens ?? 0,
+      outputTokens: res.usage?.completion_tokens ?? 0,
     });
     const txt = res.choices[0]?.message?.content || "{}";
     return JSON.parse(txt);

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "@/components/auth-provider";
+import { AiUsageOverlay } from "@/components/ai-usage-overlay";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,6 +18,7 @@ export default function RootLayout({
     <html lang="es">
       <body>
         <AuthProvider>{children}</AuthProvider>
+        <AiUsageOverlay />
       </body>
     </html>
   );

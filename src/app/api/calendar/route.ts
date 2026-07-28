@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { calendarAgent } from "@/lib/ai/agents";
 import { resolveStrategy, jsonError } from "@/lib/repository/resolve";
+import { logAiUsage } from "@/lib/ai-usage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +24,12 @@ export async function POST(req: NextRequest) {
       strategy: resolved.strategy,
       count: count || 16,
       feedback,
+    });
+    await logAiUsage({
+      userId: resolved.ctx.userId,
+      businessId: resolved.business.id,
+      agent: "calendar",
+      meta: result.meta,
     });
     return NextResponse.json(result);
   } catch (e: unknown) {

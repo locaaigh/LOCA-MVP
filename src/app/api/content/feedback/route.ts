@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { contentFeedbackAgent } from "@/lib/ai/agents";
 import { resolveContent, jsonError } from "@/lib/repository/resolve";
+import { logAiUsage } from "@/lib/ai-usage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,6 +27,12 @@ export async function POST(req: NextRequest) {
     });
 
     await resolved.ctx.repo.upsertContent(resolved.ctx.userId, result.data);
+    await logAiUsage({
+      userId: resolved.ctx.userId,
+      businessId: resolved.business.id,
+      agent: "content-feedback",
+      meta: result.meta,
+    });
 
     return NextResponse.json(result);
   } catch (e: unknown) {

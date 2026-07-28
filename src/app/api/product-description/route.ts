@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { productDescriptionAgent } from "@/lib/ai/agents";
 import { productServiceSchema } from "@/lib/schemas";
 import { resolveBusiness, jsonError } from "@/lib/repository/resolve";
+import { logAiUsage } from "@/lib/ai-usage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,6 +27,12 @@ export async function POST(req: NextRequest) {
     const result = await productDescriptionAgent.run({
       business: resolved.business,
       draft: parsedDraft.data as import("@/lib/types").ProductService,
+    });
+    await logAiUsage({
+      userId: resolved.ctx.userId,
+      businessId: resolved.business.id,
+      agent: "product-description",
+      meta: result.meta,
     });
     return NextResponse.json(result);
   } catch (e: unknown) {

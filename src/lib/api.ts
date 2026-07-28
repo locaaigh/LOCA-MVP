@@ -17,6 +17,7 @@ import {
   syncRepositoryToServer,
   type SyncOptions,
 } from "./repository/client-sync";
+import { useAiUsageStore } from "./ai-usage-store";
 
 async function aiPost<T>(
   url: string,
@@ -44,7 +45,19 @@ async function post<T>(
     const e = await res.json().catch(() => ({}));
     throw new Error(e.error || `Error ${res.status}`);
   }
-  return res.json();
+  const json = await res.json();
+  const meta = json && typeof json === "object" ? (json as { meta?: AiMeta }).meta : undefined;
+  if (meta?.usage) {
+    useAiUsageStore.getState().push({
+      agent: url.replace(/^\/api\//, ""),
+      provider: meta.provider,
+      model: meta.model,
+      inputTokens: meta.usage.inputTokens,
+      outputTokens: meta.usage.outputTokens,
+      costUsd: meta.usage.costUsd,
+    });
+  }
+  return json;
 }
 
 type R<T> = { data: T; meta: AiMeta };
@@ -96,7 +109,8 @@ export const api = {
   googleAds: (businessId: string) =>
     aiPost<GoogleAdsStrategy>("/api/ads", { businessId, platform: "google" }),
 
-  extractWebsite: (url: string) => post<R<WebsiteAnalysis>>("/api/extract", { url }),
+  extractWebsite: (url: string, businessId?: string) =>
+    post<R<WebsiteAnalysis>>("/api/extract", { url, businessId }),
 
   deleteBusiness: (businessId: string) =>
     fetch(`/api/business?id=${encodeURIComponent(businessId)}`, {

@@ -1,6 +1,7 @@
 import type { ImageFormat } from "@/lib/types";
 import { brandedPlaceholder } from "@/lib/placeholder";
 import { getImageProvider } from "../providers";
+import { estimateImageCostUsd } from "../pricing";
 import type { Agent } from "../shared/result";
 
 export interface ImageAgentInput {
@@ -38,7 +39,11 @@ export const imageAgent: Agent<ImageAgentInput, ImageAgentOutput> = {
       const { imageUrl } = await imageProvider.generate({ prompt, format });
       return {
         data: { imageUrl, prompt, provider: imageProvider.id, status: "generada" },
-        meta: { provider: imageProvider.id },
+        meta: {
+          provider: imageProvider.id,
+          model: imageProvider.model,
+          usage: { inputTokens: 0, outputTokens: 0, costUsd: estimateImageCostUsd(imageProvider.model) },
+        },
       };
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);

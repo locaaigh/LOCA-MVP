@@ -204,33 +204,99 @@ export const MARKETING_ACTIVITIES: string[] = [
 ];
 
 // Temporadas fuertes (si el negocio tiene estacionalidad)
-export const SEASONALITY_OPTIONS: string[] = [
-  "Verano",
-  "Invierno",
-  "Primavera",
-  "Otoño",
-  "Vuelta a clases",
-  "Día de la Madre",
-  "Día del Padre",
-  "Navidad",
-  "Año Nuevo",
-  "Hot Sale / Cyber Monday",
-  "Vacaciones",
-  "Fechas turísticas",
+export const SEASONALITY_OPTIONS_DEFAULT: string[] = [
+  "☀️ Verano",
+  "❄️ Invierno",
+  "🌸 Primavera",
+  "🍂 Otoño",
+  "🎒 Vuelta a clases",
+  "👩 Día de la Madre",
+  "👨 Día del Padre",
+  "🎄 Navidad",
+  "🎆 Año Nuevo",
+  "🛍️ Hot Sale / Cyber Monday",
+  "🏖️ Vacaciones",
+  "✈️ Fechas turísticas",
   "Otra",
 ];
 
 // Fechas especiales importantes
-export const SPECIAL_DATES_OPTIONS: string[] = [
-  "Aniversario de la marca",
-  "Lanzamientos",
-  "Fechas comerciales",
-  "Eventos propios",
-  "Temporadas de descuentos",
-  "Ferias / exposiciones",
-  "Fechas patrias",
+export const SPECIAL_DATES_OPTIONS_DEFAULT: string[] = [
+  "🎂 Aniversario de la marca",
+  "🚀 Lanzamientos",
+  "🏷️ Fechas comerciales",
+  "🎪 Eventos propios",
+  "💸 Temporadas de descuentos",
+  "🏢 Ferias / exposiciones",
+  "🇦🇷 Fechas patrias",
   "Otra",
 ];
+
+// Temporadas fuertes curadas por industria (se anteponen a las genéricas)
+export const INDUSTRY_SEASONALITY: Record<string, string[]> = {
+  "Food & Beverage": ["☀️ Verano", "❄️ Invierno", "🎄 Navidad y Fin de Año", "🎒 Vuelta a clases"],
+  "Beauty & Personal Care": ["👩 Día de la Madre", "🎄 Navidad y Fin de Año", "💒 Temporada de casamientos"],
+  "Health & Wellness": ["🎯 Enero (propósitos de año nuevo)", "☀️ Verano", "❄️ Invierno"],
+  "Sports & Fitness": ["🎯 Enero (propósitos de año nuevo)", "☀️ Operación verano", "❄️ Invierno"],
+  "Retail & Local Stores": ["🎄 Navidad y Fin de Año", "🎒 Vuelta a clases", "🛍️ Hot Sale / Cyber Monday"],
+  "E-commerce / Online Stores": ["🛍️ Hot Sale / Cyber Monday", "🎄 Navidad y Fin de Año", "🎒 Vuelta a clases"],
+  "Fashion & Accessories": ["🌸 Primavera / Verano", "❄️ Otoño / Invierno", "🎄 Navidad y Fin de Año"],
+  "Education & Training": ["🎒 Vuelta a clases", "🎓 Fin de cursada", "🏖️ Vacaciones de verano"],
+  "Real Estate": ["🎒 Vuelta a clases (mudanzas)", "☀️ Verano", "🎄 Fin de año"],
+  "Professional Services": ["🎯 Enero (planificación anual)", "🎄 Cierre de año fiscal"],
+  "Marketing & Advertising Services": ["🎯 Enero (planificación anual)", "🎄 Cierre de año fiscal"],
+  "Construction & Home Renovation": ["☀️ Verano (obras)", "🎒 Antes de vuelta a clases (remodelaciones)"],
+  "Tech & Software Startups": ["🎯 Enero (planificación anual)", "🎄 Cierre de año fiscal"],
+  "Creative Services": ["🎨 Verano (campañas)", "🎄 Cierre de año fiscal"],
+  "Travel, Tourism & Hospitality": ["☀️ Verano", "🏖️ Vacaciones de invierno", "✈️ Fechas turísticas"],
+  "Events & Entertainment": ["🎉 Fiestas de fin de año", "💍 Temporada de casamientos", "🎓 Egresados"],
+  "Automotive Services": ["☀️ Verano (viajes)", "❄️ Invierno (mantenimiento)"],
+  "Financial Services": ["🎯 Enero (planificación financiera)", "📊 Cierre de ejercicio fiscal"],
+  "Home Services": ["🎒 Vuelta a clases (mudanzas)", "☀️ Verano", "🎄 Fin de año (limpieza)"],
+  "Manufacturing & Artisanal Production": ["🎄 Navidad y Fin de Año", "🎒 Vuelta a clases"],
+  "Nonprofits & Social Causes": ["🎗️ Fin de año (campañas de donación)", "🎄 Navidad solidaria"],
+  "Pet Services & Products": ["☀️ Verano", "🎄 Navidad y Fin de Año"],
+  "Arts & Crafts": ["🎄 Navidad y Fin de Año", "🎒 Vuelta a clases"],
+  "Business Consulting & Coaching": ["🎯 Enero (planificación anual)", "🎄 Cierre de año fiscal"],
+  "Agriculture & Natural Products": ["🌾 Cosecha", "☀️ Verano"],
+};
+
+// Fechas especiales curadas por industria (se anteponen a las genéricas)
+export const INDUSTRY_SPECIAL_DATES: Record<string, string[]> = {
+  "Food & Beverage": ["☕ Día del Café", "🍕 Día de la Pizza", "🍞 Día del Panadero"],
+  "Beauty & Personal Care": ["💅 Día de la Mujer", "💇 Día del Peluquero/a"],
+  "Health & Wellness": ["🥗 Día Mundial de la Nutrición", "🏃 Día Mundial de la Actividad Física"],
+  "Sports & Fitness": ["🏃 Día Mundial de la Actividad Física", "⚽ Día del Deporte"],
+  "Retail & Local Stores": ["🛍️ Black Friday", "💻 Cyber Monday"],
+  "E-commerce / Online Stores": ["🛍️ Black Friday", "💻 Cyber Monday"],
+  "Fashion & Accessories": ["👗 Semana de la Moda", "🛍️ Black Friday"],
+  "Education & Training": ["📚 Día del Estudiante", "🍎 Día del Maestro"],
+  "Real Estate": ["🏠 Día del Arquitecto", "🔑 Día de la Vivienda"],
+  "Professional Services": ["💼 Día del Emprendedor", "🤝 Día de la Pyme"],
+  "Marketing & Advertising Services": ["📱 Día del Community Manager", "💡 Día de la Publicidad"],
+  "Construction & Home Renovation": ["🏗️ Día del Arquitecto", "🔨 Día de la Construcción"],
+  "Tech & Software Startups": ["💻 Día del Programador", "🚀 Día del Emprendedor"],
+  "Creative Services": ["🎨 Día del Diseñador Gráfico", "📷 Día de la Fotografía"],
+  "Travel, Tourism & Hospitality": ["🌍 Día Mundial del Turismo", "✈️ Día del Turista"],
+  "Events & Entertainment": ["🎭 Día del Actor", "🎶 Día de la Música"],
+  "Automotive Services": ["🚗 Día del Automovilista", "🔧 Día del Mecánico"],
+  "Financial Services": ["💰 Día del Contador", "📈 Día del Inversor"],
+  "Home Services": ["🧹 Día del Trabajador de la Limpieza", "🔧 Día del Plomero"],
+  "Manufacturing & Artisanal Production": ["🛠️ Día del Trabajador Industrial", "✋ Día del Artesano"],
+  "Nonprofits & Social Causes": ["🤲 Día de la Solidaridad", "🌍 Día del Voluntariado"],
+  "Pet Services & Products": ["🐾 Día del Animal", "🐶 Día del Veterinario"],
+  "Arts & Crafts": ["✋ Día del Artesano", "🎨 Día del Arte"],
+  "Business Consulting & Coaching": ["💼 Día del Emprendedor", "🤝 Día de la Pyme"],
+  "Agriculture & Natural Products": ["🌾 Día del Productor Agropecuario", "🌱 Día de la Tierra"],
+};
+
+export function seasonalityOptionsFor(industry: string): string[] {
+  return [...(INDUSTRY_SEASONALITY[industry] || []), ...SEASONALITY_OPTIONS_DEFAULT];
+}
+
+export function specialDatesOptionsFor(industry: string): string[] {
+  return [...(INDUSTRY_SPECIAL_DATES[industry] || []), ...SPECIAL_DATES_OPTIONS_DEFAULT];
+}
 
 export const GENDER_OPTIONS: { value: string; label: string }[] = [
   { value: "todos", label: "Todos" },
