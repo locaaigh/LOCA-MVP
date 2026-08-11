@@ -9,3 +9,7 @@ out
 next-env.d.ts
 tsconfig.tsbuildinfo
 .env*
+
+# Config local de Claude Code — settings*.json puede contener secretos
+# quemados en el historial de comandos permitidos (allowlist). No versionar.
+.claude/
