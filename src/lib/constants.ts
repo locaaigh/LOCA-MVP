@@ -1,4 +1,4 @@
-import type { Channel, ContentFormat } from "./types";
+import type { BusinessStage, Channel, ContentFormat } from "./types";
 
 // ── Industrias ───────────────────────────────────────────────
 export const INDUSTRIES: string[] = [
@@ -121,6 +121,48 @@ export const BUSINESS_TYPES: string[] = [
   "Servicios a domicilio",
   "Marca personal",
 ];
+
+// ── Etapa/tipo de organización (item 3) ──────────────────────
+// Alimenta qué info y contenido pedir por tipo de negocio.
+export const BUSINESS_STAGES: { value: BusinessStage; label: string; help: string }[] = [
+  { value: "emprendimiento", label: "Emprendimiento", help: "Proyecto en marcha, chico, en crecimiento." },
+  { value: "pyme", label: "Pyme", help: "Empresa pequeña o mediana ya establecida." },
+  { value: "startup", label: "Startup", help: "Empresa tecnológica con foco en escalar rápido." },
+  {
+    value: "profesional_independiente",
+    label: "Profesional independiente",
+    help: "Una persona que ofrece sus servicios (marca personal).",
+  },
+];
+
+// ── Estilos visuales (item 16) ───────────────────────────────
+// Multi-select. Guía cómo se piensan y arman los contenidos.
+export type VisualStyleId =
+  | "fotorrealista"
+  | "render_3d"
+  | "vectorial"
+  | "minimalista_tipografico"
+  | "ilustracion_artistica"
+  | "cartoon_anime"
+  | "cinematografico";
+
+export const VISUAL_STYLES: { id: VisualStyleId; label: string; description: string }[] = [
+  { id: "fotorrealista", label: "Fotorrealista / Fotografía", description: "Fotografía real, incluye foto de producto." },
+  { id: "render_3d", label: "Render 3D", description: "Objetos y escenas en 3D." },
+  { id: "vectorial", label: "Ilustración vectorial / Flat", description: "Formas planas, limpias, modernas." },
+  { id: "minimalista_tipografico", label: "Diseño gráfico minimalista", description: "Posters y layouts limpios, tipográficos." },
+  { id: "ilustracion_artistica", label: "Ilustración artística", description: "Acuarela, óleo, lápiz, editorial." },
+  { id: "cartoon_anime", label: "Cartoon / Anime", description: "Estilo animado, expresivo." },
+  { id: "cinematografico", label: "Cinematográfico / Editorial", description: "Luz y mood cuidados, tratamiento premium." },
+];
+
+// ── Flag de formatos habilitados end-to-end (A2) ─────────────
+// Solo los formatos completos (generación + publicación) se proponen en
+// estrategia y se generan. Encender carrusel/reel al construirlos (items 13/14).
+export const DISABLED_CONTENT_FORMATS: ContentFormat[] = ["carrusel", "reel"];
+export function isFormatEnabled(f: ContentFormat): boolean {
+  return !DISABLED_CONTENT_FORMATS.includes(f);
+}
 
 export const VALUE_SUGGESTIONS: string[] = [
   "Precio accesible",

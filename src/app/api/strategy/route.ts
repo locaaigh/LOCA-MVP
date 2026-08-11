@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { strategyAgent } from "@/lib/ai/agents";
 import { resolveBusiness, jsonError } from "@/lib/repository/resolve";
 import { logAiUsage } from "@/lib/ai-usage";
+import { logEvent } from "@/lib/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +26,16 @@ export async function POST(req: NextRequest) {
       agent: "strategy",
       meta: result.meta,
     });
+    if (feedback) {
+      // Señal de calidad: la estrategia inicial no alcanzó tal cual.
+      await logEvent({
+        userId: resolved.ctx.userId,
+        businessId: resolved.business.id,
+        name: "strategy_feedback_applied",
+        props: { feedbackLength: feedback.length },
+        isAuthenticated: resolved.ctx.isAuthenticated,
+      });
+    }
     return NextResponse.json(result);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Error generando estrategia";

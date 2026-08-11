@@ -23,6 +23,7 @@ import { PlatformLogo } from "@/components/platform-logo";
 import { PendingFlow } from "@/components/pending-flow";
 import { missingCriticalLabels, pendingQuestions } from "@/lib/business-questions";
 import { suggestPending } from "@/lib/eva-suggest";
+import { track } from "@/lib/analytics";
 import type { Business } from "@/lib/types";
 import {
   Sparkles,
@@ -35,6 +36,8 @@ import {
   ListChecks,
   Lock,
   Pencil,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 
 export default function StrategyPage() {
@@ -56,6 +59,9 @@ export default function StrategyPage() {
   const [pendingBusiness, setPendingBusiness] = useState<Business | null>(null);
   const autoTriggered = useRef(false);
   const staleRetried = useRef(false);
+  // ¿Pidió cambios en esta sesión de revisión? (el dato exacto cross-sesión
+  // se calcula en SQL con strategy_feedback_applied vs strategy_approved).
+  const feedbackUsed = useRef(false);
 
   const needsSignup =
     requiresAuthForStrategy() && !canGenerateStrategy(user);
@@ -153,13 +159,13 @@ export default function StrategyPage() {
       <div className="space-y-5">
         {node}
         <ProgressTracker steps={buildFlowSteps(flow, true)} />
-        <div className="flex items-start gap-3 rounded-2xl border border-amber-200/70 bg-amber-50/50 p-4">
-          <Lock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-200/70 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/40 p-4">
+          <Lock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-300" />
           <div>
             <p className="text-lg font-bold text-amber-900">
               Falta información crítica para generar una estrategia útil. Completemos esto primero.
             </p>
-            <p className="text-sm text-amber-700">
+            <p className="text-sm text-amber-700 dark:text-amber-300">
               Necesitamos {criticalMissing.length} {criticalMissing.length === 1 ? "dato" : "datos"} para que Eva no genere algo genérico.
             </p>
           </div>
@@ -185,12 +191,25 @@ export default function StrategyPage() {
   function approve() {
     if (!business) return;
     setFlow(business.id, { strategy: "approved" });
+    // firstPass: aprobada sin ningún feedback previo (señal de calidad).
+    track(
+      "strategy_approved",
+      { firstPass: !feedbackUsed.current },
+      { businessId: business.id }
+    );
     show("Estrategia aprobada 🎉 Eva está generando tus contenidos.");
+    track("content_batch_started", { count: 16 }, { businessId: business.id });
     void gen.generateMonthContents(business, 16);
     router.push("/content?generate=1");
   }
 
   function applySectionFeedback(section: StrategySectionKey, values: string[], custom: string) {
+    feedbackUsed.current = true;
+    track("strategy_section_feedback", {
+      section,
+      tags: values,
+      hasCustomText: !!custom.trim(),
+    });
     const instruction = applyStrategySectionFeedback(section, values, custom);
     tryGenerate(instruction);
   }
@@ -219,7 +238,7 @@ export default function StrategyPage() {
         <div className="space-y-4">
           <EvaLoading text="Eva está preparando tu estrategia…" />
           {strategyGenerating && (
-            <p className="text-center text-sm text-zinc-500">
+            <p className="text-center text-sm text-muted-foreground">
               Tarda ~1 minuto. Podés navegar por el dashboard mientras tanto.
             </p>
           )}
@@ -297,7 +316,7 @@ export default function StrategyPage() {
             />
             <Card>
               <div className="mb-3 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-zinc-500">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <Megaphone className="h-4 w-4" />
                   <span className="text-xs font-semibold uppercase tracking-wide">Canales</span>
                 </div>
@@ -307,14 +326,14 @@ export default function StrategyPage() {
                 {strategy.recommendedChannels.map((c) => (
                   <span
                     key={c}
-                    className="inline-flex items-center gap-2 rounded-full bg-loca-50 py-1 pl-1 pr-3 text-xs font-semibold text-loca-700 ring-1 ring-inset ring-loca-100"
+                    className="inline-flex items-center gap-2 rounded-full bg-accent-subtle-bg py-1 pl-1 pr-3 text-xs font-semibold text-accent-subtle-fg ring-1 ring-inset ring-accent-subtle-ring"
                   >
                     <PlatformLogo channel={c} size={22} />
                     {c}
                   </span>
                 ))}
               </div>
-              <div className="mt-4 flex items-center gap-2 text-zinc-500">
+              <div className="mt-4 flex items-center gap-2 text-muted-foreground">
                 <Zap className="h-4 w-4" />
                 <span className="text-xs font-semibold uppercase tracking-wide">CTA principal</span>
               </div>
@@ -324,14 +343,14 @@ export default function StrategyPage() {
 
           <Card>
             <div className="mb-4 flex items-center justify-between gap-2">
-              <h3 className="text-lg font-bold tracking-tight text-zinc-900">Pilares de contenido</h3>
+              <h3 className="text-lg font-bold tracking-tight text-foreground">Pilares de contenido</h3>
               <CardEditButton label="Pilares de contenido" onClick={() => setEditSection("contentPillars")} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {strategy.contentPillars.map((p) => (
-                <div key={p.name} className="rounded-2xl bg-loca-50 p-4 ring-1 ring-inset ring-loca-100/60 transition hover:-translate-y-0.5 hover:shadow-card">
-                  <p className="font-semibold text-loca-700">{p.name}</p>
-                  <p className="mt-1.5 text-sm leading-relaxed text-zinc-600">{p.description}</p>
+                <div key={p.name} className="rounded-2xl bg-accent-subtle-bg p-4 ring-1 ring-inset ring-accent-subtle-ring/60 transition hover:-translate-y-0.5 hover:shadow-card">
+                  <p className="font-semibold text-accent-subtle-fg">{p.name}</p>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground-2">{p.description}</p>
                 </div>
               ))}
             </div>
@@ -340,15 +359,15 @@ export default function StrategyPage() {
           <Card>
             <div className="mb-4 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <ListChecks className="h-5 w-5 text-loca-600" />
-                <h3 className="text-lg font-bold tracking-tight text-zinc-900">Próximas acciones</h3>
+                <ListChecks className="h-5 w-5 text-accent" />
+                <h3 className="text-lg font-bold tracking-tight text-foreground">Próximas acciones</h3>
               </div>
               <CardEditButton label="Próximas acciones" onClick={() => setEditSection("nextActions")} />
             </div>
             <ol className="space-y-3">
               {strategy.nextActions.slice(0, 3).map((a, i) => (
-                <li key={i} className="flex items-start gap-3 text-[15px] leading-relaxed text-zinc-700">
-                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-loca-100 text-xs font-bold text-loca-700">
+                <li key={i} className="flex items-start gap-3 text-[15px] leading-relaxed text-foreground-muted">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-loca-100 dark:bg-accent-subtle-bg text-xs font-bold text-accent-subtle-fg">
                     {i + 1}
                   </span>
                   {a}
@@ -356,6 +375,14 @@ export default function StrategyPage() {
               ))}
             </ol>
           </Card>
+
+          {/* Do's y Don'ts — dos cards separadas (item 6) */}
+          {(strategy.dos.length > 0 || strategy.donts.length > 0) && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <DosDontsCard kind="do" items={strategy.dos} />
+              <DosDontsCard kind="dont" items={strategy.donts} />
+            </div>
+          )}
         </>
       )}
 
@@ -400,7 +427,7 @@ export default function StrategyPage() {
             <FullBlock title="Ángulo de marketing">{strategy.mainAngle}</FullBlock>
             <div>
               <h4 className="mb-1 text-sm font-semibold">Pilares</h4>
-              <ul className="space-y-1 text-sm text-zinc-600">
+              <ul className="space-y-1 text-sm text-muted-foreground-2">
                 {strategy.contentPillars.map((p) => (
                   <li key={p.name}>
                     <strong>{p.name}:</strong> {p.description}
@@ -415,7 +442,7 @@ export default function StrategyPage() {
                 {strategy.recommendedChannels.map((c) => (
                   <span
                     key={c}
-                    className="inline-flex items-center gap-2 rounded-full bg-loca-50 py-1 pl-1 pr-3 text-xs font-semibold text-loca-700 ring-1 ring-inset ring-loca-100"
+                    className="inline-flex items-center gap-2 rounded-full bg-accent-subtle-bg py-1 pl-1 pr-3 text-xs font-semibold text-accent-subtle-fg ring-1 ring-inset ring-accent-subtle-ring"
                   >
                     <PlatformLogo channel={c} size={22} />
                     {c}
@@ -434,9 +461,9 @@ export default function StrategyPage() {
                   <div key={m.type}>
                     <div className="flex justify-between text-sm">
                       <span>{m.type}</span>
-                      <span className="text-zinc-400">{m.percentage}%</span>
+                      <span className="text-faint">{m.percentage}%</span>
                     </div>
-                    <div className="mt-1 h-2 rounded-full bg-zinc-100">
+                    <div className="mt-1 h-2 rounded-full bg-surface-muted">
                       <div className="h-2 rounded-full bg-loca-500" style={{ width: `${m.percentage}%` }} />
                     </div>
                   </div>
@@ -466,7 +493,7 @@ function CardEditButton({ label, onClick }: { label: string; onClick: () => void
       type="button"
       onClick={onClick}
       aria-label={`Modificar ${label}`}
-      className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-loca-50 hover:text-loca-600"
+      className="rounded-lg p-1.5 text-faint transition hover:bg-accent-subtle-bg hover:text-accent"
     >
       <Pencil className="h-4 w-4" />
     </button>
@@ -487,21 +514,21 @@ function HeroCard({
   onEdit?: () => void;
 }) {
   return (
-    <Card className={tone === "loca" ? "bg-loca-50 shadow-glow" : "bg-lima-50"}>
+    <Card className={tone === "loca" ? "bg-accent-subtle-bg shadow-glow" : "bg-lima-50 dark:bg-lima-950/40"}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <span
             className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
-              tone === "loca" ? "bg-white/70 text-loca-600" : "bg-white/70 text-lima-600"
+              tone === "loca" ? "bg-card/70 text-accent" : "bg-card/70 text-lima-600 dark:text-lima-300"
             }`}
           >
             <Icon className="h-5 w-5" />
           </span>
-          <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{label}</span>
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
         </div>
         {onEdit && <CardEditButton label={label} onClick={onEdit} />}
       </div>
-      <p className="mt-4 text-lg font-medium leading-snug text-zinc-800">{text}</p>
+      <p className="mt-4 text-lg font-medium leading-snug text-foreground-soft">{text}</p>
     </Card>
   );
 }
@@ -520,13 +547,13 @@ function MiniCard({
   return (
     <Card>
       <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-zinc-500">
+        <div className="flex items-center gap-2 text-muted-foreground">
           <Icon className="h-4 w-4" />
           <span className="text-xs font-semibold uppercase tracking-wide">{label}</span>
         </div>
         {onEdit && <CardEditButton label={label} onClick={onEdit} />}
       </div>
-      <p className="text-sm leading-relaxed text-zinc-600">{text}</p>
+      <p className="text-sm leading-relaxed text-muted-foreground-2">{text}</p>
     </Card>
   );
 }
@@ -535,8 +562,50 @@ function FullBlock({ title, children }: { title: string; children: React.ReactNo
   return (
     <div>
       <h4 className="mb-1 text-sm font-semibold">{title}</h4>
-      <p className="text-sm leading-relaxed text-zinc-600">{children}</p>
+      <p className="text-sm leading-relaxed text-muted-foreground-2">{children}</p>
     </div>
+  );
+}
+
+// Card separada de Do's o Don'ts (item 6). Cada ítem puede traer un ejemplo
+// después de un guion ("Hacé X — ej: ..."), que se resalta.
+function DosDontsCard({ kind, items }: { kind: "do" | "dont"; items: string[] }) {
+  const isDo = kind === "do";
+  const Icon = isDo ? ThumbsUp : ThumbsDown;
+  return (
+    <Card className={isDo ? "ring-1 ring-inset ring-emerald-100 dark:ring-emerald-900" : "ring-1 ring-inset ring-rose-100 dark:ring-rose-900"}>
+      <div className="mb-4 flex items-center gap-2">
+        <span
+          className={`flex h-8 w-8 items-center justify-center rounded-full ${
+            isDo ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300" : "bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-300"
+          }`}
+        >
+          <Icon className="h-4 w-4" />
+        </span>
+        <h3 className="text-lg font-bold tracking-tight text-foreground">
+          {isDo ? "Hacé esto" : "Evitá esto"}
+        </h3>
+      </div>
+      <ul className="space-y-2.5">
+        {items.map((it, i) => {
+          const [main, ...rest] = it.split(/\s[—-]\s/);
+          const example = rest.join(" - ").replace(/^ej:\s*/i, "").trim();
+          return (
+            <li key={i} className="flex items-start gap-2.5 text-[15px] leading-relaxed text-foreground-muted">
+              <span
+                className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${isDo ? "bg-emerald-500" : "bg-rose-500"}`}
+              />
+              <span>
+                {main}
+                {example && (
+                  <span className="mt-0.5 block text-sm italic text-faint">ej: {example}</span>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
   );
 }
 
@@ -545,7 +614,7 @@ function FullList({ title, items, ordered }: { title: string; items: string[]; o
   return (
     <div>
       <h4 className="mb-1 text-sm font-semibold">{title}</h4>
-      <List className={`${ordered ? "list-decimal" : "list-disc"} list-inside space-y-0.5 text-sm text-zinc-600`}>
+      <List className={`${ordered ? "list-decimal" : "list-disc"} list-inside space-y-0.5 text-sm text-muted-foreground-2`}>
         {items.map((it, i) => (
           <li key={i}>{it}</li>
         ))}

@@ -4,6 +4,7 @@ import { resolveContent, jsonError } from "@/lib/repository/resolve";
 import { getConnection } from "@/lib/meta/repository";
 import { decryptToken } from "@/lib/meta/crypto";
 import { publishToInstagram, publishToFacebook } from "@/lib/meta/publish";
+import { logEvent } from "@/lib/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,6 +19,9 @@ type PublishBody = {
 
 /** Publica una pieza de contenido en Instagram o Facebook con la conexión Meta del negocio. */
 export async function POST(req: NextRequest) {
+  // Hoisted para poder registrar el error en la pieza dentro del catch.
+  let businessId = "";
+  let contentId = "";
   try {
     // Publicar requiere cuenta real (los tokens se guardan por usuario de Supabase)
     const userId = await getSessionUserId();
@@ -25,7 +29,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Necesitás una cuenta para publicar" }, { status: 401 });
     }
 
-    const { businessId, contentId, platform } = (await req.json()) as PublishBody;
+    const body = (await req.json()) as PublishBody;
+    businessId = body.businessId;
+    contentId = body.contentId;
+    const platform = body.platform;
     if (!businessId || !contentId) {
       return NextResponse.json({ error: "Faltan businessId o contentId" }, { status: 400 });
     }
@@ -53,10 +60,8 @@ export async function POST(req: NextRequest) {
     const target =
       platform ?? (content.channel === "Facebook" ? "facebook" : "instagram");
 
-    // Caption final: caption + hashtags
-    const caption = [content.caption, content.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)).join(" ")]
-      .filter(Boolean)
-      .join("\n\n");
+    // Caption final: solo el caption (sin hashtags — item 19)
+    const caption = content.caption;
 
     let result;
     if (target === "instagram") {
@@ -83,17 +88,60 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Marcar la pieza como publicada (status "published" ya la clasifica la UI)
+    // Persistir el resultado REAL de la publicación (permalink incluido) — item 11 / A7.
+    const nowIso = new Date().toISOString();
+    const channel: "Instagram" | "Facebook" = result.platform === "facebook" ? "Facebook" : "Instagram";
     await ctx.repo.upsertContent(ctx.userId, {
       ...content,
       status: "published",
-      updatedAt: new Date().toISOString(),
+      publishedAt: nowIso,
+      publishAttemptedAt: nowIso,
+      publishedPlatform: channel,
+      publishedMediaId: result.mediaId,
+      publishedUrl: result.permalink,
+      publishError: undefined, // limpiar cualquier error previo
+      updatedAt: nowIso,
     });
 
-    return NextResponse.json({ ok: true, mediaId: result.mediaId, platform: result.platform });
+    // North star: pieza publicada de verdad en la red del cliente.
+    await logEvent({
+      userId: ctx.userId,
+      businessId,
+      name: "content_published",
+      props: { contentId, platform: result.platform, mediaId: result.mediaId },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      mediaId: result.mediaId,
+      platform: result.platform,
+      permalink: result.permalink,
+    });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Error publicando en Meta";
     console.error("[meta/publish]", msg);
+    await logEvent({
+      userId: await getSessionUserId(),
+      businessId: businessId || null,
+      name: "content_publish_failed",
+      props: { contentId: contentId || null, error: msg },
+    });
+    // Registrar el error en la pieza para mostrar alerta + reintentar (item 11).
+    try {
+      if (businessId && contentId) {
+        const resolved = await resolveContent(req, businessId, contentId);
+        if (!("error" in resolved)) {
+          await resolved.ctx.repo.upsertContent(resolved.ctx.userId, {
+            ...resolved.content,
+            publishError: msg,
+            publishAttemptedAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      }
+    } catch {
+      /* no bloquear la respuesta de error por un fallo al registrar */
+    }
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

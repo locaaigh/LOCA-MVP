@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useStore, emptyBusiness } from "@/lib/store";
 import { canGenerateStrategy, requiresAuthForStrategy } from "@/lib/auth/user";
@@ -13,6 +13,7 @@ import {
   INDUSTRIES,
   SUBCATEGORIES,
   BUSINESS_TYPES,
+  BUSINESS_STAGES,
   VALUE_SUGGESTIONS,
   ADVANTAGE_SUGGESTIONS,
   AGE_RANGES,
@@ -39,6 +40,8 @@ import {
   ProductServiceImporter,
 } from "@/components/product-service";
 import { BrandKitEditor } from "@/components/brand-kit";
+import { VisualStylePicker } from "@/components/visual-style-picker";
+import { PhotoUploader } from "@/components/photo-uploader";
 import { OnboardingSummary, missingCritical, type SummarySectionKey } from "@/components/onboarding-summary";
 import { PendingFlow } from "@/components/pending-flow";
 import { pendingQuestions } from "@/lib/business-questions";
@@ -51,6 +54,7 @@ import { api } from "@/lib/api";
 import { uid, copyToClipboard, nowIso, downloadFile } from "@/lib/utils";
 import { externalAiPrompt, emptyMdTemplate, parseExternalMarkdown, isAnalysisComplete } from "@/lib/md-import";
 import { suggestPending } from "@/lib/eva-suggest";
+import { track } from "@/lib/analytics";
 import {
   Check,
   Globe,
@@ -85,6 +89,15 @@ const WIZARD_TOTAL = STEPS.length - 1; // 7 pasos reales del formulario (1..7)
 type Phase = "select" | "web" | "ai" | "pending" | "wizard";
 
 export default function OnboardingPage() {
+  // useSearchParams (modo edición) requiere un boundary de Suspense en Next 14.
+  return (
+    <Suspense fallback={null}>
+      <OnboardingPageInner />
+    </Suspense>
+  );
+}
+
+function OnboardingPageInner() {
   const router = useRouter();
   const user = useStore((s) => s.user);
   const hydrated = useStore((s) => s.hydrated);
@@ -101,8 +114,38 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1); // el wizard manual arranca en el paso 1 (Negocio)
   const [b, setB] = useState<Business>(() => emptyBusiness(user?.id || "anon"));
   const [missing, setMissing] = useState<Set<string>>(new Set());
+
+  // Modo edición del formulario completo (item 25): carga el negocio activo en
+  // el wizard y, al confirmar, guarda sin regenerar la estrategia.
+  const editMode = useSearchParams().get("edit") === "1";
+  const activeBusiness = useStore((s) => s.businesses.find((x) => x.id === s.activeBusinessId) || null);
+  const editLoaded = useRef(false);
+  useEffect(() => {
+    if (editLoaded.current || !editMode || !activeBusiness) return;
+    editLoaded.current = true;
+    setB(activeBusiness);
+    setStep(1);
+    setPhase("wizard");
+  }, [editMode, activeBusiness]);
   const [webLoading, setWebLoading] = useState(false);
   const [criticalOpen, setCriticalOpen] = useState(false);
+
+  // ── Analytics del funnel de onboarding (ver docs/ANALYTICS-PLAN.md) ──
+  const onboardingStartedAt = useRef(Date.now());
+  const stepStartedAt = useRef(Date.now());
+  const startTracked = useRef(false);
+  const completeTracked = useRef(false);
+  useEffect(() => {
+    if (startTracked.current || editMode) return;
+    startTracked.current = true;
+    track("onboarding_started", {}, { businessId: b.id });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editMode]);
+  useEffect(() => {
+    if (phase !== "wizard" || editMode) return;
+    stepStartedAt.current = Date.now();
+    track("onboarding_step_viewed", { step, label: STEPS[step] });
+  }, [phase, step, editMode]);
   // Edición de una sección desde el resumen final
   const [editSection, setEditSection] = useState<SummarySectionKey | null>(null);
   const [draftBackup, setDraftBackup] = useState<Business | null>(null);
@@ -110,6 +153,7 @@ export default function OnboardingPage() {
   function openSection(key: SummarySectionKey) {
     setDraftBackup(b);
     setEditSection(key);
+    track("onboarding_section_edited", { section: key });
   }
   function saveSection() {
     setDraftBackup(null);
@@ -122,6 +166,7 @@ export default function OnboardingPage() {
   }
 
   function completeWithEva() {
+    track("onboarding_eva_suggested", { scope: "pending" });
     const { patch, statuses, stillMissing } = suggestPending(b);
     setB((prev) => ({ ...prev, ...patch, fieldStatuses: { ...prev.fieldStatuses, ...statuses } }));
     if (stillMissing.length) {
@@ -254,6 +299,7 @@ export default function OnboardingPage() {
 
   // Elección de método en la pantalla inicial.
   function pickMethod(m: StartMode) {
+    track("onboarding_method_selected", { method: m });
     set({ businessInfoImportSource: m === "ai" ? "external_ai_md" : m === "web" ? "website" : "manual" });
     if (m === "manual") {
       setStep(1);
@@ -276,6 +322,11 @@ export default function OnboardingPage() {
       const res = await api.extractWebsite(clean, b.id);
       const next = applyAnalysis(res.data);
       const s = res.data.summary;
+      track("onboarding_web_analyzed", {
+        success: true,
+        fieldsFound: s.completedFieldsCount,
+        fieldsToReview: s.reviewFieldsCount,
+      });
       const base =
         s.completedFieldsCount > 0
           ? `Eva detectó ${s.completedFieldsCount} campos${s.reviewFieldsCount ? ` y sugirió ${s.reviewFieldsCount} más` : ""}.`
@@ -284,6 +335,7 @@ export default function OnboardingPage() {
       routeAfterImport(next);
     } catch {
       set({ websiteExtractionStatus: "error" });
+      track("onboarding_web_analyzed", { success: false });
       show("Eva no pudo leer la web. Probá con otra URL o completá a mano.");
     } finally {
       setWebLoading(false);
@@ -298,6 +350,10 @@ export default function OnboardingPage() {
     }
     const res = parseExternalMarkdown(md);
     const next = applyAnalysis(res);
+    track("onboarding_md_imported", {
+      complete: isAnalysisComplete(res),
+      missingFields: res.missingFields.length,
+    });
     set({
       businessInfoImportSource: "external_ai_md",
       externalAiImport: {
@@ -320,21 +376,78 @@ export default function OnboardingPage() {
 
   const subcats = useMemo(() => SUBCATEGORIES[b.industry] || [], [b.industry]);
 
+  // Lleva al usuario directo al primer campo obligatorio incompleto: scrollea,
+  // lo resalta y enfoca el control. Ver PLAN-v2 (navegación de obligatorios).
+  function goToMissingField(id: string, label: string) {
+    show(`Te falta completar "${label}". Te llevo ahí 👇`);
+    requestAnimationFrame(() => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      const focusable = el.querySelector<HTMLElement>("input, select, textarea");
+      focusable?.focus({ preventScroll: true });
+    });
+  }
+
   function tryNext() {
     const miss = getMissingRequiredFields(step, b);
     if (miss.length > 0) {
       setMissing(new Set(miss.map((m) => m.id)));
-      show("Te faltan algunos datos para que Eva genere una buena estrategia.");
-      const first = document.getElementById(miss[0].id);
-      first?.scrollIntoView({ behavior: "smooth", block: "center" });
+      track("onboarding_validation_failed", {
+        step,
+        label: STEPS[step],
+        field: miss[0].id,
+        missingCount: miss.length,
+      });
+      goToMissingField(miss[0].id, miss[0].label);
       return;
     }
     setMissing(new Set());
+    track(
+      "onboarding_step_completed",
+      {
+        step,
+        label: STEPS[step],
+        seconds: Math.round((Date.now() - stepStartedAt.current) / 1000),
+      },
+      { businessId: b.id }
+    );
     if (step < SUMMARY_STEP) setStep(step + 1);
   }
 
   function finish() {
+    // Gate (item 1): no se puede crear estrategia con obligatorios sin responder.
+    // Cubre el hueco de web/IA/pendientes que saltaban al resumen sin revalidar.
+    if (missingCritical(b).length > 0) {
+      show("Faltan datos obligatorios para que Eva genere tu estrategia.");
+      setCriticalOpen(true);
+      return;
+    }
+
+    // Modo edición (item 25): solo guardar los cambios, sin regenerar estrategia.
+    if (editMode) {
+      const finalBiz = prepareFinalBusiness(b, user?.id || activeBusiness?.userId || "anon");
+      useStore.getState().upsertBusiness(finalBiz);
+      show("Cambios guardados ✓");
+      router.push("/settings");
+      return;
+    }
+
     const finalBiz = prepareFinalBusiness(b, user?.id || "anon");
+
+    // Onboarding completo (pasó el gate de críticos). Se trackea una sola
+    // vez aunque el usuario vuelva a apretar tras cerrar el modal de signup.
+    if (!completeTracked.current) {
+      completeTracked.current = true;
+      track(
+        "onboarding_completed",
+        {
+          method: b.businessInfoImportSource ?? "manual",
+          seconds: Math.round((Date.now() - onboardingStartedAt.current) / 1000),
+        },
+        { businessId: finalBiz.id }
+      );
+    }
 
     // Con Supabase: cuenta real obligatoria antes de generar estrategia.
     if (requiresAuthForStrategy()) {
@@ -342,6 +455,7 @@ export default function OnboardingPage() {
         setPendingBusiness(finalBiz);
         saveOnboardingDraft(finalBiz);
         setSignupOpen(true);
+        track("onboarding_signup_modal_shown", {});
         return;
       }
       void completeOnboardingAndGoToStrategy(
@@ -409,17 +523,17 @@ export default function OnboardingPage() {
       {/* ── Wizard manual (solo aquí aparecen pasos / stepper / footer) ── */}
       {phase === "wizard" && (
         <>
-          <header className="sticky top-0 z-20 border-b border-zinc-200/70 bg-white/85 backdrop-blur-md">
+          <header className="sticky top-0 z-20 border-b border-border/70 bg-card/85 backdrop-blur-md">
             <div className="mx-auto max-w-3xl px-4 py-3 sm:px-6">
               <div className="flex items-center justify-between">
                 <Link href="/">
                   <Logo className="text-xl" />
                 </Link>
-                <span className="text-sm font-semibold text-zinc-400">
-                  Paso {step} de {WIZARD_TOTAL} · <span className="text-zinc-700">{STEPS[step]}</span>
+                <span className="text-sm font-semibold text-faint">
+                  Paso {step} de {WIZARD_TOTAL} · <span className="text-foreground-muted">{STEPS[step]}</span>
                 </span>
               </div>
-              <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-zinc-100">
+              <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-surface-muted">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-loca-500 to-loca-400 transition-all duration-500"
                   style={{ width: `${(step / WIZARD_TOTAL) * 100}%` }}
@@ -440,13 +554,13 @@ export default function OnboardingPage() {
                         ? "bg-lima-400 text-ink shadow-glow-lima"
                         : i === step
                           ? "bg-loca-600 text-white shadow-lift"
-                          : "bg-zinc-200/80 text-zinc-400"
+                          : "bg-border/80 text-faint"
                     }`}
                   >
                     {i < step ? <Check className="h-4 w-4" /> : i}
                   </button>
                   {idx < WIZARD_TOTAL - 1 && (
-                    <div className={`mx-1.5 h-1 flex-1 rounded-full transition ${i < step ? "bg-lima-400" : "bg-zinc-200/80"}`} />
+                    <div className={`mx-1.5 h-1 flex-1 rounded-full transition ${i < step ? "bg-lima-400" : "bg-border/80"}`} />
                   )}
                 </div>
               ))}
@@ -454,7 +568,7 @@ export default function OnboardingPage() {
 
             {!onSummary && (
               <>
-                <h1 className="text-3xl font-bold tracking-tight text-zinc-900">{STEPS[step]}</h1>
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">{STEPS[step]}</h1>
                 <StepIntro step={step} />
               </>
             )}
@@ -474,14 +588,14 @@ export default function OnboardingPage() {
                   onEditSection={openSection}
                   onCompleteWithEva={completeWithEva}
                   onFixCritical={() => setCriticalOpen(true)}
-                  confirmLabel="Confirmar y preparar estrategia"
+                  confirmLabel={editMode ? "Guardar cambios" : "Confirmar y preparar estrategia"}
                 />
               )}
             </div>
           </div>
 
           {!onSummary && (
-            <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200/70 bg-white/90 backdrop-blur-md">
+            <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border/70 bg-card/90 backdrop-blur-md">
               <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
                 <Button variant="ghost" size="lg" onClick={() => (step === 1 ? setPhase("select") : setStep(step - 1))}>
                   {step === 1 ? "Volver al inicio" : "Atrás"}
@@ -548,14 +662,51 @@ function StepIntro({ step }: { step: number }) {
     "¿A quién le hablás? Esto ayuda a Eva a afinar el contenido.",
     "Por último, qué querés lograr. Con esto Eva arma tu estrategia.",
   ];
-  return <p className="mt-2 text-[15px] text-zinc-500">{intros[step]}</p>;
+  return <p className="mt-2 text-[15px] text-muted-foreground">{intros[step]}</p>;
 }
 
 // ── Paso 3: Identidad visual (Brand Kit) ─────────────────────
 function StepBrandKit({ b, set }: { b: Business; set: (p: Partial<Business>) => void }) {
   const bk = b.brandKit || emptyBrandKit();
+  const isProfessional = b.businessStage === "profesional_independiente" || b.businessType === "Marca personal";
   return (
-    <BrandKitEditor business={b} brandKit={bk} onChange={(patch) => set({ brandKit: { ...bk, ...patch } })} />
+    <div className="space-y-5">
+      <BrandKitEditor business={b} brandKit={bk} onChange={(patch) => set({ brandKit: { ...bk, ...patch } })} />
+
+      {/* Estilo visual de los contenidos (item 16) */}
+      <Card className="space-y-4 rounded-3xl">
+        <div>
+          <h3 className="text-lg font-bold tracking-tight text-foreground">Estilo visual de tus contenidos</h3>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Elegí uno o varios estilos. Definen cómo Eva piensa y arma las imágenes.
+          </p>
+        </div>
+        <VisualStylePicker value={b.visualStyles || []} onChange={(visualStyles) => set({ visualStyles })} />
+      </Card>
+
+      {/* Fotos de la persona — solo profesional independiente / marca personal (item 20) */}
+      {isProfessional && (
+        <Card id="personPhotos" className="scroll-mt-24 space-y-3 rounded-3xl border-2 border-loca-200">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl leading-none">🧑‍💼</span>
+            <div>
+              <h3 className="text-lg font-bold tracking-tight text-foreground">Subí fotos tuyas (importante)</h3>
+              <p className="mt-0.5 text-sm text-muted-foreground-2">
+                Como sos vos la cara de la marca, Eva usa tus fotos reales para el contenido.
+                <strong className="text-foreground-soft"> Nunca vamos a inventar una cara como si fueras vos.</strong>{" "}
+                Subí varias, con distinta pose/fondo, bien nombradas.
+              </p>
+            </div>
+          </div>
+          <PhotoUploader
+            photos={b.personPhotos || []}
+            onChange={(personPhotos) => set({ personPhotos })}
+            kind="person"
+            ctaLabel="Subir mis fotos"
+          />
+        </Card>
+      )}
+    </div>
   );
 }
 
@@ -664,10 +815,10 @@ function MethodSelect({ onPick }: { onPick: (m: StartMode) => void }) {
             <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift animate-float ring-8 ring-loca-50">
               <Sparkles className="h-8 w-8" />
             </div>
-            <h1 className="text-[2rem] font-extrabold tracking-tight text-zinc-900 sm:text-[3rem] sm:leading-[1.03]">
+            <h1 className="text-[2rem] font-extrabold tracking-tight text-foreground sm:text-[3rem] sm:leading-[1.03]">
               ¿Cómo querés que <span className="loca-gradient-text">Eva</span><br className="hidden sm:block" /> conozca tu negocio?
             </h1>
-            <p className="mx-auto mt-4 max-w-xl text-base text-zinc-500 sm:text-lg">
+            <p className="mx-auto mt-4 max-w-xl text-base text-muted-foreground sm:text-lg">
               Empezá con tu web o con una IA que ya conozca tu marca. Eva completa todo lo posible y vos solo revisás.
             </p>
           </div>
@@ -695,16 +846,16 @@ function MethodSelect({ onPick }: { onPick: (m: StartMode) => void }) {
 
           <button
             onClick={() => onPick("manual")}
-            className="group mx-auto mt-5 flex w-full max-w-xl items-center gap-3 rounded-2xl border border-zinc-200 bg-white/60 px-5 py-3.5 text-left transition hover:border-zinc-300 hover:bg-white sm:mt-6"
+            className="group mx-auto mt-5 flex w-full max-w-xl items-center gap-3 rounded-2xl border border-border bg-card/60 px-5 py-3.5 text-left transition hover:border-border-strong hover:bg-card sm:mt-6"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-500">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-muted text-muted-foreground">
               <Pencil className="h-4 w-4" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold text-zinc-700">Prefiero completar manualmente</span>
-              <span className="block text-xs text-zinc-400">Paso a paso, con sugerencias de Eva cuando las necesites.</span>
+              <span className="block text-sm font-semibold text-foreground-muted">Prefiero completar manualmente</span>
+              <span className="block text-xs text-faint">Paso a paso, con sugerencias de Eva cuando las necesites.</span>
             </span>
-            <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-zinc-400 transition group-hover:text-zinc-700">
+            <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-faint transition group-hover:text-foreground-muted">
               Completar a mano <ArrowRight className="h-4 w-4" />
             </span>
           </button>
@@ -734,23 +885,23 @@ function MethodCard({
   return (
     <button
       onClick={onClick}
-      className="group relative flex h-full flex-col rounded-[1.75rem] border border-zinc-200/60 bg-white/90 p-7 text-left shadow-card backdrop-blur-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-loca-200 hover:shadow-glow"
+      className="group relative flex h-full flex-col rounded-[1.75rem] border border-border/60 bg-card/90 p-7 text-left shadow-card backdrop-blur-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-loca-200 hover:shadow-glow"
     >
       <span
         className={`absolute right-5 top-5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-          badgeTone === "lima" ? "bg-lima-100 text-lima-700" : "bg-loca-100 text-loca-700"
+          badgeTone === "lima" ? "bg-lima-100 dark:bg-lima-900/50 text-lima-700 dark:text-lima-300" : "bg-loca-100 dark:bg-accent-subtle-bg text-accent-subtle-fg"
         }`}
       >
         {badge}
       </span>
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-loca-50 to-loca-100 text-loca-600 shadow-sm ring-1 ring-loca-100/60 transition-all duration-300 group-hover:scale-105 group-hover:from-loca-500 group-hover:to-loca-700 group-hover:text-white group-hover:shadow-lift">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-loca-50 to-loca-100 dark:from-accent-subtle-bg dark:to-accent-subtle-bg text-accent shadow-sm ring-1 ring-accent-subtle-ring/60 transition-all duration-300 group-hover:scale-105 group-hover:from-loca-500 group-hover:to-loca-700 group-hover:text-white group-hover:shadow-lift">
         <Icon className="h-8 w-8" />
       </div>
-      <h3 className="mt-6 text-[1.35rem] font-bold leading-tight tracking-tight text-zinc-900">{title}</h3>
-      <p className="mt-2 flex-1 text-[15px] leading-relaxed text-zinc-500">{desc}</p>
-      <span className="mt-6 inline-flex items-center gap-2 text-[15px] font-semibold text-loca-600">
+      <h3 className="mt-6 text-[1.35rem] font-bold leading-tight tracking-tight text-foreground">{title}</h3>
+      <p className="mt-2 flex-1 text-[15px] leading-relaxed text-muted-foreground">{desc}</p>
+      <span className="mt-6 inline-flex items-center gap-2 text-[15px] font-semibold text-accent">
         {cta}
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-loca-50 transition-all duration-300 group-hover:bg-loca-600 group-hover:text-white">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-subtle-bg transition-all duration-300 group-hover:bg-loca-600 group-hover:text-white">
           <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
         </span>
       </span>
@@ -783,7 +934,7 @@ function WebImportScreen({
           <Logo className="text-2xl" />
         </Link>
         {!loading && (
-          <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-zinc-400 transition hover:text-zinc-700">
+          <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-faint transition hover:text-foreground-muted">
             <ArrowLeft className="h-4 w-4" /> Volver
           </button>
         )}
@@ -799,14 +950,14 @@ function WebImportScreen({
             <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift ring-8 ring-loca-50">
               <Globe className="h-8 w-8" />
             </div>
-            <h1 className="text-[2rem] font-extrabold tracking-tight text-zinc-900 sm:text-[2.6rem] sm:leading-[1.05]">
+            <h1 className="text-[2rem] font-extrabold tracking-tight text-foreground sm:text-[2.6rem] sm:leading-[1.05]">
               Pegá la web de tu negocio
             </h1>
-            <p className="mx-auto mt-3 max-w-md text-[15px] text-zinc-500 sm:text-base">
+            <p className="mx-auto mt-3 max-w-md text-[15px] text-muted-foreground sm:text-base">
               Eva va a leer tu sitio y detectar tu marca, productos, servicios y datos clave. Lo que no encuentre, queda pendiente.
             </p>
 
-            <div className="mt-8 rounded-[1.75rem] border border-zinc-200/50 bg-white p-6 shadow-card sm:p-7">
+            <div className="mt-8 rounded-[1.75rem] border border-border/50 bg-card p-6 shadow-card sm:p-7">
               <div className="relative">
                 <Globe className="pointer-events-none absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-loca-400" />
                 <input
@@ -825,7 +976,7 @@ function WebImportScreen({
               </Button>
             </div>
 
-            <p className="mx-auto mt-4 max-w-md text-[13px] text-zinc-400">
+            <p className="mx-auto mt-4 max-w-md text-[13px] text-faint">
               No inventamos precios ni datos sensibles. Si algo no aparece en tu web, te lo vamos a pedir después.
             </p>
           </div>
@@ -887,7 +1038,7 @@ function AiImportScreen({
           <Logo className="text-2xl" />
         </Link>
         {!loading && (
-          <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-zinc-400 transition hover:text-zinc-700">
+          <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-faint transition hover:text-foreground-muted">
             <ArrowLeft className="h-4 w-4" /> Volver
           </button>
         )}
@@ -904,21 +1055,21 @@ function AiImportScreen({
             <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift ring-8 ring-loca-50">
               <Bot className="h-8 w-8" />
             </div>
-            <h1 className="text-[2rem] font-extrabold tracking-tight text-zinc-900 sm:text-[2.4rem] sm:leading-[1.05]">
+            <h1 className="text-[2rem] font-extrabold tracking-tight text-foreground sm:text-[2.4rem] sm:leading-[1.05]">
               Usá una IA que ya te conoce
             </h1>
-            <p className="mx-auto mt-3 max-w-md text-[15px] text-zinc-500">
+            <p className="mx-auto mt-3 max-w-md text-[15px] text-muted-foreground">
               Tres pasos: copiá el prompt, pegalo en tu IA y subí el archivo que te devuelva.
             </p>
           </div>
 
-          <div className="mt-7 space-y-5 rounded-[1.75rem] border border-zinc-200/50 bg-white p-6 shadow-card sm:p-7">
+          <div className="mt-7 space-y-5 rounded-[1.75rem] border border-border/50 bg-card p-6 shadow-card sm:p-7">
             {/* Paso 1 */}
             <div className="flex gap-4">
               <StepDot n={1} />
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-zinc-900">Copiá el prompt</p>
-                <p className="text-[13px] text-zinc-500">Lo necesitás para pedirle a tu IA el resumen.</p>
+                <p className="font-bold text-foreground">Copiá el prompt</p>
+                <p className="text-[13px] text-muted-foreground">Lo necesitás para pedirle a tu IA el resumen.</p>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <Button size="lg" className="flex-1" onClick={copyPrompt}>
                     <Copy className="h-4 w-4" /> Copiar prompt
@@ -936,33 +1087,33 @@ function AiImportScreen({
             </div>
 
             {/* Paso 2 */}
-            <div className="flex gap-4 border-t border-zinc-100 pt-5">
+            <div className="flex gap-4 border-t border-border-subtle pt-5">
               <StepDot n={2} />
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-zinc-900">Pegalo en tu IA</p>
-                <p className="text-[13px] text-zinc-500">
-                  ChatGPT, Claude o Gemini. Pedile un archivo <span className="font-semibold text-zinc-700">.md</span> o un bloque de código Markdown copiable. No PDF, Word ni Google Docs.
+                <p className="font-bold text-foreground">Pegalo en tu IA</p>
+                <p className="text-[13px] text-muted-foreground">
+                  ChatGPT, Claude o Gemini. Pedile un archivo <span className="font-semibold text-foreground-muted">.md</span> o un bloque de código Markdown copiable. No PDF, Word ni Google Docs.
                 </p>
               </div>
             </div>
 
             {/* Paso 3 */}
-            <div className="flex gap-4 border-t border-zinc-100 pt-5">
+            <div className="flex gap-4 border-t border-border-subtle pt-5">
               <StepDot n={3} />
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-zinc-900">Subí o pegá el .md</p>
+                <p className="font-bold text-foreground">Subí o pegá el .md</p>
                 <button
                   onClick={() => fileInput.current?.click()}
-                  className="mt-3 flex w-full flex-col items-center gap-1.5 rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50/40 px-4 py-6 text-center transition hover:border-loca-300 hover:bg-loca-50/40"
+                  className="mt-3 flex w-full flex-col items-center gap-1.5 rounded-2xl border-2 border-dashed border-border bg-surface-subtle/40 px-4 py-6 text-center transition hover:border-loca-300 hover:bg-accent-subtle-bg/40"
                 >
-                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-loca-50 text-loca-500">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent-subtle-bg text-loca-500">
                     <Upload className="h-5 w-5" />
                   </span>
-                  <span className="mt-1 text-sm font-semibold text-zinc-700">Subí el archivo .md</span>
+                  <span className="mt-1 text-sm font-semibold text-foreground-muted">Subí el archivo .md</span>
                   {fileName ? (
-                    <span className="flex items-center gap-1 text-xs font-medium text-emerald-600"><FileText className="h-3 w-3" /> {fileName}</span>
+                    <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-300"><FileText className="h-3 w-3" /> {fileName}</span>
                   ) : (
-                    <span className="text-xs text-zinc-400">o pegá el contenido abajo</span>
+                    <span className="text-xs text-faint">o pegá el contenido abajo</span>
                   )}
                 </button>
                 <input
@@ -1035,7 +1186,7 @@ function PendingScreen({
         <Link href="/">
           <Logo className="text-2xl" />
         </Link>
-        <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-zinc-400 transition hover:text-zinc-700">
+        <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-faint transition hover:text-foreground-muted">
           <ArrowLeft className="h-4 w-4" /> Volver
         </button>
       </div>
@@ -1045,10 +1196,10 @@ function PendingScreen({
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift ring-8 ring-loca-50">
             <Sparkles className="h-7 w-7" />
           </div>
-          <h1 className="text-[1.7rem] font-extrabold tracking-tight text-zinc-900 sm:text-[2.1rem] sm:leading-[1.1]">
+          <h1 className="text-[1.7rem] font-extrabold tracking-tight text-foreground sm:text-[2.1rem] sm:leading-[1.1]">
             Eva ya completó gran parte.<br className="hidden sm:block" /> Revisemos <span className="loca-gradient-text">lo que falta</span>.
           </h1>
-          <p className="mx-auto mt-3 max-w-md text-[15px] text-zinc-500">
+          <p className="mx-auto mt-3 max-w-md text-[15px] text-muted-foreground">
             Completá solo lo necesario, de a una pregunta por vez.
           </p>
         </div>
@@ -1064,7 +1215,7 @@ function PendingScreen({
         />
 
         <div className="mt-5 text-center">
-          <button onClick={onSummary} className="text-sm font-semibold text-zinc-400 transition hover:text-zinc-700">
+          <button onClick={onSummary} className="text-sm font-semibold text-faint transition hover:text-foreground-muted">
             Saltar y ver el resumen
           </button>
         </div>
@@ -1133,6 +1284,27 @@ function StepBasic({
           </Select>
         </HelpField>
       </div>
+
+      <HelpField
+        label="Tipo de organización"
+        required
+        error={missing.has("businessStage")}
+        id="businessStage"
+        help="Nos ayuda a pedirte la info y generar el contenido adecuado para tu caso."
+        status={statusOf("businessStage")}
+      >
+        <Select
+          value={b.businessStage || ""}
+          onChange={(e) => set({ businessStage: (e.target.value || undefined) as Business["businessStage"] })}
+        >
+          <option value="">Elegí</option>
+          {BUSINESS_STAGES.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label} — {s.help}
+            </option>
+          ))}
+        </Select>
+      </HelpField>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <HelpField label="Año de fundación" required error={missing.has("yearFounded")} id="yearFounded">
@@ -1428,8 +1600,16 @@ function StepProducts({
   const detected = items.some((x) => x.importSource && x.importSource !== "manual");
 
   return (
-    <div className="space-y-4">
-      <p className="rounded-lg bg-zinc-50 p-3 text-sm text-zinc-500">
+    <div id="products" className="scroll-mt-24 space-y-4">
+      {/* Cartel destacado (item 18) */}
+      <div className="flex items-start gap-3 rounded-2xl border-2 border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4">
+        <span className="text-2xl leading-none">📸</span>
+        <p className="text-sm font-bold uppercase leading-snug tracking-wide text-amber-900">
+          Si vendés productos, es fundamental que subas fotos bien nombradas para crear contenido de mayor valor.
+        </p>
+      </div>
+
+      <p className="rounded-lg bg-surface-subtle p-3 text-sm text-muted-foreground">
         {detected
           ? "Eva detectó estos productos/servicios. Revisalos rápido: podés editar, eliminar o sumar otros. No agregamos precios si no aparecen en tu web."
           : "No hace falta cargar todo tu catálogo. Empezá por tus productos o servicios más importantes."}
@@ -1437,8 +1617,8 @@ function StepProducts({
 
       {/* Estado vacío: acciones rápidas */}
       {items.length === 0 && (
-        <div className="rounded-xl border border-dashed border-zinc-300 p-4 text-center">
-          <p className="text-sm text-zinc-500">No pudimos detectar productos o servicios con seguridad.</p>
+        <div className="rounded-xl border border-dashed border-border-strong p-4 text-center">
+          <p className="text-sm text-muted-foreground">No pudimos detectar productos o servicios con seguridad.</p>
           <div className="mt-3 flex flex-wrap justify-center gap-2">
             <Button size="sm" variant="outline" onClick={suggestByEva}>
               <Sparkles className="h-4 w-4" /> Que Eva sugiera según mi negocio

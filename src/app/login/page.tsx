@@ -11,6 +11,7 @@ import { resumeOnboardingDraftIfAny } from "@/lib/onboarding/complete";
 import { getSupabaseBrowser, hasSupabaseClientConfig } from "@/lib/supabase/client";
 import { Button, Card, Field, Input } from "@/components/ui";
 import { Logo } from "@/components/brand";
+import { identifyUser, track } from "@/lib/analytics";
 
 function LoginForm() {
   const router = useRouter();
@@ -33,6 +34,8 @@ function LoginForm() {
     const prev = useStore.getState().user;
     if (prev?.id !== newUser.id) clearUserData();
     setUser(newUser);
+    identifyUser(newUser);
+    track("login_completed", { fromOnboarding });
     if (await resumeOnboardingDraftIfAny(router)) return;
     if (fromOnboarding) {
       router.push("/onboarding");
@@ -110,7 +113,7 @@ function LoginForm() {
   if (checkingSession) {
     return (
       <main className="loca-soft-bg flex min-h-screen items-center justify-center px-5 py-10">
-        <p className="text-sm text-zinc-400">Verificando sesión…</p>
+        <p className="text-sm text-faint">Verificando sesión…</p>
       </main>
     );
   }
@@ -122,11 +125,11 @@ function LoginForm() {
           <Link href="/" className="inline-block transition hover:opacity-80">
             <Logo className="text-3xl" />
           </Link>
-          <p className="mt-3 text-sm text-zinc-500">Tu marketing listo en minutos.</p>
+          <p className="mt-3 text-sm text-muted-foreground">Tu marketing listo en minutos.</p>
         </div>
         <Card className="p-8 shadow-glow">
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Hola de nuevo 👋</h1>
-          <p className="mt-1.5 text-sm text-zinc-500">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Hola de nuevo 👋</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
             {fromOnboarding
               ? "Iniciá sesión para que Eva genere tu estrategia con los datos que completaste."
               : supabaseEnabled
@@ -134,7 +137,7 @@ function LoginForm() {
                 : "Ingresá tu email para continuar."}
           </p>
           {sessionExpired && (
-            <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
+            <p className="mt-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 px-3 py-2 text-sm font-medium text-amber-800 dark:text-amber-200">
               Tu sesión expiró. Volvé a iniciar sesión para continuar.
             </p>
           )}
@@ -160,15 +163,15 @@ function LoginForm() {
                 />
               </Field>
             )}
-            {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+            {error && <p className="text-sm font-medium text-red-600 dark:text-red-300">{error}</p>}
             <Button type="submit" size="lg" className="w-full" disabled={loading}>
               {loading ? "Entrando…" : fromOnboarding ? "Entrar y generar estrategia" : "Entrar"}
             </Button>
           </form>
           <div className="mt-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-zinc-200" />
-            <span className="text-xs font-medium text-zinc-400">o probá sin cuenta</span>
-            <div className="h-px flex-1 bg-zinc-200" />
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs font-medium text-faint">o probá sin cuenta</span>
+            <div className="h-px flex-1 bg-border" />
           </div>
           <Button
             variant="lima"
@@ -179,9 +182,9 @@ function LoginForm() {
           >
             Probar demo
           </Button>
-          <p className="mt-7 text-center text-sm text-zinc-500">
+          <p className="mt-7 text-center text-sm text-muted-foreground">
             ¿No tenés cuenta?{" "}
-            <Link href="/signup" className="font-semibold text-loca-600 hover:underline">
+            <Link href="/signup" className="font-semibold text-accent hover:underline">
               Crear cuenta
             </Link>
           </p>
@@ -196,7 +199,7 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <main className="loca-soft-bg flex min-h-screen items-center justify-center px-5 py-10">
-          <p className="text-sm text-zinc-400">Cargando…</p>
+          <p className="text-sm text-faint">Cargando…</p>
         </main>
       }
     >

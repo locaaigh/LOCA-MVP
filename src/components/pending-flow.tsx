@@ -66,10 +66,10 @@ export function PendingFlow({
   if (total === 0 || !current) {
     return (
       <Card className="flex flex-col items-center gap-3 py-12 text-center">
-        <span className="flex h-14 w-14 items-center justify-center rounded-3xl bg-lima-100 text-lima-700">
+        <span className="flex h-14 w-14 items-center justify-center rounded-3xl bg-lima-100 dark:bg-lima-900/50 text-lima-700 dark:text-lima-300">
           <Check className="h-7 w-7" />
         </span>
-        <p className="text-lg font-bold text-zinc-900">No queda nada pendiente 🎉</p>
+        <p className="text-lg font-bold text-foreground">No queda nada pendiente 🎉</p>
         <Button size="lg" onClick={onDone}>{doneLabel}</Button>
       </Card>
     );
@@ -97,14 +97,14 @@ export function PendingFlow({
     <Card className="animate-scale-in space-y-5 shadow-glow">
       <div>
         <div className="flex items-center justify-between">
-          <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-loca-600">
+          <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-accent">
             <Sparkles className="h-3.5 w-3.5" /> Completemos este dato
           </p>
-          <span className="rounded-full bg-loca-50 px-2.5 py-1 text-xs font-bold text-loca-700">
+          <span className="rounded-full bg-accent-subtle-bg px-2.5 py-1 text-xs font-bold text-accent-subtle-fg">
             {index + 1} de {total}
           </span>
         </div>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-100">
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-muted">
           <div
             className="h-full rounded-full bg-gradient-to-r from-loca-500 to-loca-400 transition-all duration-500"
             style={{ width: `${((index + 1) / total) * 100}%` }}
@@ -114,22 +114,22 @@ export function PendingFlow({
 
       <div>
         <div className="flex items-center gap-2">
-          <h3 className="text-[1.35rem] font-bold tracking-tight text-zinc-900">{current.label}</h3>
+          <h3 className="text-[1.35rem] font-bold tracking-tight text-foreground">{current.label}</h3>
           {current.critical ? (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">Necesario</span>
+            <span className="rounded-full bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:text-amber-300">Necesario</span>
           ) : (
-            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-bold text-zinc-500">Recomendado</span>
+            <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">Recomendado</span>
           )}
         </div>
-        <p className="mt-1 text-sm text-zinc-500">{current.why}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{current.why}</p>
       </div>
 
       {/* Input según tipo */}
       <div className="min-h-[3rem]">
         {isProducts ? (
-          <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/60 p-5 text-center">
+          <div className="rounded-2xl border border-dashed border-border bg-surface-subtle/60 p-5 text-center">
             <Package className="mx-auto h-7 w-7 text-loca-500" />
-            <p className="mt-2 text-sm text-zinc-600">
+            <p className="mt-2 text-sm text-muted-foreground-2">
               Los productos y servicios se cargan en su propio editor (con detección desde tu web, sin inventar precios).
             </p>
             {onEditSection && (
@@ -165,13 +165,13 @@ export function PendingFlow({
 
       {/* Estado / error para campos críticos */}
       {error ? (
-        <p className="text-sm font-semibold text-red-600">
+        <p className="text-sm font-semibold text-red-600 dark:text-red-300">
           {current.canSuggest
             ? "Completá este dato para avanzar (es necesario para tu estrategia)."
             : "Eva no puede sugerir este dato sin inventarlo. Completalo para avanzar."}
         </p>
       ) : current.critical && !isProducts ? (
-        <p className="text-xs text-zinc-400">Necesario para que Eva no genere una estrategia genérica.</p>
+        <p className="text-xs text-faint">Necesario para que Eva no genere una estrategia genérica.</p>
       ) : null}
 
       {/* Acciones */}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { contentAgent } from "@/lib/ai/agents";
 import { resolveCalendarItem, jsonError } from "@/lib/repository/resolve";
 import { logAiUsage } from "@/lib/ai-usage";
+import { logEvent } from "@/lib/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +33,18 @@ export async function POST(req: NextRequest) {
       businessId: resolved.business.id,
       agent: "content",
       meta: result.meta,
+    });
+    await logEvent({
+      userId: resolved.ctx.userId,
+      businessId: resolved.business.id,
+      name: "content_generated",
+      props: {
+        contentId: result.data.id,
+        format: result.data.format,
+        channel: result.data.channel,
+        isMock: result.meta.provider === "mock",
+      },
+      isAuthenticated: resolved.ctx.isAuthenticated,
     });
 
     return NextResponse.json(result);

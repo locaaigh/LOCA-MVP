@@ -292,8 +292,8 @@ export const EXTERNAL_AI_IMPORT_SCHEMA: ImportField[] = [
     statusKey: "productsServices",
     critical: true,
     multiple: true,
-    example: "Café de filtro, Blend de la casa, Medialunas",
-    hint: "Lista separada por comas. Si hay precio explícito incluilo (ej: 'Blend - $4500'). NO inventes precios.",
+    example: "Café de filtro | Blend de la casa | Medialunas",
+    hint: "Separá cada producto con | (barra). Los detalles o sub-ítems de un producto van entre paréntesis o después de dos puntos, NO como productos aparte. Si hay precio explícito incluilo (ej: 'Blend - $4500'). NO inventes precios.",
     aliases: ["productos", "catalogo_productos"],
     apply: (f, v) => addOfferings(f, v, "producto"),
   },
@@ -304,8 +304,8 @@ export const EXTERNAL_AI_IMPORT_SCHEMA: ImportField[] = [
     statusKey: "productsServices",
     critical: false,
     multiple: true,
-    example: "Catering de eventos, Barismo para empresas",
-    hint: "Lista separada por comas. NO inventes precios.",
+    example: "Catering de eventos | Barismo para empresas",
+    hint: "Separá cada servicio con | (barra). Los sub-ítems o características de un servicio van entre paréntesis (ej: 'Softlanding (constitución, RFC, contabilidad)'), NO como servicios aparte. NO inventes precios.",
     aliases: ["servicios", "catalogo_servicios"],
     apply: (f, v) => addOfferings(f, v, "servicio"),
   },
@@ -508,14 +508,82 @@ function mergeList(prev: string[] | undefined, value: string): string[] {
   return Array.from(set);
 }
 
+// Split de nivel superior que NO corta dentro de paréntesis/corchetes.
+// Si el valor trae "|" a nivel superior (separador que suele poner el LLM entre
+// ítems reales), se usa SOLO ese, para no romper por las comas internas que son
+// detalles de un mismo ítem. Si no, se corta por coma/;/newline (respetando "()").
+function splitTopLevel(v: string): string[] {
+  const hasTopPipe = (() => {
+    let depth = 0;
+    for (const ch of v) {
+      if (ch === "(" || ch === "[") depth++;
+      else if (ch === ")" || ch === "]") depth = Math.max(0, depth - 1);
+      else if (ch === "|" && depth === 0) return true;
+    }
+    return false;
+  })();
+  const seps = hasTopPipe ? ["|", "\n"] : [",", ";", "|", "\n"];
+  const out: string[] = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of v) {
+    if (ch === "(" || ch === "[") depth++;
+    else if (ch === ")" || ch === "]") depth = Math.max(0, depth - 1);
+    if (seps.includes(ch) && depth === 0) {
+      if (cur.trim()) out.push(cur.trim());
+      cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out
+    .map((s) => s.replace(/^\s*(?:[-*•]\s+|\d+[.)]\s+)/, "").trim())
+    .filter(Boolean);
+}
+
+// Solo tokens con MONEDA o "$" (nunca números pelados como "60 minutos").
+const PRICE_TOKEN =
+  /[\s\-–—:]*(?:\$\s*[\d][\d.,]*|(?:usd|ars|eur)\s*[\d][\d.,]*|[\d][\d.,]*\s*(?:usd|ars|eur|pesos|d[oó]lares|\/\s*mes))\s*(?:aprox\.?)?/gi;
+
+// Un ítem de oferta: separa el NOMBRE real (cláusula inicial) de sus detalles
+// (precio, sub-ítems entre paréntesis, prosa que sigue → descripción).
+function parseOfferingEntry(entry: string): { name: string; shortDescription?: string; price?: number } {
+  let base = entry;
+  const descParts: string[] = [];
+  const paren = entry.match(/^(.*?)\s*[([]([^)\]]*)[)\]]\s*(.*)$/);
+  if (paren) {
+    base = `${paren[1]} ${paren[3]}`.trim();
+    if (paren[2].trim()) descParts.push(paren[2].trim());
+  }
+  // Nombre = primera cláusula antes de coma / ":" / ". " (el resto es detalle).
+  const clause = base.split(/\s*[,:]\s*|\.\s+/)[0].trim();
+  const rest = base.slice(clause.length).replace(/^[\s,:.]+/, "").trim();
+  if (rest) descParts.unshift(rest);
+  const price = parseProductEntry(clause).price ?? parseProductEntry(base).price;
+  // Limpiar tokens de precio del nombre.
+  const name = clause.replace(PRICE_TOKEN, "").replace(/[\s\-–—:]+$/, "").trim();
+  const shortDescription = descParts.filter(Boolean).join(" · ") || undefined;
+  return { name: name || clause, shortDescription, price };
+}
+
+// Delata prosa/característica, no un servicio: conectores o notas de revisión.
+const NOT_AN_OFFERING =
+  /^(con |sin |incluye|incluid|mediante|a trav[eé]s|bajo modelo|planes?\b|modelo |respaldo|garant|confirmar|porque |aprox|~|y \w)/i;
+
 function addOfferings(f: WebsiteFoundFields, value: string, type: ProductServiceType) {
   f.productsServices ||= [];
-  for (const entry of splitList(value)) {
-    const { name, price } = parseProductEntry(entry);
-    if (!name) continue;
+  for (const entry of splitTopLevel(value)) {
+    const { name, shortDescription, price } = parseOfferingEntry(entry);
+    // Filtros: nombre válido, no prosa/característica, largo razonable de nombre.
+    if (!name || name.length < 2) continue;
+    if (NOT_AN_OFFERING.test(name)) continue;
+    if (name.split(/\s+/).length > 12) continue; // descartar prosa larga, no nombres reales
+    if (f.productsServices.some((p) => p.name.toLowerCase() === name.toLowerCase())) continue;
     f.productsServices.push({
       name,
       type,
+      ...(shortDescription ? { shortDescription } : {}),
       // No inventamos precio: solo si vino explícito en el texto.
       ...(price != null ? { price } : {}),
       source: "md",

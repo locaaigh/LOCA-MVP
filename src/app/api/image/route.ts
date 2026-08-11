@@ -4,6 +4,7 @@ import { resolveContent, jsonError } from "@/lib/repository/resolve";
 import { hasSupabaseAdminConfig } from "@/lib/supabase/admin";
 import { uploadContentImage } from "@/lib/supabase/storage";
 import { logAiUsage } from "@/lib/ai-usage";
+import { logEvent } from "@/lib/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,6 +59,17 @@ export async function POST(req: NextRequest) {
       businessId,
       agent: "image",
       meta: result.meta,
+    });
+    await logEvent({
+      userId: ctx.userId,
+      businessId,
+      name: result.data.status === "generada" ? "image_generated" : "image_generation_failed",
+      props: {
+        contentId,
+        provider: result.data.provider,
+        error: result.data.error,
+      },
+      isAuthenticated: ctx.isAuthenticated,
     });
 
     return NextResponse.json(result);

@@ -33,6 +33,7 @@ export function getMissingRequiredFields(step: number, b: Business): MissingFiel
     need(isEmpty(b.industry), "industry", "Industria");
     need(isEmpty(b.subcategory), "subcategory", "Subcategoría");
     need(isEmpty(b.businessType), "businessType", "Tipo de negocio");
+    need(isEmpty(b.businessStage), "businessStage", "Tipo de organización");
     need(isEmpty(b.yearFounded), "yearFounded", "Año de fundación");
     need(isEmpty(b.employees), "employees", "Cantidad de empleados");
     need(isEmpty(b.country), "country", "País");
@@ -53,12 +54,20 @@ export function getMissingRequiredFields(step: number, b: Business): MissingFiel
     need(!!b.hasSpecialDates && isEmpty(b.specialDates), "hasSpecialDates", "Elegí tus fechas especiales");
   }
 
-  // Paso 3: Identidad visual (Brand Kit)
+  // Paso 3: Identidad visual (Brand Kit). Validación intuitiva: alcanza con
+  // tener algún color, alguna tipografía y algún tono/estilo (no exige marcar
+  // "principal" ni un campo puntual).
   if (step === 3) {
     const bk = b.brandKit;
-    need(!bk?.colors?.primary && !bk?.colors?.palette?.some((c) => c.role === "primary"), "bk_color", "Color principal");
-    need(!bk?.typography?.heading?.family && !bk?.typography?.body?.family, "bk_font", "Tipografía (títulos o texto)");
-    need(isEmpty(bk?.voiceTone?.toneTags), "bk_tone", "Tono visual / de voz");
+    const hasColor = !!bk?.colors?.primary || (bk?.colors?.palette?.length ?? 0) > 0;
+    const hasFont = !!bk?.typography?.heading?.family || !!bk?.typography?.body?.family;
+    const hasToneOrStyle = !isEmpty(bk?.voiceTone?.toneTags) || !isEmpty(bk?.visualStyle?.mood);
+    need(!hasColor, "bk_color", "Un color de marca");
+    need(!hasFont, "bk_font", "Una tipografía (títulos o texto)");
+    need(!hasToneOrStyle, "bk_tone", "Tono o estilo de marca");
+    // Profesional independiente / marca personal: al menos una foto propia (item 20)
+    const isProfessional = b.businessStage === "profesional_independiente" || b.businessType === "Marca personal";
+    need(isProfessional && isEmpty(b.personPhotos), "personPhotos", "Al menos una foto tuya");
   }
 
   if (step === 4) {

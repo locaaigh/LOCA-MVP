@@ -32,7 +32,7 @@ const BRAND: Record<string, { label: string; bg: string; fg: string }> = {
   youtube: { label: "YouTube", bg: "bg-[#ff0000]", fg: "text-white" },
   pinterest: { label: "Pinterest", bg: "bg-[#e60023]", fg: "text-white" },
   whatsapp: { label: "WhatsApp", bg: "bg-[#25d366]", fg: "text-white" },
-  google: { label: "Google", bg: "bg-white ring-1 ring-zinc-200", fg: "text-zinc-700" },
+  google: { label: "Google", bg: "bg-card ring-1 ring-border", fg: "text-foreground-muted" },
   email: { label: "Email", bg: "bg-zinc-800", fg: "text-white" },
   blog: { label: "Blog", bg: "bg-loca-600", fg: "text-white" },
   generic: { label: "Canal", bg: "bg-loca-600", fg: "text-white" },
@@ -143,7 +143,7 @@ export function PlatformLogo({
       title={brand.label}
       className={cn(
         "inline-flex items-center justify-center rounded-xl",
-        tone === "color" ? cn(brand.bg, brand.fg) : "bg-zinc-100 text-zinc-600",
+        tone === "color" ? cn(brand.bg, brand.fg) : "bg-surface-muted text-muted-foreground-2",
         className
       )}
       style={{ width: size, height: size }}
@@ -193,7 +193,7 @@ export function PlatformLogos({
           key={c + i}
           channel={c}
           size={size}
-          className={i > 0 ? "-ml-1.5 ring-2 ring-white" : ""}
+          className={i > 0 ? "-ml-1.5 ring-2 ring-card" : ""}
         />
       ))}
     </span>
@@ -215,7 +215,7 @@ export function PlatformTag({
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
       <PlatformLogo channel={channel} size={size} />
-      <span className="text-sm font-semibold text-zinc-700">{brand.label}</span>
+      <span className="text-sm font-semibold text-foreground-muted">{brand.label}</span>
     </span>
   );
 }

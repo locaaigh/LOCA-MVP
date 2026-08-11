@@ -124,15 +124,15 @@ export function BrandKitEditor({
   return (
     <div className="space-y-5">
       {/* Que Eva elija por mí */}
-      <Card className="relative space-y-4 overflow-hidden rounded-3xl border-loca-200/70 bg-gradient-to-br from-loca-50 to-white">
+      <Card className="relative space-y-4 overflow-hidden rounded-3xl border-loca-200/70 dark:border-accent-subtle-ring bg-gradient-to-br from-loca-50 to-card dark:from-accent-subtle-bg">
         <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-loca-200/40 blur-3xl" />
         <div className="relative flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-loca-600 shadow-glow ring-1 ring-loca-100">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-card text-accent shadow-glow ring-1 ring-accent-subtle-ring">
             <Wand2 className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-lg font-bold tracking-tight text-zinc-900">¿No tenés una identidad visual clara?</p>
-            <p className="mt-1 text-sm leading-relaxed text-zinc-600">
+            <p className="text-lg font-bold tracking-tight text-foreground">¿No tenés una identidad visual clara?</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground-2">
               Eva puede proponerte una identidad visual inicial para que no tengas que elegir desde cero. Después editás todo.
             </p>
           </div>
@@ -154,14 +154,14 @@ export function BrandKitEditor({
       </Card>
 
       {/* Colores */}
-      <Card className="space-y-4 rounded-3xl">
+      <Card id="bk_color" className="scroll-mt-24 space-y-4 rounded-3xl">
         <SectionTitle icon={Palette} title="Colores" hint="Tocá un color para cambiarlo. Marcá el principal con la estrella." />
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           {bk.colors.palette.map((c, i) => (
             <div
               key={i}
-              className={`flex items-center gap-3 rounded-2xl border bg-white p-2.5 transition-shadow hover:shadow-sm ${
-                c.role === "primary" ? "border-loca-300 ring-2 ring-loca-100" : "border-zinc-200/70"
+              className={`flex items-center gap-3 rounded-2xl border bg-card p-2.5 transition-shadow hover:shadow-sm ${
+                c.role === "primary" ? "border-loca-300 ring-2 ring-accent-subtle-ring" : "border-border/70"
               }`}
             >
               <div className="relative shrink-0">
@@ -169,7 +169,7 @@ export function BrandKitEditor({
                   type="color"
                   value={/^#[0-9a-fA-F]{6}$/.test(c.hex) ? c.hex : "#ec4899"}
                   onChange={(e) => updateColor(i, { hex: e.target.value })}
-                  className="h-11 w-11 shrink-0 cursor-pointer rounded-xl border border-zinc-200/70 shadow-inner"
+                  className="h-11 w-11 shrink-0 cursor-pointer rounded-xl border border-border/70 shadow-inner"
                   aria-label="Color"
                 />
               </div>
@@ -177,7 +177,7 @@ export function BrandKitEditor({
                 <input
                   value={c.name}
                   onChange={(e) => updateColor(i, { name: e.target.value })}
-                  className="w-full bg-transparent text-sm font-semibold text-zinc-800 outline-none"
+                  className="w-full bg-transparent text-sm font-semibold text-foreground-soft outline-none"
                 />
                 <div className="mt-0.5 flex items-center gap-1.5">
                   <input
@@ -189,17 +189,17 @@ export function BrandKitEditor({
                     maxLength={7}
                     placeholder="#RRGGBB"
                     className={`w-20 bg-transparent font-mono text-xs uppercase outline-none ${
-                      c.hex && !/^#[0-9a-fA-F]{6}$/.test(c.hex) ? "text-red-500" : "text-zinc-400"
+                      c.hex && !/^#[0-9a-fA-F]{6}$/.test(c.hex) ? "text-red-500 dark:text-red-400" : "text-faint"
                     }`}
                     aria-label="Código hex"
                   />
                   <Badge tone={c.role === "primary" ? "pink" : "default"}>{ROLE_LABELS[c.role]}</Badge>
                 </div>
               </div>
-              <button onClick={() => markPrimary(i)} className={`rounded-lg p-1.5 transition ${c.role === "primary" ? "text-amber-500" : "text-zinc-300 hover:bg-amber-50 hover:text-amber-500"}`} title="Marcar como principal">
+              <button onClick={() => markPrimary(i)} className={`rounded-lg p-1.5 transition ${c.role === "primary" ? "text-amber-500 dark:text-amber-400" : "text-faint hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:text-amber-500 dark:hover:text-amber-400"}`} title="Marcar como principal">
                 <Star className="h-4 w-4" fill={c.role === "primary" ? "currentColor" : "none"} />
               </button>
-              <button onClick={() => removeColor(i)} className="rounded-lg p-1.5 text-zinc-300 transition hover:bg-red-50 hover:text-red-500">
+              <button onClick={() => removeColor(i)} className="rounded-lg p-1.5 text-faint transition hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-500 dark:hover:text-red-400">
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>
@@ -211,7 +211,7 @@ export function BrandKitEditor({
       </Card>
 
       {/* Tipografías */}
-      <Card className="space-y-4 rounded-3xl">
+      <Card id="bk_font" className="scroll-mt-24 space-y-4 rounded-3xl">
         <SectionTitle icon={Type} title="Tipografías" hint="Eva las detecta de tu web; si no, elegí una." />
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Títulos">
@@ -234,12 +234,12 @@ export function BrandKitEditor({
           </Field>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          <span className="self-center text-xs text-zinc-400">Sugerencias:</span>
+          <span className="self-center text-xs text-faint">Sugerencias:</span>
           {FONT_SUGGESTIONS.map((f) => (
             <button
               key={f}
               onClick={() => onChange({ typography: { ...bk.typography, heading: { family: f, source: "user", confidence: "high" } } })}
-              className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-600 transition hover:border-loca-300 hover:bg-loca-50 hover:text-loca-600"
+              className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground-2 transition hover:border-loca-300 hover:bg-accent-subtle-bg hover:text-accent"
             >
               {f}
             </button>
@@ -255,19 +255,19 @@ export function BrandKitEditor({
             {bk.logos.map((l) => (
               <div
                 key={l.id}
-                className={`relative flex aspect-square items-center justify-center rounded-2xl border bg-white p-2.5 transition ${
-                  l.selected ? "border-loca-500 ring-2 ring-loca-100 shadow-sm" : "border-zinc-200/70 hover:border-zinc-300"
+                className={`relative flex aspect-square items-center justify-center rounded-2xl border bg-card p-2.5 transition ${
+                  l.selected ? "border-loca-500 ring-2 ring-accent-subtle-ring shadow-sm" : "border-border/70 hover:border-border-strong"
                 }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={l.dataUrl || l.url} alt="logo" className="max-h-full max-w-full object-contain" />
-                <button onClick={() => removeLogo(l.id)} className="absolute right-1 top-1 rounded-full bg-white/90 p-1 text-zinc-400 hover:text-red-500">
+                <button onClick={() => removeLogo(l.id)} aria-label="Eliminar logo" className="absolute right-1 top-1 rounded-full bg-card/90 p-2 text-muted-foreground hover:text-red-500 dark:hover:text-red-400">
                   <Trash2 className="h-3 w-3" />
                 </button>
                 <button
                   onClick={() => selectLogo(l.id)}
                   className={`absolute bottom-1 left-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                    l.selected ? "bg-loca-600 text-white" : "bg-white/90 text-zinc-500"
+                    l.selected ? "bg-loca-600 text-white" : "bg-card/90 text-muted-foreground"
                   }`}
                 >
                   {l.selected ? "Principal" : "Usar"}
@@ -293,7 +293,7 @@ export function BrandKitEditor({
       </Card>
 
       {/* Estilo visual + voz */}
-      <Card className="space-y-4 rounded-3xl">
+      <Card id="bk_tone" className="scroll-mt-24 space-y-4 rounded-3xl">
         <SectionTitle icon={Sparkles} title="Estilo y tono" hint="Cómo se ve y cómo habla tu marca." />
         <Field label="Estilo visual">
           <ChipSelect options={MOOD_OPTIONS} value={bk.visualStyle.mood} onChange={(v) => onChange({ visualStyle: { ...bk.visualStyle, mood: v } })} allowCustom />
@@ -314,8 +314,8 @@ export function BrandKitEditor({
       {/* Avoid list */}
       <Card className="space-y-4 rounded-3xl">
         <div>
-          <h3 className="text-lg font-bold tracking-tight text-zinc-900">¿Hay algo que Eva debería evitar?</h3>
-          <p className="mt-1 text-sm text-zinc-500">
+          <h3 className="text-lg font-bold tracking-tight text-foreground">¿Hay algo que Eva debería evitar?</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
             Marcá palabras, estilos o promesas que no querés que aparezcan en tus contenidos.
           </p>
         </div>
@@ -348,12 +348,12 @@ export function BrandKitEditor({
 function SectionTitle({ icon: Icon, title, hint }: { icon: any; title: string; hint?: string }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl bg-loca-50 text-loca-600 ring-1 ring-loca-100">
+      <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl bg-accent-subtle-bg text-accent ring-1 ring-accent-subtle-ring">
         <Icon className="h-4 w-4" />
       </div>
       <div>
-        <h3 className="text-lg font-bold leading-tight tracking-tight text-zinc-900">{title}</h3>
-        {hint && <p className="mt-0.5 text-xs text-zinc-400">{hint}</p>}
+        <h3 className="text-lg font-bold leading-tight tracking-tight text-foreground">{title}</h3>
+        {hint && <p className="mt-0.5 text-xs text-faint">{hint}</p>}
       </div>
     </div>
   );

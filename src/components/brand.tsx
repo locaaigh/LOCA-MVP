@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 export function Logo({ className, light }: { className?: string; light?: boolean }) {
   return (
     <span className={cn("inline-flex items-center gap-1 font-extrabold tracking-tight", className)}>
-      <span className={light ? "text-white" : "text-loca-600"}>LOCA</span>
+      <span className={light ? "text-white" : "text-accent dark:text-white"}>LOCA</span>
       <span className="inline-block h-2 w-2 rounded-full bg-lima-400" />
     </span>
   );

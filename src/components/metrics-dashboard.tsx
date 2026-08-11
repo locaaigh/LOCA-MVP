@@ -18,11 +18,11 @@ import {
 } from "lucide-react";
 
 const INSIGHT_META: Record<PerformanceInsight["kind"], { icon: any; tone: string; label: string }> = {
-  win: { icon: Trophy, tone: "text-emerald-600 bg-emerald-50", label: "Qué funcionó mejor" },
-  repeat: { icon: Repeat, tone: "text-loca-600 bg-loca-50", label: "Qué conviene repetir" },
-  learning: { icon: Lightbulb, tone: "text-amber-600 bg-amber-50", label: "Qué aprendió Eva" },
-  avoid: { icon: Ban, tone: "text-red-600 bg-red-50", label: "Qué conviene evitar" },
-  recommendation: { icon: Wand2, tone: "text-lima-700 bg-lima-50", label: "Recomendación para el próximo calendario" },
+  win: { icon: Trophy, tone: "text-emerald-600 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40", label: "Qué funcionó mejor" },
+  repeat: { icon: Repeat, tone: "text-accent bg-accent-subtle-bg", label: "Qué conviene repetir" },
+  learning: { icon: Lightbulb, tone: "text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40", label: "Qué aprendió Eva" },
+  avoid: { icon: Ban, tone: "text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-950/40", label: "Qué conviene evitar" },
+  recommendation: { icon: Wand2, tone: "text-lima-700 dark:text-lima-300 bg-lima-50 dark:bg-lima-950/40", label: "Recomendación para el próximo calendario" },
 };
 
 function fmt(n: number): string {
@@ -35,7 +35,7 @@ export function MetricsDashboard({ snapshot }: { snapshot: MetricsSnapshot }) {
   return (
     <div className="space-y-8">
       {s.isDemo && (
-        <div className="flex items-center gap-2.5 rounded-2xl border border-amber-200/80 bg-amber-50/70 px-4 py-3 text-sm font-medium text-amber-800">
+        <div className="flex items-center gap-2.5 rounded-2xl border border-amber-200/80 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/40 px-4 py-3 text-sm font-medium text-amber-800 dark:text-amber-200">
           <Sparkles className="h-4 w-4 shrink-0" /> Datos demo — cuando conectes tus redes, Eva va a mostrar tus métricas reales acá.
         </div>
       )}
@@ -71,9 +71,9 @@ export function MetricsDashboard({ snapshot }: { snapshot: MetricsSnapshot }) {
                   <m.icon className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">{m.label}</p>
-                  <p className="mt-0.5 text-[15px] font-bold tracking-tight text-zinc-900">{ins.title}</p>
-                  <p className="mt-1 text-sm leading-relaxed text-zinc-600">{ins.detail}</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-faint">{m.label}</p>
+                  <p className="mt-0.5 text-[15px] font-bold tracking-tight text-foreground">{ins.title}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground-2">{ins.detail}</p>
                 </div>
               </Card>
             );
@@ -90,14 +90,14 @@ export function MetricsDashboard({ snapshot }: { snapshot: MetricsSnapshot }) {
               <div key={c.channel} className="flex items-center gap-3">
                 <span className="flex w-32 shrink-0 items-center gap-2">
                   <PlatformLogo channel={c.channel} size={28} />
-                  <span className="truncate text-sm font-semibold text-zinc-700">{c.channel}</span>
+                  <span className="truncate text-sm font-semibold text-foreground-muted">{c.channel}</span>
                 </span>
                 <div className="flex-1">
-                  <div className="h-2.5 rounded-full bg-zinc-100">
+                  <div className="h-2.5 rounded-full bg-surface-muted">
                     <div className="h-2.5 rounded-full bg-gradient-to-r from-loca-400 to-loca-600" style={{ width: `${Math.min(100, c.engagementRate * 600)}%` }} />
                   </div>
                 </div>
-                <span className="w-32 text-right text-xs font-medium text-zinc-500">
+                <span className="w-32 text-right text-xs font-medium text-muted-foreground">
                   {fmt(c.reach)} alcance · {(c.engagementRate * 100).toFixed(1)}%
                 </span>
               </div>
@@ -112,17 +112,17 @@ export function MetricsDashboard({ snapshot }: { snapshot: MetricsSnapshot }) {
           <SectionLabel>Top contenidos</SectionLabel>
           <div className="mt-4 space-y-2.5">
             {s.topContent.map((c, i) => (
-              <div key={c.id} className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-200/70 px-4 py-3 text-sm transition hover:border-loca-200 hover:bg-loca-50/40">
+              <div key={c.id} className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 px-4 py-3 text-sm transition hover:border-loca-200 hover:bg-accent-subtle-bg/40">
                 <span className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-500">{i + 1}</span>
-                  <span className="truncate font-semibold text-zinc-800">{c.title}</span>
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-surface-muted text-xs font-bold text-muted-foreground">{i + 1}</span>
+                  <span className="truncate font-semibold text-foreground-soft">{c.title}</span>
                 </span>
-                <span className="flex shrink-0 items-center gap-2.5 text-xs text-zinc-400">
+                <span className="flex shrink-0 items-center gap-2.5 text-xs text-faint">
                   <span className="flex items-center gap-1.5">
                     <PlatformLogo channel={c.channel} size={22} />
-                    <span className="hidden font-medium text-zinc-500 sm:inline">{c.channel}</span>
+                    <span className="hidden font-medium text-muted-foreground sm:inline">{c.channel}</span>
                   </span>
-                  <span className="font-bold text-loca-600">{(c.engagementRate * 100).toFixed(1)}%</span>
+                  <span className="font-bold text-accent">{(c.engagementRate * 100).toFixed(1)}%</span>
                 </span>
               </div>
             ))}
@@ -135,12 +135,12 @@ export function MetricsDashboard({ snapshot }: { snapshot: MetricsSnapshot }) {
 
 function Stat({ icon: Icon, label, value, highlight }: { icon: any; label: string; value: string; highlight?: boolean }) {
   return (
-    <Card className={`p-5 transition hover:shadow-pop ${highlight ? "bg-gradient-to-br from-loca-50 to-white ring-1 ring-loca-100" : ""}`}>
-      <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${highlight ? "bg-loca-100 text-loca-600" : "bg-loca-50 text-loca-500"}`}>
+    <Card className={`p-5 transition hover:shadow-pop ${highlight ? "bg-gradient-to-br from-loca-50 to-card dark:from-accent-subtle-bg ring-1 ring-accent-subtle-ring" : ""}`}>
+      <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${highlight ? "bg-loca-100 dark:bg-accent-subtle-bg text-accent" : "bg-accent-subtle-bg text-loca-500"}`}>
         <Icon className="h-5 w-5" />
       </div>
-      <div className={`mt-4 text-3xl font-bold tracking-tight sm:text-4xl ${highlight ? "text-loca-600" : "text-zinc-900"}`}>{value}</div>
-      <div className="mt-1 text-xs font-medium text-zinc-500">{label}</div>
+      <div className={`mt-4 text-3xl font-bold tracking-tight sm:text-4xl ${highlight ? "text-accent" : "text-foreground"}`}>{value}</div>
+      <div className="mt-1 text-xs font-medium text-muted-foreground">{label}</div>
     </Card>
   );
 }
@@ -149,7 +149,7 @@ function Best({ label, value }: { label: string; value?: string }) {
   return (
     <Card className="p-5 transition hover:shadow-pop">
       <SectionLabel>{label}</SectionLabel>
-      <p className="mt-2 text-lg font-bold tracking-tight text-zinc-900">{value || "—"}</p>
+      <p className="mt-2 text-lg font-bold tracking-tight text-foreground">{value || "—"}</p>
     </Card>
   );
 }

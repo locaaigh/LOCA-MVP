@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRepoContext, jsonError } from "@/lib/repository/resolve";
+import { logEvent } from "@/lib/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +15,12 @@ export async function DELETE(req: NextRequest) {
     if (!contentId) return NextResponse.json({ error: "Falta id" }, { status: 400 });
 
     await ctx.repo.deleteContent(ctx.userId, contentId);
+    await logEvent({
+      userId: ctx.userId,
+      name: "content_deleted",
+      props: { contentId },
+      isAuthenticated: ctx.isAuthenticated,
+    });
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Error eliminando contenido";

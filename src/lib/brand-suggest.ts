@@ -47,6 +47,46 @@ const PRESETS: Record<string, Preset> = {
     tone: ["aspiracional", "elegante"],
     imageStyle: "Estética cuidada, primeros planos, luz suave.",
   },
+  tech: {
+    colors: { primary: "#4f46e5", secondary: "#06b6d4", accent: "#22c55e", background: "#0b1120", text: "#e2e8f0" },
+    heading: "Inter",
+    body: "Inter",
+    mood: ["tecnológico", "moderno", "minimalista"],
+    tone: ["directa", "profesional"],
+    imageStyle: "Estética tech, gradientes, UI limpia, dark mode.",
+  },
+  education: {
+    colors: { primary: "#2563eb", secondary: "#f59e0b", accent: "#ef4444", background: "#f8fafc", text: "#0f172a" },
+    heading: "Poppins",
+    body: "Inter",
+    mood: ["cercano", "confiable", "joven"],
+    tone: ["cercana", "simple"],
+    imageStyle: "Imágenes claras y didácticas, personas aprendiendo.",
+  },
+  fitness: {
+    colors: { primary: "#16a34a", secondary: "#84cc16", accent: "#f97316", background: "#0a0a0a", text: "#fafafa" },
+    heading: "Montserrat",
+    body: "Inter",
+    mood: ["enérgico", "moderno", "aspiracional"],
+    tone: ["directa", "motivadora"],
+    imageStyle: "Fotos con energía, movimiento, contraste alto.",
+  },
+  creative: {
+    colors: { primary: "#db2777", secondary: "#8b5cf6", accent: "#facc15", background: "#fdf4ff", text: "#1e1b2e" },
+    heading: "Playfair Display",
+    body: "Inter",
+    mood: ["artístico", "vibrante", "aspiracional"],
+    tone: ["emocional", "canchera"],
+    imageStyle: "Estética editorial, composición cuidada, color audaz.",
+  },
+  nature: {
+    colors: { primary: "#15803d", secondary: "#a3e635", accent: "#ca8a04", background: "#f7fee7", text: "#1a2e05" },
+    heading: "Lora",
+    body: "Inter",
+    mood: ["natural", "cálido", "artesanal"],
+    tone: ["cercana", "honesta"],
+    imageStyle: "Luz natural, texturas orgánicas, tonos tierra.",
+  },
   default: {
     colors: { primary: "#db2777", secondary: "#84cc16", accent: "#f472b6", background: "#fafafa", text: "#18181b" },
     heading: "Poppins",
@@ -60,10 +100,29 @@ const PRESETS: Record<string, Preset> = {
 function presetFor(industry: string): Preset {
   const i = (industry || "").toLowerCase();
   if (i.includes("food") || i.includes("beverage")) return PRESETS.food;
+  if (i.includes("tech") || i.includes("software") || i.includes("startup") || i.includes("saas")) return PRESETS.tech;
+  if (i.includes("education") || i.includes("training") || i.includes("coaching")) return PRESETS.education;
+  if (i.includes("sport") || i.includes("fitness") || i.includes("gym")) return PRESETS.fitness;
+  if (i.includes("creative") || i.includes("art") || i.includes("craft") || i.includes("event") || i.includes("entertain"))
+    return PRESETS.creative;
+  if (i.includes("agriculture") || i.includes("natural") || i.includes("pet") || i.includes("nonprofit") || i.includes("social"))
+    return PRESETS.nature;
   if (i.includes("e-commerce") || i.includes("online") || i.includes("retail") || i.includes("fashion")) return PRESETS.ecommerce;
   if (i.includes("beauty") || i.includes("wellness") || i.includes("health")) return PRESETS.beauty;
-  if (i.includes("service") || i.includes("consult") || i.includes("professional") || i.includes("real estate") || i.includes("financial"))
+  if (
+    i.includes("service") ||
+    i.includes("consult") ||
+    i.includes("professional") ||
+    i.includes("real estate") ||
+    i.includes("financial") ||
+    i.includes("construction") ||
+    i.includes("home") ||
+    i.includes("automotive") ||
+    i.includes("manufactur") ||
+    i.includes("marketing")
+  )
     return PRESETS.services;
+  if (i.includes("travel") || i.includes("tourism") || i.includes("hospitality")) return PRESETS.creative;
   return PRESETS.default;
 }
 

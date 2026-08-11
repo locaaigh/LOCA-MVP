@@ -9,6 +9,14 @@ export type BusinessModel = "B2B" | "B2C" | "Ambos";
 export type ProductServiceType = "producto" | "servicio";
 export type PricingType = "fijo" | "rango" | "por_variante" | "variable";
 
+// Etapa/tipo de organización (distinto de businessType). Define qué info y
+// contenido pedir por tipo de negocio. Ver PLAN-v2 item 3.
+export type BusinessStage =
+  | "emprendimiento"
+  | "pyme"
+  | "startup"
+  | "profesional_independiente";
+
 export type Channel = "Instagram" | "Facebook" | "TikTok" | "LinkedIn";
 export type ContentFormat =
   | "post_estatico"
@@ -80,6 +88,19 @@ export interface User {
   createdAt: string;
 }
 
+// ── Media subida por el usuario (fotos de producto / persona) ─
+// Referencias reales para generar contenido (ver PLAN-v2 items 17, 18, 20).
+export type UploadedPhotoKind = "product" | "person" | "other";
+export interface UploadedPhoto {
+  id: ID;
+  /** Etiqueta/nombre que pone el usuario. La nomenclatura importa para la generación. */
+  label: string;
+  kind: UploadedPhotoKind;
+  url?: string; // URL pública (Supabase Storage) — preferida para generación/publicación
+  dataUrl?: string; // fallback local mientras no hay URL pública
+  createdAt: string;
+}
+
 // ── Productos / Servicios ────────────────────────────────────
 export interface ProductService {
   id: ID;
@@ -96,6 +117,8 @@ export interface ProductService {
   priceMin?: number;
   priceMax?: number;
   imageCaption?: string;
+  // Fotos reales del producto/servicio subidas por el usuario (referencias de generación).
+  photos?: UploadedPhoto[];
   keywords: string[];
   negativeKeywords: string[];
   isTopSeller: boolean;
@@ -149,6 +172,8 @@ export interface Business {
   industry: string;
   subcategory: string;
   businessType: string;
+  // Etapa/tipo de organización (emprendimiento/pyme/startup/profesional). Ver PLAN-v2 item 3.
+  businessStage?: BusinessStage;
   businessModel: BusinessModel;
   yearFounded?: string;
   employees?: string;
@@ -177,6 +202,10 @@ export interface Business {
   websiteExtractionStatus?: "idle" | "loading" | "done" | "error";
   brandColors: string[];
   logoUrl?: string;
+  // Estilos visuales elegidos (multi-select) que guían la generación. Ver PLAN-v2 item 16.
+  visualStyles?: string[];
+  // Fotos de la persona (marca personal / profesional independiente). Ver PLAN-v2 item 20.
+  personPhotos?: UploadedPhoto[];
   productsServices: ProductService[];
   audience: Audience;
   goals: Goals;
@@ -263,6 +292,19 @@ export interface PhotoBrief {
   composition: string;
 }
 
+// Slide individual de un carrusel (item 14). Cada slide es una imagen con su
+// propio prompt/estado para poder aprobar/editar una sola o todas juntas.
+export interface CarouselSlide {
+  id: ID;
+  order: number;
+  visualConcept: string;
+  imagePrompt: string;
+  imageUrl?: string;
+  imageProvider?: AiProvider;
+  imageStatus: ImageStatus;
+  imageError?: string;
+}
+
 export interface FeedbackEntry {
   id: ID;
   feedback: string;
@@ -286,6 +328,8 @@ export interface ContentItem {
   imageStatus: ImageStatus;
   imageError?: string;
   imageFormat: ImageFormat;
+  // Slides del carrusel (si format === "carrusel"). Ver PLAN-v2 item 14.
+  carouselSlides?: CarouselSlide[];
   suggestedLayout: string;
   designTextOverlay: string;
   assetNotes: string;
@@ -303,6 +347,14 @@ export interface ContentItem {
   scheduledTime?: string; // ej "18:30"
   status: ContentStatus;
   publishStatus: PublishStatus;
+  // ── Resultado de la publicación real en redes (auto-publicación) ──
+  // Ver PLAN-v2 A7 + item 11. Permite "ver contenido" (permalink) y detectar fallos.
+  publishedAt?: string; // ISO — cuándo se publicó de verdad
+  publishedPlatform?: Channel; // dónde se publicó
+  publishedUrl?: string; // permalink del post publicado (para redirigir a IG/FB/LinkedIn)
+  publishedMediaId?: string; // id del media/post en la red
+  publishError?: string; // último error de publicación (→ alerta + reintentar)
+  publishAttemptedAt?: string; // ISO — último intento (exitoso o no)
   feedbackHistory: FeedbackEntry[];
   // Edición manual (sin IA)
   lastManualEditAt?: string;
@@ -415,6 +467,8 @@ export interface AiMeta {
   warning?: string;
   model?: string;
   usage?: { inputTokens: number; outputTokens: number; costUsd: number };
+  /** Latencia de la llamada al proveedor (para ai_usage_log). */
+  durationMs?: number;
 }
 
 // ── Extracción de info desde la web del negocio ──────────────

@@ -35,6 +35,7 @@ export const imageAgent: Agent<ImageAgentInput, ImageAgentOutput> = {
         meta: { provider: "mock" },
       };
     }
+    const startedAt = Date.now();
     try {
       const { imageUrl } = await imageProvider.generate({ prompt, format });
       return {
@@ -42,6 +43,7 @@ export const imageAgent: Agent<ImageAgentInput, ImageAgentOutput> = {
         meta: {
           provider: imageProvider.id,
           model: imageProvider.model,
+          durationMs: Date.now() - startedAt,
           usage: { inputTokens: 0, outputTokens: 0, costUsd: estimateImageCostUsd(imageProvider.model) },
         },
       };
@@ -55,7 +57,7 @@ export const imageAgent: Agent<ImageAgentInput, ImageAgentOutput> = {
           status: "error",
           error: msg,
         },
-        meta: { provider: "mock", warning: msg },
+        meta: { provider: "mock", durationMs: Date.now() - startedAt, warning: msg },
       };
     }
   },

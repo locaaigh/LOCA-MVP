@@ -21,7 +21,7 @@ export function AiUsageOverlay() {
     <div className="fixed bottom-4 right-4 z-[9999] font-mono text-xs">
       {open && (
         <div className="mb-2 max-h-80 w-72 overflow-y-auto rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-zinc-200 shadow-xl">
-          <p className="mb-2 font-bold text-zinc-400">Uso de IA (sesión)</p>
+          <p className="mb-2 font-bold text-faint">Uso de IA (sesión)</p>
           <ul className="space-y-1.5">
             {recent.map((e) => (
               <li key={e.id} className="border-b border-zinc-800 pb-1.5">
@@ -29,7 +29,7 @@ export function AiUsageOverlay() {
                   <span className="text-zinc-300">{e.agent}</span>
                   <span>${e.costUsd.toFixed(4)}</span>
                 </div>
-                <div className="text-zinc-500">
+                <div className="text-muted-foreground">
                   {e.provider}
                   {e.model ? ` · ${e.model}` : ""} · {e.inputTokens}+{e.outputTokens} tok
                 </div>

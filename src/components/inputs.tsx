@@ -9,11 +9,11 @@ import type { FieldStatusKind } from "@/lib/types";
 
 // ── Badge de estado por campo (origen / confianza) ───────────
 const STATUS_META: Record<FieldStatusKind, { label: string; cls: string }> = {
-  found: { label: "Encontrado en tu web", cls: "bg-emerald-50 text-emerald-700 ring-emerald-100" },
-  suggested: { label: "Sugerido por Eva", cls: "bg-loca-50 text-loca-700 ring-loca-100" },
-  review: { label: "Revisar", cls: "bg-amber-50 text-amber-700 ring-amber-100" },
-  missing: { label: "Falta completar", cls: "bg-red-50 text-red-600 ring-red-100" },
-  user: { label: "Editado por vos", cls: "bg-zinc-100 text-zinc-600 ring-zinc-200" },
+  found: { label: "Encontrado en tu web", cls: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 ring-emerald-100 dark:ring-emerald-900" },
+  suggested: { label: "Sugerido por Eva", cls: "bg-accent-subtle-bg text-accent-subtle-fg ring-accent-subtle-ring" },
+  review: { label: "Revisar", cls: "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 ring-amber-100 dark:ring-amber-900" },
+  missing: { label: "Falta completar", cls: "bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 ring-red-100 dark:ring-red-900" },
+  user: { label: "Editado por vos", cls: "bg-surface-muted text-muted-foreground-2 ring-border" },
 };
 
 export function FieldStatusBadge({ status }: { status?: FieldStatusKind }) {
@@ -46,19 +46,29 @@ export function HelpField({
   status?: FieldStatusKind;
   children: React.ReactNode;
 }) {
+  // El `id` prop es el ancla de scroll de la sección (va en el wrapper). Para
+  // asociar el label con el control usamos un id de campo separado (a11y).
+  const genId = React.useId();
+  const el = React.isValidElement(children) ? (children as React.ReactElement) : null;
+  const existingId = el?.props?.id as string | undefined;
+  const fieldId = el ? existingId || genId : undefined;
+  const control = el && !existingId ? React.cloneElement(el, { id: genId }) : children;
   return (
     <div id={id} className="scroll-mt-24">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <label className={cn("text-sm font-semibold", error ? "text-red-600" : "text-zinc-700")}>
+        <label
+          htmlFor={fieldId}
+          className={cn("text-sm font-semibold", error ? "text-red-600 dark:text-red-300" : "text-foreground-muted")}
+        >
           {label} {required && <span className="text-loca-500">*</span>}
         </label>
         <div className="flex items-center gap-2">
           <FieldStatusBadge status={status} />
-          {hint && <span className="text-xs text-zinc-400">{hint}</span>}
+          {hint && <span className="text-xs text-muted-foreground-2">{hint}</span>}
         </div>
       </div>
-      {children}
-      {help && <p className="mt-1 text-xs text-zinc-400">{help}</p>}
+      {control}
+      {help && <p className="mt-1 text-xs text-muted-foreground-2">{help}</p>}
     </div>
   );
 }
@@ -111,19 +121,19 @@ export function SearchableSelect({
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          "flex w-full items-center justify-between rounded-2xl border bg-white px-4 py-3 text-left text-[15px] transition",
-          error ? "border-red-400" : "border-zinc-200 hover:border-zinc-300"
+          "flex w-full items-center justify-between rounded-2xl border bg-card px-4 py-3 text-left text-[15px] transition",
+          error ? "border-red-400" : "border-border hover:border-border-strong"
         )}
       >
-        <span className={value ? "text-zinc-900" : "text-zinc-400"}>
+        <span className={value ? "text-foreground" : "text-muted-foreground"}>
           {value || placeholder}
         </span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400" />
+        <ChevronDown className="h-4 w-4 shrink-0 text-faint" />
       </button>
       {open && (
-        <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg">
-          <div className="flex items-center gap-2 border-b border-zinc-100 px-3 py-2">
-            <Search className="h-4 w-4 text-zinc-400" />
+        <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-lg border border-border bg-card shadow-lg">
+          <div className="flex items-center gap-2 border-b border-border-subtle px-3 py-2">
+            <Search className="h-4 w-4 text-faint" />
             <input
               autoFocus
               value={query}
@@ -145,19 +155,19 @@ export function SearchableSelect({
                 key={o}
                 type="button"
                 onClick={() => select(o)}
-                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-loca-50"
+                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-accent-subtle-bg"
               >
                 {o}
-                {value === o && <Check className="h-4 w-4 text-loca-600" />}
+                {value === o && <Check className="h-4 w-4 text-accent" />}
               </button>
             ))}
             {filtered.length === 0 && (
-              <div className="px-3 py-2 text-sm text-zinc-400">
+              <div className="px-3 py-2 text-sm text-faint">
                 {allowFreeText ? (
                   <button
                     type="button"
                     onClick={() => select(query.trim())}
-                    className="text-loca-600 hover:underline"
+                    className="text-accent hover:underline"
                   >
                     Usar “{query.trim()}”
                   </button>
@@ -258,8 +268,8 @@ export function OptionCards({
             className={cn(
               "flex items-start gap-2 rounded-2xl border px-4 py-3.5 text-left text-sm transition",
               active
-                ? "border-loca-400 bg-loca-50 text-loca-700 ring-2 ring-loca-100"
-                : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
+                ? "border-loca-400 bg-accent-subtle-bg text-accent-subtle-fg ring-2 ring-accent-subtle-ring"
+                : "border-border bg-card text-foreground-muted hover:border-border-strong hover:bg-surface-subtle"
             )}
           >
             {o.icon && <span className="mt-0.5 shrink-0">{o.icon}</span>}
@@ -268,7 +278,7 @@ export function OptionCards({
                 {o.label}
                 {active && <Check className="h-3.5 w-3.5 shrink-0" />}
               </span>
-              {o.desc && <span className="mt-0.5 block text-xs text-zinc-400">{o.desc}</span>}
+              {o.desc && <span className="mt-0.5 block text-xs text-muted-foreground-2">{o.desc}</span>}
             </span>
           </button>
         );
@@ -302,8 +312,8 @@ export function YesNoChoice({
           className={cn(
             "rounded-2xl border px-4 py-3.5 text-sm font-semibold transition",
             value === v
-              ? "border-loca-400 bg-loca-50 text-loca-700 ring-2 ring-loca-100"
-              : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
+              ? "border-loca-400 bg-accent-subtle-bg text-accent-subtle-fg ring-2 ring-accent-subtle-ring"
+              : "border-border bg-card text-foreground-muted hover:border-border-strong hover:bg-surface-subtle"
           )}
         >
           {l}

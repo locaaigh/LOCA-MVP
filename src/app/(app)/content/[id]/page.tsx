@@ -14,6 +14,7 @@ import { CONTENT_FEEDBACK, applyStructuredFeedback } from "@/lib/feedback";
 import { FORMAT_LABELS, IMAGE_FORMAT_LABELS, CONTENT_STATUS_LABELS } from "@/lib/constants";
 import { isLocked, isPublished, datePassed } from "@/lib/content-status";
 import { copyToClipboard, downloadDataUrl } from "@/lib/utils";
+import { track } from "@/lib/analytics";
 import {
   ArrowLeft,
   Check,
@@ -58,7 +59,7 @@ export default function ContentDetailPage() {
   if (!content || !business) {
     return (
       <Card className="text-center">
-        <p className="text-zinc-500">No se encontró la pieza.</p>
+        <p className="text-muted-foreground">No se encontró la pieza.</p>
         <Link href="/content">
           <Button className="mt-3" variant="outline">Volver al estudio</Button>
         </Link>
@@ -77,6 +78,7 @@ export default function ContentDetailPage() {
 
   function reopen() {
     patch({ status: "needs_changes" });
+    track("content_reopened", { contentId: c.id }, { businessId: c.businessId });
     setReopenOpen(false);
     show("Edición reabierta. Volvió a pendiente de revisión.");
   }
@@ -100,7 +102,13 @@ export default function ContentDetailPage() {
 
   async function applyFeedback(instruction: string) {
     if (!instruction.trim()) return;
+    // Demo: no se aplican cambios reales de IA (evita costo y explica el modo).
+    if (business?.isDemo) {
+      show("Estás en una demo 👀 — Eva no aplica cambios reales acá. Creá tu cuenta para usarlo de verdad.");
+      return;
+    }
     setFbLoading(true);
+    track("content_copy_feedback", { contentId: c.id }, { businessId: c.businessId });
     try {
       const res = await gen.applyFeedback(business!, c, instruction);
       show(res.meta?.warning || "Pieza actualizada ✨");
@@ -120,7 +128,7 @@ export default function ContentDetailPage() {
     <div className="space-y-5">
       {node}
       <div className="flex items-center justify-between">
-        <Link href="/content" className="flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800">
+        <Link href="/content" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground-soft">
           <ArrowLeft className="h-4 w-4" /> Volver a contenidos
         </Link>
         <div className="flex items-center gap-2.5">
@@ -130,16 +138,18 @@ export default function ContentDetailPage() {
         </div>
       </div>
 
+      <h1 className="text-2xl font-bold tracking-tight text-foreground">{c.title}</h1>
+
       {/* Protección: contenido aprobado/publicado */}
       {locked && (
-        <Card className="flex flex-col items-start justify-between gap-3 border-emerald-200 bg-emerald-50/60 sm:flex-row sm:items-center">
+        <Card className="flex flex-col items-start justify-between gap-3 border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/40 sm:flex-row sm:items-center">
           <div className="flex items-start gap-3">
-            <Lock className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+            <Lock className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-300" />
             <div>
-              <p className="font-semibold text-emerald-800">
+              <p className="font-semibold text-emerald-800 dark:text-emerald-200">
                 {published ? "Este contenido ya fue publicado" : "Este contenido está aprobado"}
               </p>
-              <p className="text-sm text-emerald-700">
+              <p className="text-sm text-emerald-700 dark:text-emerald-300">
                 Está protegido para que no se edite por accidente. Reabrí la edición si necesitás cambiarlo.
               </p>
             </div>
@@ -179,7 +189,7 @@ export default function ContentDetailPage() {
                 disabled={locked}
               />
             </Field>
-            {c.imageError && <p className="text-xs text-red-500">{c.imageError}</p>}
+            {c.imageError && <p className="text-xs text-red-500 dark:text-red-400">{c.imageError}</p>}
             <div className="flex flex-wrap gap-2">
               <Button onClick={genImage} loading={imgLoading} disabled={locked}>
                 <ImageIcon className="h-4 w-4" />
@@ -202,21 +212,21 @@ export default function ContentDetailPage() {
                 </Button>
               )}
             </div>
-            <p className="text-xs text-zinc-400">{c.visualConcept}</p>
+            <p className="text-xs text-faint">{c.visualConcept}</p>
           </Card>
 
           {/* Video / Foto brief */}
           {c.videoScript && (
             <Card className="space-y-2">
               <h3 className="font-semibold">Guion de video / reel</h3>
-              <p className="text-sm text-zinc-600">{c.videoScript.concept}</p>
-              <p className="text-xs text-zinc-400">Duración: {c.videoScript.durationSeconds}s · Música: {c.videoScript.music}</p>
+              <p className="text-sm text-muted-foreground-2">{c.videoScript.concept}</p>
+              <p className="text-xs text-faint">Duración: {c.videoScript.durationSeconds}s · Música: {c.videoScript.music}</p>
               <div className="space-y-2">
                 {c.videoScript.scenes.map((s, i) => (
-                  <div key={i} className="rounded-lg bg-zinc-50 p-2 text-sm">
+                  <div key={i} className="rounded-lg bg-surface-subtle p-2 text-sm">
                     <p className="font-medium">Escena {i + 1}: {s.scene}</p>
-                    <p className="text-xs text-zinc-500">📝 En pantalla: {s.onScreenText}</p>
-                    <p className="text-xs text-zinc-500">🎙️ Voz: {s.voiceover}</p>
+                    <p className="text-xs text-muted-foreground">📝 En pantalla: {s.onScreenText}</p>
+                    <p className="text-xs text-muted-foreground">🎙️ Voz: {s.voiceover}</p>
                   </div>
                 ))}
               </div>
@@ -225,10 +235,10 @@ export default function ContentDetailPage() {
           {c.photoBrief && (
             <Card className="space-y-2">
               <h3 className="font-semibold">Brief fotográfico</h3>
-              <p className="text-sm text-zinc-600">{c.photoBrief.idea}</p>
-              <p className="text-xs text-zinc-500"><strong>Shot list:</strong> {c.photoBrief.shotList.join(", ")}</p>
-              <p className="text-xs text-zinc-500"><strong>Props:</strong> {c.photoBrief.props.join(", ")}</p>
-              <p className="text-xs text-zinc-500"><strong>Composición:</strong> {c.photoBrief.composition}</p>
+              <p className="text-sm text-muted-foreground-2">{c.photoBrief.idea}</p>
+              <p className="text-xs text-muted-foreground"><strong>Shot list:</strong> {c.photoBrief.shotList.join(", ")}</p>
+              <p className="text-xs text-muted-foreground"><strong>Props:</strong> {c.photoBrief.props.join(", ")}</p>
+              <p className="text-xs text-muted-foreground"><strong>Composición:</strong> {c.photoBrief.composition}</p>
             </Card>
           )}
         </div>
@@ -241,7 +251,7 @@ export default function ContentDetailPage() {
               <StatusSelect value={c.status} onChange={(v) => patch({ status: v as any })} disabled={locked} />
             </div>
             <fieldset disabled={locked} className="space-y-3 disabled:opacity-70">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="Fecha de publicación">
                   <Input
                     type="date"
@@ -273,7 +283,7 @@ export default function ContentDetailPage() {
               <Field label="Body copy">
                 <Textarea value={c.body} onChange={(e) => patch({ body: e.target.value })} />
               </Field>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="CTA">
                   <Input value={c.cta} onChange={(e) => patch({ cta: e.target.value })} />
                 </Field>
@@ -281,19 +291,10 @@ export default function ContentDetailPage() {
                   <Input value={c.designTextOverlay} onChange={(e) => patch({ designTextOverlay: e.target.value })} />
                 </Field>
               </div>
-              <Field label="Hashtags">
-                <Input
-                  value={c.hashtags.join(" ")}
-                  onChange={(e) => patch({ hashtags: e.target.value.split(/\s+/).filter(Boolean) })}
-                />
-              </Field>
             </fieldset>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={() => copy(c.caption, "Caption")}>
                 <Copy className="h-4 w-4" /> Copiar caption
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => copy(c.hashtags.join(" "), "Hashtags")}>
-                <Copy className="h-4 w-4" /> Copiar hashtags
               </Button>
             </div>
           </Card>
@@ -302,16 +303,42 @@ export default function ContentDetailPage() {
           <Card className="space-y-3">
             <h3 className="font-semibold">Decisión</h3>
             {locked ? (
-              <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
+              <div className="flex items-center gap-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
                 <Check className="h-4 w-4" />
                 {published ? "Publicado" : "Aprobado"} · {CONTENT_STATUS_LABELS[c.status] || c.status}
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">
-                <Button variant="success" onClick={() => { patch({ status: "aprobado" }); show("Aprobado ✅"); }}>
+                <Button
+                  variant="success"
+                  onClick={() => {
+                    patch({ status: "aprobado" });
+                    track(
+                      "content_approved",
+                      {
+                        contentId: c.id,
+                        format: c.format,
+                        channel: c.channel,
+                        firstPass:
+                          (c.feedbackHistory?.length ?? 0) === 0 &&
+                          (c.manuallyEditedFields?.length ?? 0) === 0 &&
+                          (c.visualChangeCount ?? 0) === 0,
+                      },
+                      { businessId: c.businessId }
+                    );
+                    show("Aprobado ✅");
+                  }}
+                >
                   <Check className="h-4 w-4" /> Aprobar
                 </Button>
-                <Button variant="outline" onClick={() => { patch({ status: "rechazado" }); show("Rechazado"); }}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    patch({ status: "rechazado" });
+                    track("content_rejected", { contentId: c.id }, { businessId: c.businessId });
+                    show("Rechazado");
+                  }}
+                >
                   <X className="h-4 w-4" /> Rechazar
                 </Button>
               </div>
@@ -320,8 +347,13 @@ export default function ContentDetailPage() {
 
           {/* Modificar contenido */}
           <div id="modificar-contenido">
+            {business?.isDemo && !locked && (
+              <div className="mb-2 rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 px-4 py-2.5 text-sm font-medium text-amber-800 dark:text-amber-200">
+                Modo demo: podés probar, pero Eva no aplica cambios reales acá.
+              </div>
+            )}
             {locked ? (
-              <Card className="text-sm text-zinc-500">
+              <Card className="text-sm text-muted-foreground">
                 Para modificar este contenido, primero reabrí la edición arriba.
               </Card>
             ) : (
@@ -336,7 +368,7 @@ export default function ContentDetailPage() {
             )}
             {c.feedbackHistory.length > 0 && (
               <div className="mt-2">
-                <p className="mb-1 text-xs font-medium text-zinc-400">Cambios aplicados</p>
+                <p className="mb-1 text-xs font-medium text-faint">Cambios aplicados</p>
                 <div className="flex flex-wrap gap-1">
                   {c.feedbackHistory.map((f) => (
                     <Badge key={f.id}>{f.feedback}</Badge>
@@ -352,7 +384,7 @@ export default function ContentDetailPage() {
               api.deleteContent(c.id).catch(() => {});
               router.push("/content");
             }}
-            className="text-sm text-red-500 hover:underline"
+            className="text-sm text-red-500 dark:text-red-400 hover:underline"
           >
             Eliminar pieza
           </button>
@@ -361,7 +393,7 @@ export default function ContentDetailPage() {
 
       {/* Confirmación de reabrir edición */}
       <Modal open={reopenOpen} onClose={() => setReopenOpen(false)} title="Reabrir edición">
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-muted-foreground-2">
           Este contenido ya fue aprobado. Si lo editás, volverá a estado pendiente de revisión. ¿Querés continuar?
         </p>
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
@@ -380,7 +412,7 @@ export default function ContentDetailPage() {
 function ImageStatusBadge({ status, provider }: { status: string; provider?: string }) {
   if (status === "generando")
     return (
-      <span className="inline-flex items-center gap-1 text-xs text-zinc-500">
+      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
         <Loader2 className="h-3 w-3 animate-spin" /> Generando…
       </span>
     );

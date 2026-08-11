@@ -125,7 +125,7 @@ interface AppState {
   // auth
   signup: (email: string, name: string) => void;
   login: (email: string) => void;
-  loginDemo: () => void;
+  loginDemo: (activeId?: string) => void;
   /** Borra negocios/contenidos locales; no toca la nube ni el usuario. */
   clearUserData: () => void;
   logout: () => void;
@@ -195,11 +195,14 @@ export const useStore = create<AppState>()(
         };
         set({ user });
       },
-      loginDemo: () =>
+      loginDemo: (activeId?: string) =>
         set({
           user: DEMO_USER,
           businesses: [...DEMO_BUSINESSES],
-          activeBusinessId: DEMO_BUSINESSES[0].id,
+          activeBusinessId:
+            activeId && DEMO_BUSINESSES.some((b) => b.id === activeId)
+              ? activeId
+              : DEMO_BUSINESSES[0].id,
           strategies: {},
           calendars: {},
           contents: [],

@@ -4,6 +4,7 @@ import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { getSupabaseBrowser, hasSupabaseClientConfig } from "@/lib/supabase/client";
 import { toLocaUser } from "@/lib/auth/user";
 import { useStore } from "@/lib/store";
+import { identifyUser, markDemoSession, resetAnalytics, track } from "@/lib/analytics";
 
 /** Trae los datos del usuario desde Supabase y los mete en el store. */
 async function hydrateFromServer() {
@@ -32,6 +33,9 @@ export async function handleAuthFailure(reason = "session_expired"): Promise<voi
 
 /** Cierra sesión de Supabase si está configurado (no-op en modo local). */
 export async function signOutSupabase(): Promise<void> {
+  // Nueva identidad anónima en analytics en todos los caminos de logout
+  // (logout real, expiración de sesión, entrada a demo, borrar todo).
+  resetAnalytics();
   if (!hasSupabaseClientConfig()) return;
   await getSupabaseBrowser().auth.signOut();
 }
@@ -47,6 +51,7 @@ export async function establishAuthenticatedUser(supabaseUser: SupabaseUser) {
     useStore.getState().clearUserData();
   }
   useStore.getState().setUser(newUser);
+  identifyUser(newUser);
   await hydrateFromServer();
 }
 
@@ -54,9 +59,11 @@ export async function establishAuthenticatedUser(supabaseUser: SupabaseUser) {
  * Entra en modo demo: cierra sesión real, limpia datos locales y carga
  * los negocios demo sin mezclar con la cuenta anterior.
  */
-export async function enterDemoMode(): Promise<void> {
+export async function enterDemoMode(activeId?: string): Promise<void> {
   await signOutSupabase();
   const store = useStore.getState();
   store.clearUserData();
-  store.loginDemo();
+  store.loginDemo(activeId);
+  markDemoSession(true);
+  track("demo_started", { profile: activeId ?? null });
 }

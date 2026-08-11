@@ -1,10 +1,14 @@
-import type { Business, CalendarItem, Strategy } from "@/lib/types";
+import type { Business, CalendarItem, ContentFormat, Strategy } from "@/lib/types";
 import { nowIso, uid } from "@/lib/utils";
+import { isFormatEnabled } from "@/lib/constants";
 import { mockCalendar } from "../mock";
 import { SYSTEM_EVA, calendarPrompt } from "../prompts";
 import { asChannel, asFormat, asString } from "../shared/normalize";
 import type { Agent, AgentResult } from "../shared/result";
 import { withTextAgent } from "./_shared";
+
+// Formato apagado (carrusel/reel por ahora) → cae a post_estatico. Ver PLAN-v2 A2.
+const gateFormat = (f: ContentFormat): ContentFormat => (isFormatEnabled(f) ? f : "post_estatico");
 
 export interface CalendarAgentInput {
   business: Business;
@@ -17,7 +21,7 @@ export const calendarAgent: Agent<CalendarAgentInput, CalendarItem[]> = {
   id: "calendar",
 
   async run({ business, strategy, count, feedback }): Promise<AgentResult<CalendarItem[]>> {
-    const fallback = mockCalendar(business, strategy, count);
+    const fallback = mockCalendar(business, strategy, count).map((c) => ({ ...c, format: gateFormat(c.format) }));
     return withTextAgent(
       () => fallback,
       async (chatJson) => {
@@ -40,7 +44,7 @@ export const calendarAgent: Agent<CalendarAgentInput, CalendarItem[]> = {
             date: d.toISOString().slice(0, 10),
             suggestedTime: asString(o.suggestedTime, "18:00"),
             channel: asChannel(o.channel, strategy.recommendedChannels[0] || "Instagram"),
-            format: asFormat(o.format, "post_estatico"),
+            format: gateFormat(asFormat(o.format, "post_estatico")),
             contentPillar: asString(
               o.contentPillar,
               strategy.contentPillars[0]?.name || "General"

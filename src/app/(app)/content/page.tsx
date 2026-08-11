@@ -5,16 +5,20 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore, useFlow } from "@/lib/store";
 import { useGenerators, useMonthContentGenerating } from "@/lib/generators";
+import { api } from "@/lib/api";
 import { exportContentsCsv } from "@/lib/exports";
-import { Badge, Button, Card, EmptyState, EvaLoading, Modal, PageHeader, useToast } from "@/components/ui";
+import { exportContentPack } from "@/lib/content-pack";
+import { Badge, Button, Card, EmptyState, EvaLoading, Modal, useToast } from "@/components/ui";
 import { ContentPreview } from "@/components/content-preview";
 import { PlatformLogos, contentPlatforms } from "@/components/platform-logo";
 import { ContentReviewDeck } from "@/components/content-review";
+import { GenerationProgress } from "@/components/generation-progress";
 import { ProgressTracker, StickyApproveBar, buildFlowSteps } from "@/components/flow";
 import { FORMAT_LABELS, CONTENT_STATUS_LABELS } from "@/lib/constants";
-import { bucketOf, isPublished, datePassed } from "@/lib/content-status";
+import { bucketOf, hasPublishError } from "@/lib/content-status";
 import { copyToClipboard, formatDate } from "@/lib/utils";
-import { CheckCheck, Copy, Eye, FileText, Library, Lock, Play, Sparkles, Unlock, CheckCircle2, Send } from "lucide-react";
+import { track } from "@/lib/analytics";
+import { CheckCheck, Copy, Eye, FileText, Library, Lock, Play, Sparkles, Unlock, CheckCircle2, Send, AlertTriangle, ExternalLink, Download } from "lucide-react";
 import type { Business, ContentItem } from "@/lib/types";
 
 const STATUS_TONE: Record<string, any> = {
@@ -47,8 +51,14 @@ export default function ContentStudioPage() {
   const [tab, setTab] = useState<Tab>("revision");
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState("");
+  const [prog, setProg] = useState<{ done: number; total: number; phase: string } | null>(null);
   const [confirmAll, setConfirmAll] = useState(false);
   const [reopenId, setReopenId] = useState<string | null>(null);
+  // Export "pack de contenidos" (.zip)
+  const [exporting, setExporting] = useState(false);
+  const [exportRangeOpen, setExportRangeOpen] = useState(false);
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeTo, setRangeTo] = useState("");
   const autoTriggered = useRef(false);
 
   const contents = useMemo(
@@ -82,19 +92,21 @@ export default function ContentStudioPage() {
     if (!business) return;
     setLoading(true);
     try {
-      const n = await gen.generateMonthContents(business, 16, (d, t, phase) =>
+      const n = await gen.generateMonthContents(business, 16, (d, t, phase) => {
+        setProg({ done: d, total: t, phase: phase || "default" });
         setProgress(
           phase === "imagen"
             ? `Textos listos ✓ — generando imágenes ${d}/${t}… (van apareciendo en las piezas)`
             : `Generando contenido ${d}/${t}…`
-        )
-      );
+        );
+      });
       show(n > 0 ? "Contenidos listos 🎉" : "Ya están todos generados");
     } catch (e: any) {
       show(e?.message || "Error");
     } finally {
       setLoading(false);
       setProgress("");
+      setProg(null);
     }
   }
 
@@ -102,13 +114,82 @@ export default function ContentStudioPage() {
     pending.forEach((c) => updateContent(c.id, { status: "aprobado" }));
     if (business) setFlow(business.id, { content: "approved" });
     setConfirmAll(false);
+    // ¿Revisan de verdad o aprueban en bloque? Comparar con content_approved.
+    track(
+      "content_approved_all",
+      { count: pending.length },
+      { businessId: business?.id }
+    );
     show("Todo aprobado 🎉 Listos para publicar.");
     setTab("aprobados");
+  }
+
+  // Publicar una pieza en Meta (manual o reintento). Ver PLAN-v2 item 11 / A.
+  async function publishOne(c: ContentItem) {
+    if (!business) return;
+    track("content_publish_clicked", { contentId: c.id, retry: hasPublishError(c) });
+    show("Publicando…");
+    try {
+      const res = await api.publishMeta(business.id, c.id);
+      updateContent(c.id, {
+        status: "published",
+        publishedAt: new Date().toISOString(),
+        publishAttemptedAt: new Date().toISOString(),
+        publishedUrl: res.permalink,
+        publishedMediaId: res.mediaId,
+        publishedPlatform: res.platform === "facebook" ? "Facebook" : "Instagram",
+        publishError: undefined,
+      });
+      show(res.permalink ? "Publicado 🎉" : "Publicado 🎉 (sin link disponible)");
+      setTab("publicados");
+    } catch (e: any) {
+      updateContent(c.id, {
+        publishError: e?.message || "No se pudo publicar",
+        publishAttemptedAt: new Date().toISOString(),
+      });
+      show(e?.message || "No se pudo publicar");
+    }
+  }
+
+  // Export "pack de contenidos" (.zip): imagen + copy .txt + _resumen.csv.
+  async function runExport(list: ContentItem[]) {
+    if (!business) return;
+    if (list.length === 0) {
+      show("No hay piezas para exportar en ese rango.");
+      return;
+    }
+    setExporting(true);
+    show("Preparando el pack… 📦");
+    try {
+      const items = list.map((c) => ({ content: c, date: dateOf(c) }));
+      const n = await exportContentPack(business, items);
+      // Proxy de publicación manual fuera de LOCA.
+      track("content_exported", { type: "pack", count: n }, { businessId: business.id });
+      show(`Pack listo: ${n} ${n === 1 ? "pieza" : "piezas"} 📦`);
+    } catch (e: any) {
+      show(e?.message || "No se pudo generar el pack");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  function exportPublishedRange() {
+    const from = rangeFrom;
+    const to = rangeTo;
+    const list = buckets.publicados.filter((c) => {
+      const d = dateOf(c).slice(0, 10);
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    });
+    setExportRangeOpen(false);
+    void runExport(list);
   }
 
   function reopen() {
     if (reopenId) {
       updateContent(reopenId, { status: "needs_changes" });
+      track("content_reopened", { contentId: reopenId }, { businessId: business?.id });
       const id = reopenId;
       setReopenId(null);
       // Llevar directo al modo edición de esa pieza.
@@ -155,27 +236,22 @@ export default function ContentStudioPage() {
   const showStickyBar = tab === "revision" && pending.length > 0;
 
   return (
-    <div className={showStickyBar ? "space-y-5 pb-24" : "space-y-5"}>
+    <div className={showStickyBar ? "space-y-3 pb-24" : "space-y-3"}>
       {node}
-      <ProgressTracker steps={buildFlowSteps(flow, true)} />
 
-      <PageHeader title="Tus contenidos" subtitle={`${contents.length} piezas para ${business.name}.`}>
-        {contents.length > 0 && tab === "biblioteca" && (
-          <Button variant="outline" onClick={() => exportContentsCsv(business, contents)}>
-            <FileText className="h-4 w-4" /> Exportar CSV
-          </Button>
-        )}
-      </PageHeader>
+      {/* Popup sutil de progreso, siempre visible mientras Eva genera (item 22) */}
+      {(loading || contentGenerating) && (
+        <GenerationProgress
+          done={prog?.done}
+          total={prog?.total}
+          phase={prog?.phase}
+          onEmailClick={() => show("Aviso por email: disponible próximamente ✉️")}
+        />
+      )}
 
       {(loading || contentGenerating) && contents.length === 0 && (
         <EvaLoading text="Eva está creando tus contenidos…" />
       )}
-      {(contentGenerating || loading) && contents.length > 0 && (
-        <p className="text-sm font-medium text-loca-600">
-          {progress || "Eva sigue generando imágenes… las piezas van apareciendo abajo."}
-        </p>
-      )}
-      {progress && contents.length === 0 && <p className="text-sm font-medium text-loca-600">{progress}</p>}
 
       {contents.length === 0 && !loading && !contentGenerating ? (
         <EmptyState icon={FileText} title="Generá los contenidos del mes" description="Eva crea el texto e imagen de cada publicación de tu calendario.">
@@ -185,20 +261,57 @@ export default function ContentStudioPage() {
         </EmptyState>
       ) : contents.length > 0 ? (
         <>
-          {/* Tabs */}
-          <div className="flex gap-1 overflow-x-auto rounded-2xl border border-zinc-200/70 bg-white p-1.5 shadow-soft">
-            <TabButton active={tab === "revision"} onClick={() => setTab("revision")} icon={Play} count={buckets.revision.length}>
-              Revisión
-            </TabButton>
-            <TabButton active={tab === "aprobados"} onClick={() => setTab("aprobados")} icon={CheckCircle2} count={buckets.aprobados.length}>
-              Aprobados
-            </TabButton>
-            <TabButton active={tab === "publicados"} onClick={() => setTab("publicados")} icon={Send} count={buckets.publicados.length}>
-              Publicados
-            </TabButton>
-            <TabButton active={tab === "biblioteca"} onClick={() => setTab("biblioteca")} icon={Library}>
-              Biblioteca
-            </TabButton>
+          {/* Barra compacta: título + tabs + "Aprobar todo" siempre visible (item 9) */}
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="mr-1 text-lg font-bold tracking-tight text-foreground">Tus contenidos</h1>
+            <div className="flex gap-1 overflow-x-auto rounded-xl border border-border/70 bg-card p-1 shadow-soft">
+              <TabButton active={tab === "revision"} onClick={() => setTab("revision")} icon={Play} count={buckets.revision.length}>
+                Revisión
+              </TabButton>
+              <TabButton active={tab === "aprobados"} onClick={() => setTab("aprobados")} icon={CheckCircle2} count={buckets.aprobados.length}>
+                Aprobados
+              </TabButton>
+              <TabButton active={tab === "publicados"} onClick={() => setTab("publicados")} icon={Send} count={buckets.publicados.length}>
+                Publicados
+              </TabButton>
+              <TabButton active={tab === "biblioteca"} onClick={() => setTab("biblioteca")} icon={Library}>
+                Biblioteca
+              </TabButton>
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              {pending.length > 0 && (
+                <Button variant="success" size="sm" onClick={() => setConfirmAll(true)}>
+                  <CheckCheck className="h-4 w-4" /> Aprobar todo ({pending.length})
+                </Button>
+              )}
+              {/* Export pack: Aprobados (todo) / Publicados (con rango) — items export */}
+              {tab === "aprobados" && buckets.aprobados.length > 0 && (
+                <Button variant="outline" size="sm" disabled={exporting} onClick={() => runExport(buckets.aprobados)}>
+                  <Download className="h-4 w-4" /> {exporting ? "Preparando…" : "Exportar"}
+                </Button>
+              )}
+              {tab === "publicados" && buckets.publicados.length > 0 && (
+                <Button variant="outline" size="sm" disabled={exporting} onClick={() => { setRangeFrom(""); setRangeTo(""); setExportRangeOpen(true); }}>
+                  <Download className="h-4 w-4" /> {exporting ? "Preparando…" : "Exportar"}
+                </Button>
+              )}
+              {tab === "biblioteca" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    track(
+                      "content_exported",
+                      { type: "csv", count: contents.length },
+                      { businessId: business.id }
+                    );
+                    exportContentsCsv(business, contents);
+                  }}
+                >
+                  <FileText className="h-4 w-4" /> Exportar CSV
+                </Button>
+              )}
+            </div>
           </div>
 
           {tab === "revision" && <ContentReviewDeck business={business} contents={contents} onToast={show} />}
@@ -208,7 +321,14 @@ export default function ContentStudioPage() {
               items={buckets.aprobados}
               business={business}
               empty="Todavía no aprobaste ninguna pieza."
-              renderActions={(c) => <ApprovedActions c={c} onToast={show} onReopen={() => setReopenId(c.id)} />}
+              renderActions={(c) => (
+                <ApprovedActions
+                  c={c}
+                  onToast={show}
+                  onReopen={() => setReopenId(c.id)}
+                  onPublish={() => publishOne(c)}
+                />
+              )}
             />
           )}
 
@@ -216,8 +336,8 @@ export default function ContentStudioPage() {
             <Gallery
               items={buckets.publicados}
               business={business}
-              empty="Todavía no hay contenidos publicados o con fecha pasada."
-              badge={(c) => (datePassed(dateOf(c)) ? "Fecha pasada" : "Publicado")}
+              empty="Todavía no hay contenidos publicados. Cuando publiques en tus redes, van a aparecer acá."
+              badge={() => "Publicado"}
               renderActions={(c) => <PublishedActions c={c} onToast={show} />}
             />
           )}
@@ -229,7 +349,7 @@ export default function ContentStudioPage() {
       {showStickyBar && (
         <StickyApproveBar>
           <div className="flex items-center justify-between gap-3">
-            <span className="hidden text-sm text-zinc-500 sm:block">
+            <span className="hidden text-sm text-muted-foreground sm:block">
               {pending.length} {pending.length === 1 ? "pieza pendiente" : "piezas pendientes"}
             </span>
             <Button variant="success" size="lg" className="flex-1 sm:flex-none" onClick={() => setConfirmAll(true)}>
@@ -240,7 +360,7 @@ export default function ContentStudioPage() {
       )}
 
       <Modal open={confirmAll} onClose={() => setConfirmAll(false)} title="Aprobar todo">
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-muted-foreground-2">
           ¿Querés aprobar las {pending.length} piezas pendientes? Quedan listas para publicar.
         </p>
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
@@ -255,7 +375,7 @@ export default function ContentStudioPage() {
 
       {/* Confirmación reabrir edición */}
       <Modal open={!!reopenId} onClose={() => setReopenId(null)} title="Reabrir edición">
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-muted-foreground-2">
           Este contenido ya fue aprobado. Si lo editás, volverá a estado pendiente de revisión. ¿Querés continuar?
         </p>
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
@@ -263,6 +383,31 @@ export default function ContentStudioPage() {
             <Unlock className="h-4 w-4" /> Sí, reabrir edición
           </Button>
           <Button variant="ghost" size="lg" className="flex-1" onClick={() => setReopenId(null)}>
+            Cancelar
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Exportar publicados por rango de fechas (pack .zip) */}
+      <Modal open={exportRangeOpen} onClose={() => setExportRangeOpen(false)} title="Exportar publicados">
+        <p className="text-sm text-muted-foreground-2">
+          Elegí un rango de fechas (opcional). Si lo dejás vacío, se exportan todos los publicados.
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div>
+            <label className="loca-label">Desde</label>
+            <input type="date" value={rangeFrom} onChange={(e) => setRangeFrom(e.target.value)} className="loca-input" />
+          </div>
+          <div>
+            <label className="loca-label">Hasta</label>
+            <input type="date" value={rangeTo} onChange={(e) => setRangeTo(e.target.value)} className="loca-input" />
+          </div>
+        </div>
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+          <Button variant="primary" size="lg" className="flex-1" onClick={exportPublishedRange}>
+            <Download className="h-4 w-4" /> Exportar pack
+          </Button>
+          <Button variant="ghost" size="lg" className="flex-1" onClick={() => setExportRangeOpen(false)}>
             Cancelar
           </Button>
         </div>
@@ -288,12 +433,12 @@ function TabButton({
     <button
       onClick={onClick}
       className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
-        active ? "bg-loca-600 text-white shadow-lift" : "text-zinc-500 hover:bg-zinc-100/70 hover:text-zinc-900"
+        active ? "bg-loca-600 text-white shadow-lift" : "text-muted-foreground hover:bg-surface-muted/70 hover:text-foreground"
       }`}
     >
       <Icon className="h-4 w-4" /> {children}
       {count != null && count > 0 && (
-        <span className={`rounded-full px-1.5 text-[11px] ${active ? "bg-white/20" : "bg-zinc-100 text-zinc-500"}`}>{count}</span>
+        <span className={`rounded-full px-1.5 text-[11px] ${active ? "bg-card/20" : "bg-surface-muted text-muted-foreground"}`}>{count}</span>
       )}
     </button>
   );
@@ -314,7 +459,7 @@ function Gallery({
   renderActions: (c: ContentItem) => React.ReactNode;
 }) {
   if (items.length === 0) {
-    return <Card className="px-6 py-10 text-center text-sm text-zinc-500">{empty}</Card>;
+    return <Card className="px-6 py-10 text-center text-sm text-muted-foreground">{empty}</Card>;
   }
   return (
     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -332,8 +477,8 @@ function Gallery({
             <Badge>{FORMAT_LABELS[c.format]}</Badge>
             {badge ? <Badge tone="lima">{badge(c)}</Badge> : <Badge tone="green">Aprobado</Badge>}
           </div>
-          <p className="overflow-wrap-anywhere line-clamp-1 text-[15px] font-bold text-zinc-900">{c.title}</p>
-          <p className="overflow-wrap-anywhere line-clamp-2 text-xs text-zinc-500">{c.caption || c.hook}</p>
+          <p className="overflow-wrap-anywhere line-clamp-1 text-[15px] font-bold text-foreground">{c.title}</p>
+          <p className="overflow-wrap-anywhere line-clamp-2 text-xs text-muted-foreground">{c.caption || c.hook}</p>
           <div className="mt-auto">{renderActions(c)}</div>
         </Card>
       ))}
@@ -341,10 +486,46 @@ function Gallery({
   );
 }
 
-function ApprovedActions({ c, onToast, onReopen }: { c: ContentItem; onToast: (m: string) => void; onReopen: () => void }) {
+function ApprovedActions({
+  c,
+  onToast,
+  onReopen,
+  onPublish,
+}: {
+  c: ContentItem;
+  onToast: (m: string) => void;
+  onReopen: () => void;
+  onPublish: () => void;
+}) {
   const router = useRouter();
+  const [publishing, setPublishing] = useState(false);
+  const failed = hasPublishError(c);
+  const doPublish = async () => {
+    setPublishing(true);
+    try {
+      await onPublish();
+    } finally {
+      setPublishing(false);
+    }
+  };
   return (
     <div className="grid grid-cols-2 gap-1.5">
+      {/* Alerta si la última publicación falló (item 11) */}
+      {failed && (
+        <div className="col-span-2 flex items-start gap-2 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-2.5 text-xs text-amber-800 dark:text-amber-200">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-300" />
+          <span>No se pudo publicar: {c.publishError}</span>
+        </div>
+      )}
+      <Button
+        size="sm"
+        variant={failed ? "outline" : "primary"}
+        className="col-span-2"
+        onClick={doPublish}
+        disabled={publishing}
+      >
+        <Send className="h-3.5 w-3.5" /> {publishing ? "Publicando…" : failed ? "Reintentar publicación" : "Publicar ahora"}
+      </Button>
       <Button size="sm" variant="outline" onClick={() => router.push(`/content/${c.id}`)}>
         <Eye className="h-3.5 w-3.5" /> Ver
       </Button>
@@ -352,7 +533,7 @@ function ApprovedActions({ c, onToast, onReopen }: { c: ContentItem; onToast: (m
         size="sm"
         variant="outline"
         onClick={async () => {
-          const ok = await copyToClipboard(`${c.caption}\n\n${c.hashtags.join(" ")}`);
+          const ok = await copyToClipboard(c.caption);
           onToast(ok ? "Caption copiado" : "No se pudo copiar");
         }}
       >
@@ -369,6 +550,17 @@ function PublishedActions({ c, onToast }: { c: ContentItem; onToast: (m: string)
   const router = useRouter();
   return (
     <div className="grid grid-cols-2 gap-1.5">
+      {/* Ver contenido → link real del post publicado (item A7) */}
+      {c.publishedUrl ? (
+        <a
+          href={c.publishedUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="col-span-2 inline-flex items-center justify-center gap-1.5 rounded-xl bg-loca-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-loca-700"
+        >
+          <ExternalLink className="h-3.5 w-3.5" /> Ver publicación
+        </a>
+      ) : null}
       <Button size="sm" variant="outline" onClick={() => router.push(`/content/${c.id}`)}>
         <Eye className="h-3.5 w-3.5" /> Ver
       </Button>
@@ -376,7 +568,7 @@ function PublishedActions({ c, onToast }: { c: ContentItem; onToast: (m: string)
         size="sm"
         variant="outline"
         onClick={async () => {
-          const ok = await copyToClipboard(`${c.caption}\n\n${c.hashtags.join(" ")}`);
+          const ok = await copyToClipboard(c.caption);
           onToast(ok ? "Caption copiado" : "No se pudo copiar");
         }}
       >
@@ -398,7 +590,7 @@ function BibliotecaGallery({
 }) {
   return (
     <>
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-muted-foreground">
         Vista interna: incluye prompts, briefs y metadata. Esta información no debería verla el cliente final.
       </p>
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -419,13 +611,13 @@ function BibliotecaGallery({
                   <Badge>{FORMAT_LABELS[c.format]}</Badge>
                   <Badge tone={STATUS_TONE[c.status]}>{CONTENT_STATUS_LABELS[c.status]}</Badge>
                   {locked && (
-                    <span className="inline-flex items-center gap-1 text-[11px] text-zinc-400">
+                    <span className="inline-flex items-center gap-1 text-[11px] text-faint">
                       <Lock className="h-3 w-3" /> protegido
                     </span>
                   )}
                 </div>
-                <p className="overflow-wrap-anywhere line-clamp-1 text-sm font-semibold text-zinc-900">{c.title}</p>
-                <p className="overflow-wrap-anywhere line-clamp-2 text-xs text-zinc-500">{c.hook}</p>
+                <p className="overflow-wrap-anywhere line-clamp-1 text-sm font-semibold text-foreground">{c.title}</p>
+                <p className="overflow-wrap-anywhere line-clamp-2 text-xs text-muted-foreground">{c.hook}</p>
               </Card>
             </Link>
           );

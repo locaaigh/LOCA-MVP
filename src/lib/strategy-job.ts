@@ -3,6 +3,7 @@
 import { locaUserHeaders, syncRepositoryToServer } from "@/lib/repository/client-sync";
 import { isStrategyJobStale } from "@/lib/strategy-job-utils";
 import { useStore } from "@/lib/store";
+import { mockStrategy } from "@/lib/ai/mock";
 import type { Business, Strategy } from "@/lib/types";
 import { nowIso } from "@/lib/utils";
 
@@ -103,6 +104,14 @@ async function runStrategyJob(businessId: string, feedback?: string) {
   const store = useStore.getState();
   const biz = store.businesses.find((b) => b.id === businessId);
   if (!biz) return;
+
+  // Demo: genera con mock client-side (sin server, sin costo). Simula el tiempo.
+  if (biz.isDemo) {
+    await new Promise((r) => setTimeout(r, 1200));
+    applyStrategyResult(businessId, mockStrategy(biz), biz.name);
+    inFlight.delete(businessId);
+    return;
+  }
 
   try {
     await syncRepositoryToServer({ includeBusiness: biz });

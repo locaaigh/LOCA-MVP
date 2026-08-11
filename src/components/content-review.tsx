@@ -3,12 +3,14 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
+import { useGenerators } from "@/lib/generators";
 import { Badge, Button, Card, Field, Input, Modal, Textarea } from "@/components/ui";
 import { ContentPreview } from "@/components/content-preview";
 import { PlatformLogo, PlatformLogos, contentPlatforms } from "@/components/platform-logo";
 import { FORMAT_LABELS } from "@/lib/constants";
 import { bucketOf } from "@/lib/content-status";
 import { nowIso } from "@/lib/utils";
+import { track } from "@/lib/analytics";
 import type { Business, ContentItem } from "@/lib/types";
 import {
   Check,
@@ -85,6 +87,9 @@ export function ContentManualEditModal({
       lastManualEditAt: nowIso(),
       manuallyEditedFields: Array.from(new Set([...(content.manuallyEditedFields || []), ...edited])),
     });
+    if (edited.length > 0) {
+      track("content_manual_edited", { contentId: content.id, fields: edited });
+    }
     onToast("Cambios guardados (sin usar IA) ✏️");
     onClose();
   }
@@ -92,18 +97,24 @@ export function ContentManualEditModal({
   return (
     <Modal open={open} onClose={onClose} title="Editar copy y fecha">
       <div className="space-y-3">
-        <p className="text-sm text-zinc-500">Editás vos, sin usar IA ni gastar créditos. La pieza sigue aprobada.</p>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Fecha de publicación">
+        <p className="text-sm text-muted-foreground">Editás vos, sin usar IA ni gastar créditos. La pieza sigue aprobada.</p>
+        {/* Copy primero y grande: es lo que más se lee/edita */}
+        <Field label="Copy / caption">
+          <Textarea
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            className="min-h-[300px] text-[15px] leading-relaxed"
+          />
+        </Field>
+        {/* Fecha y horario: compactos, en una franja fina */}
+        <div className="flex flex-wrap items-end gap-3 rounded-xl bg-surface-subtle p-3">
+          <Field label="Fecha de publicación" className="flex-1">
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </Field>
-          <Field label="Horario">
+          <Field label="Horario" className="w-32">
             <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
           </Field>
         </div>
-        <Field label="Copy / caption">
-          <Textarea value={caption} onChange={(e) => setCaption(e.target.value)} className="min-h-[140px]" />
-        </Field>
         <Button variant="success" size="lg" className="w-full" onClick={save}>
           <Check className="h-4 w-4" /> Guardar cambios
         </Button>
@@ -143,6 +154,7 @@ export function ContentVisualEditModal({
   onToast: (m: string) => void;
 }) {
   const updateContent = useStore((s) => s.updateContent);
+  const gen = useGenerators();
   const [tags, setTags] = React.useState<string[]>([]);
   const [otherText, setOtherText] = React.useState("");
   const [comment, setComment] = React.useState("");
@@ -162,41 +174,76 @@ export function ContentVisualEditModal({
   const toggle = (t: string) =>
     setTags((s) => (s.includes(t) ? s.filter((x) => x !== t) : [...s, t]));
 
-  function send() {
+  async function send() {
     if (usedChange) {
       onToast("Ya usaste el cambio incluido para esta pieza.");
       return;
     }
-    // El feedback del cliente queda guardado para que Eva prepare la nueva versión.
-    // (Internamente puede alimentar prompt/concepto, pero el cliente no los ve.)
     const customParts = [hasOther && otherText.trim() ? otherText.trim() : "", comment.trim()].filter(Boolean);
-    updateContent(content.id, {
+    const customFeedback = customParts.join(" — ") || undefined;
+    track(
+      "content_visual_change_requested",
+      { contentId: content.id, tags: tags.filter((t) => t !== "Otro"), hasCustom: !!customFeedback },
+      { businessId: content.businessId }
+    );
+
+    // Ajustar el prompt de imagen con el feedback del cliente (el cliente no lo ve).
+    const feedbackBits = [...tags.filter((t) => t !== "Otro"), customFeedback].filter(Boolean);
+    const adjustedPrompt = feedbackBits.length
+      ? `${content.imagePrompt}\n\nAJUSTES PEDIDOS POR EL CLIENTE (corregí esto en la imagen): ${feedbackBits.join("; ")}.`
+      : content.imagePrompt;
+
+    // Estado "generando" + SIN imagen anterior → se ve "Eva trabajando", no la vieja.
+    const updated: ContentItem = {
+      ...content,
+      imagePrompt: adjustedPrompt,
+      imageUrl: undefined,
+      imageStatus: "generando",
+      imageError: undefined,
       selectedVisualFeedbackTags: tags,
-      customVisualFeedback: customParts.join(" — ") || undefined,
+      customVisualFeedback: customFeedback,
       visualChangeRequestedAt: nowIso(),
       visualChangeCount: (content.visualChangeCount || 0) + 1,
-      // Cambiar el visual hace que la pieza vuelva a revisión.
-      status: "needs_changes" as const,
+      status: "needs_changes",
+    };
+    updateContent(content.id, {
+      imagePrompt: adjustedPrompt,
+      imageUrl: undefined,
+      imageStatus: "generando",
+      imageError: undefined,
+      selectedVisualFeedbackTags: updated.selectedVisualFeedbackTags,
+      customVisualFeedback: updated.customVisualFeedback,
+      visualChangeRequestedAt: updated.visualChangeRequestedAt,
+      visualChangeCount: updated.visualChangeCount,
+      status: "needs_changes",
     });
-    onToast("Cambio enviado a Eva. La pieza volvió a revisión.");
+    onToast("Eva está preparando la nueva imagen… ✨");
     onClose();
+
+    // Regenerar de verdad (setea generando, sincroniza el prompt nuevo y crea la imagen).
+    try {
+      await gen.generateImage(updated, business);
+      onToast("Nueva imagen lista 🎨");
+    } catch (e: any) {
+      onToast(e?.message || "No se pudo generar la nueva imagen. Reintentá.");
+    }
   }
 
   return (
     <Modal open={open} onClose={onClose} title="¿Qué querés cambiar de la imagen/video?">
       <div className="space-y-4">
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-muted-foreground">
           Elegí qué no te convence. Eva va a usar este feedback para preparar una nueva versión.
         </p>
 
         <ContentPreview content={content} business={business} className="!shadow-none" />
 
         {usedChange ? (
-          <div className="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 ring-1 ring-inset ring-amber-100">
+          <div className="rounded-2xl bg-amber-50 dark:bg-amber-950/40 px-4 py-3 text-sm font-medium text-amber-800 dark:text-amber-200 ring-1 ring-inset ring-amber-100 dark:ring-amber-900">
             Ya usaste el cambio incluido para esta pieza.
           </div>
         ) : (
-          <div className="rounded-2xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 ring-1 ring-inset ring-amber-100">
+          <div className="rounded-2xl bg-amber-50 dark:bg-amber-950/40 px-4 py-3 text-sm font-medium text-amber-800 dark:text-amber-200 ring-1 ring-inset ring-amber-100 dark:ring-amber-900">
             Recordá: tu plan incluye 1 cambio por contenido.
           </div>
         )}
@@ -211,8 +258,8 @@ export function ContentVisualEditModal({
                 className={
                   "rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition " +
                   (tags.includes(t)
-                    ? "border-loca-400 bg-loca-50 text-loca-700 ring-2 ring-loca-100"
-                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50")
+                    ? "border-loca-400 bg-accent-subtle-bg text-accent-subtle-fg ring-2 ring-accent-subtle-ring"
+                    : "border-border bg-card text-muted-foreground-2 hover:border-border-strong hover:bg-surface-subtle")
                 }
               >
                 {t}
@@ -278,11 +325,11 @@ export function ContentReviewDeck({
   if (pendingCount === 0 && ordered.length > 0) {
     return (
       <Card className="flex flex-col items-center px-6 py-14 text-center">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300">
           <PartyPopper className="h-7 w-7" />
         </div>
-        <h2 className="mt-4 text-xl font-bold text-zinc-900">Todo aprobado 🎉</h2>
-        <p className="mt-1 max-w-sm text-sm text-zinc-500">Tus contenidos están listos para publicar.</p>
+        <h2 className="mt-4 text-xl font-bold text-foreground">Todo aprobado 🎉</h2>
+        <p className="mt-1 max-w-sm text-sm text-muted-foreground">Tus contenidos están listos para publicar.</p>
         <Button className="mt-5" onClick={() => router.push("/calendar")}>
           <CalendarClock className="h-4 w-4" /> Ver calendario de contenidos aprobados
         </Button>
@@ -300,25 +347,49 @@ export function ContentReviewDeck({
 
   function approve() {
     updateContent(current.id, { status: "aprobado" });
+    // firstPass = "aprobado de una": sin feedback de copy, sin edición
+    // manual y sin cambio de imagen (campos de auditoría del ContentItem).
+    track(
+      "content_approved",
+      {
+        contentId: current.id,
+        format: current.format,
+        channel: current.channel,
+        firstPass:
+          (current.feedbackHistory?.length ?? 0) === 0 &&
+          (current.manuallyEditedFields?.length ?? 0) === 0 &&
+          (current.visualChangeCount ?? 0) === 0,
+      },
+      { businessId: current.businessId }
+    );
     onToast("Aprobado. Vamos con la siguiente.");
     goNextPending(index);
   }
 
-  return (
-    <div className="space-y-4">
-      <p className="rounded-xl bg-zinc-50 px-4 py-2.5 text-sm text-zinc-500">
-        Revisá y aprobá cada contenido. Cuando aprobás una pieza, desaparece de esta cola y pasa al calendario.
-      </p>
+  const platforms = contentPlatforms(current.channel, current.distributionPlatforms, business.marketingChannels);
 
-      {/* Barra de progreso + navegación */}
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-zinc-500">Pieza {index + 1} de {ordered.length}</span>
+  return (
+    <div className="space-y-3">
+      {/* Encabezado compacto: plataforma + formato · progreso + navegación (item 9) */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5">
+          <PlatformLogos channels={platforms} size={32} />
+          <div>
+            <p className="text-sm font-bold leading-tight text-foreground">{platforms.join(" + ")}</p>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground">{typeTag(current.format)}</span>
+              {current.status === "needs_changes" && <Badge tone="yellow">Con cambios</Badge>}
+            </div>
+          </div>
+        </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-zinc-400">{pendingCount} sin aprobar</span>
+          <span className="text-xs text-faint">
+            Pieza {index + 1}/{ordered.length} · {pendingCount} sin aprobar
+          </span>
           <button
             onClick={() => setIndex((i) => Math.max(0, i - 1))}
             disabled={index === 0}
-            className="rounded-full border border-zinc-200 bg-white p-1.5 text-zinc-500 transition hover:bg-zinc-50 disabled:opacity-40"
+            className="rounded-full border border-border bg-card p-1.5 text-muted-foreground transition hover:bg-surface-subtle disabled:opacity-40"
             aria-label="Anterior"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -326,33 +397,13 @@ export function ContentReviewDeck({
           <button
             onClick={() => setIndex((i) => Math.min(ordered.length - 1, i + 1))}
             disabled={index === ordered.length - 1}
-            className="rounded-full border border-zinc-200 bg-white p-1.5 text-zinc-500 transition hover:bg-zinc-50 disabled:opacity-40"
+            className="rounded-full border border-border bg-card p-1.5 text-muted-foreground transition hover:bg-surface-subtle disabled:opacity-40"
             aria-label="Siguiente"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
       </div>
-
-      {/* Plataforma(s) con logo (crosspost si aplica) · formato */}
-      {(() => {
-        const platforms = contentPlatforms(current.channel, current.distributionPlatforms, business.marketingChannels);
-        return (
-          <div className="flex items-center gap-3">
-            <PlatformLogos channels={platforms} size={40} />
-            <div>
-              <p className="text-[15px] font-bold leading-tight text-zinc-900">{platforms.join(" + ")}</p>
-              <div className="mt-0.5 flex items-center gap-1.5">
-                <span className="text-xs font-medium text-zinc-500">
-                  {typeTag(current.format)}
-                  {platforms.length > 1 ? " · se publica en varias redes" : ""}
-                </span>
-                {current.status === "needs_changes" && <Badge tone="yellow">Con cambios</Badge>}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Desktop: visual izquierda, copy/datos derecha */}
       <div className="grid gap-6 lg:grid-cols-2">
@@ -361,15 +412,14 @@ export function ContentReviewDeck({
             <ContentPreview content={current} business={business} />
             <div className="mt-3 flex items-center justify-center gap-2 lg:justify-start">
               <CalendarClock className="h-4 w-4 text-loca-500" />
-              <span className="text-sm font-semibold text-zinc-700">{publishLabel(dateOf(current), current.scheduledTime)}</span>
+              <span className="text-sm font-semibold text-foreground-muted">{publishLabel(dateOf(current), current.scheduledTime)}</span>
             </div>
           </div>
         </div>
 
         <div className="space-y-4">
           <Card className="overflow-hidden p-5">
-            <p className="overflow-wrap-anywhere whitespace-pre-wrap break-words text-[15px] leading-relaxed text-zinc-700">{current.caption}</p>
-            {current.hashtags.length > 0 && <p className="overflow-wrap-anywhere mt-3 break-words text-sm font-medium text-loca-600">{current.hashtags.join(" ")}</p>}
+            <p className="overflow-wrap-anywhere whitespace-pre-wrap break-words text-[15px] leading-relaxed text-foreground-muted">{current.caption}</p>
           </Card>
 
           <div className="space-y-2.5">
@@ -384,8 +434,8 @@ export function ContentReviewDeck({
                 <ImageIcon className="h-4 w-4" /> Cambiar imagen/video
               </Button>
             </div>
-            <p className="text-center text-xs text-zinc-400">
-              Este contenido incluye <span className="font-semibold text-zinc-500">1 cambio</span>. Editar copy/fecha/hora no lo consume.
+            <p className="text-center text-xs text-faint">
+              Este contenido incluye <span className="font-semibold text-muted-foreground">1 cambio</span>. Editar copy/fecha/hora no lo consume.
             </p>
           </div>
         </div>

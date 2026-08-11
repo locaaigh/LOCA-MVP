@@ -7,8 +7,9 @@ import { CURRENCIES } from "@/lib/constants";
 import { getFieldExample } from "@/lib/examples";
 import { parseProductsCsv } from "@/lib/csv-import";
 import { api } from "@/lib/api";
+import { PhotoUploader } from "@/components/photo-uploader";
 import type { Business, ProductService } from "@/lib/types";
-import { Pencil, Trash2, Check, Star, Upload, FileSpreadsheet } from "lucide-react";
+import { Pencil, Trash2, Check, Star, Upload, FileSpreadsheet, Camera } from "lucide-react";
 
 // ── Card minimizada de un producto/servicio guardado ─────────
 export function ProductServiceCard({
@@ -26,26 +27,26 @@ export function ProductServiceCard({
       : "Sin precio";
   const origin = originBadge(ps);
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-200/70 bg-white p-3.5 transition-shadow hover:shadow-sm">
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-card p-3.5 transition-shadow hover:shadow-sm">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-loca-50 text-loca-600 ring-1 ring-loca-100">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-subtle-bg text-accent ring-1 ring-accent-subtle-ring">
           <Check className="h-4 w-4" />
         </div>
         <div className="min-w-0">
-          <p className="flex items-center gap-1.5 truncate font-semibold text-zinc-800">
+          <p className="flex items-center gap-1.5 truncate font-semibold text-foreground-soft">
             {ps.name || "Sin nombre"}
             {ps.isTopSeller && (
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
                 <Star className="h-2.5 w-2.5" /> Top seller
               </span>
             )}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            <span className="text-xs text-zinc-400">{ps.type === "producto" ? "Producto" : "Servicio"}</span>
+            <span className="text-xs text-faint">{ps.type === "producto" ? "Producto" : "Servicio"}</span>
             {price === "Sin precio" ? (
-              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-500">Sin precio</span>
+              <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">Sin precio</span>
             ) : (
-              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-600">{price}</span>
+              <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground-2">{price}</span>
             )}
             {origin && (
               <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${origin.cls}`}>{origin.label}</span>
@@ -54,10 +55,10 @@ export function ProductServiceCard({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
-        <button onClick={onEdit} className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700">
+        <button onClick={onEdit} className="rounded-xl p-2 text-faint transition hover:bg-surface-muted hover:text-foreground-muted">
           <Pencil className="h-4 w-4" />
         </button>
-        <button onClick={onRemove} className="rounded-xl p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-500">
+        <button onClick={onRemove} className="rounded-xl p-2 text-faint transition hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-500 dark:hover:text-red-400">
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
@@ -106,7 +107,7 @@ export function ProductServiceForm({
     <Card className="space-y-4 rounded-3xl border-loca-200">
       <div className="flex items-center justify-between">
         <Badge tone="pink">{isProduct ? "Producto" : "Servicio"}</Badge>
-        <button onClick={onRemove} className="rounded-xl p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-500">
+        <button onClick={onRemove} className="rounded-xl p-2 text-faint transition hover:bg-red-50 dark:hover:bg-red-950/40 hover:text-red-500 dark:hover:text-red-400">
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
@@ -119,8 +120,8 @@ export function ProductServiceForm({
         />
       </Field>
 
-      <div className="flex flex-col gap-2 rounded-2xl border border-loca-100 bg-loca-50/50 p-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-zinc-500">
+      <div className="flex flex-col gap-2 rounded-2xl border border-loca-100 bg-accent-subtle-bg/50 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-muted-foreground">
           ¿No sabés qué poner en las descripciones? Que Eva las escriba por vos.
         </p>
         <EvaSuggestionButton label="Generar con Eva" onClick={generateWithEva} loading={aiLoading} />
@@ -140,6 +141,33 @@ export function ProductServiceForm({
           placeholder={getFieldExample("productLong", business.industry)}
         />
       </Field>
+
+      {/* Fotos reales del producto/servicio (referencias de generación) — items 17/18 */}
+      <div className="rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/40 p-3">
+        <div className="flex items-start gap-2">
+          <Camera className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-300" />
+          <div>
+            <p className="text-sm font-bold text-amber-900">
+              {isProduct
+                ? "Subí fotos reales de este producto (¡es clave!)"
+                : "Subí fotos que representen este servicio"}
+            </p>
+            <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-300">
+              {isProduct
+                ? "Con fotos bien nombradas, Eva crea contenido mucho más real y de mayor valor. Sin fotos, las imágenes son genéricas."
+                : "Ayudan a que Eva genere imágenes fieles a lo que ofrecés."}
+            </p>
+          </div>
+        </div>
+        <div className="mt-3">
+          <PhotoUploader
+            photos={ps.photos || []}
+            onChange={(photos) => onChange({ photos })}
+            kind="product"
+            ctaLabel="Subir fotos del producto"
+          />
+        </div>
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label={isProduct ? "Materiales / features" : "Features"}>
@@ -193,15 +221,15 @@ export function ProductServiceForm({
         </Field>
       </div>
 
-      <label className="flex cursor-pointer items-center gap-2.5 rounded-2xl border border-zinc-200/70 bg-white p-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50">
+      <label className="flex cursor-pointer items-center gap-2.5 rounded-2xl border border-border/70 bg-card p-3 text-sm font-medium text-foreground-muted transition hover:bg-surface-subtle">
         <input
           type="checkbox"
           checked={ps.isTopSeller}
           onChange={(e) => onChange({ isTopSeller: e.target.checked })}
-          className="h-4 w-4 rounded border-zinc-300 text-loca-600"
+          className="h-4 w-4 rounded border-border-strong text-accent"
         />
         <span className="inline-flex items-center gap-1.5">
-          <Star className="h-3.5 w-3.5 text-amber-500" /> Marcar como top seller
+          <Star className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" /> Marcar como top seller
         </span>
       </label>
 
@@ -246,10 +274,10 @@ export function ProductServiceImporter({
   }
 
   return (
-    <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/50 p-5">
+    <div className="rounded-2xl border border-dashed border-border-strong bg-surface-subtle/50 p-5">
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3 text-sm font-medium text-zinc-700">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-zinc-400 ring-1 ring-zinc-200/70">
+        <div className="flex items-center gap-3 text-sm font-medium text-foreground-muted">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card text-faint ring-1 ring-border/70">
             <FileSpreadsheet className="h-5 w-5" />
           </div>
           <span>Subí tu base de productos/servicios (CSV)</span>
@@ -269,12 +297,12 @@ export function ProductServiceImporter({
           }}
         />
       </div>
-      <p className="mt-3 text-xs text-zinc-400">
+      <p className="mt-3 text-xs text-faint">
         Columnas aceptadas: name, type, category, shortDescription, longDescription, price, currency, keywords.
       </p>
 
       {errors.length > 0 && (
-        <ul className="mt-3 space-y-1 rounded-xl bg-red-50 p-3 text-xs text-red-600 ring-1 ring-inset ring-red-100">
+        <ul className="mt-3 space-y-1 rounded-xl bg-red-50 dark:bg-red-950/40 p-3 text-xs text-red-600 dark:text-red-300 ring-1 ring-inset ring-red-100 dark:ring-red-900">
           {errors.map((e, i) => (
             <li key={i}>• {e}</li>
           ))}
@@ -283,12 +311,12 @@ export function ProductServiceImporter({
 
       {preview && preview.length > 0 && (
         <div className="mt-4 space-y-2.5">
-          <p className="text-sm font-semibold text-zinc-700">
+          <p className="text-sm font-semibold text-foreground-muted">
             Eva detectó {preview.length} {preview.length === 1 ? "ítem" : "ítems"}. Revisalos antes de seguir.
           </p>
-          <div className="max-h-48 overflow-y-auto rounded-xl border border-zinc-200/70">
+          <div className="max-h-48 overflow-y-auto rounded-xl border border-border/70">
             <table className="w-full text-left text-xs">
-              <thead className="bg-zinc-50 text-zinc-500">
+              <thead className="bg-surface-subtle text-muted-foreground">
                 <tr>
                   <th className="px-2 py-1.5">Nombre</th>
                   <th className="px-2 py-1.5">Tipo</th>
@@ -297,7 +325,7 @@ export function ProductServiceImporter({
               </thead>
               <tbody>
                 {preview.map((p) => (
-                  <tr key={p.id} className="border-t border-zinc-100">
+                  <tr key={p.id} className="border-t border-border-subtle">
                     <td className="px-2 py-1.5">{p.name}</td>
                     <td className="px-2 py-1.5">{p.type}</td>
                     <td className="px-2 py-1.5">{p.priceMin ?? "—"}</td>
@@ -322,14 +350,14 @@ export function ProductServiceImporter({
 
 // Badge de origen/estado del ítem detectado/sugerido.
 function originBadge(ps: ProductService): { label: string; cls: string } | null {
-  if (ps.shouldReview) return { label: "Revisar", cls: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-100" };
+  if (ps.shouldReview) return { label: "Revisar", cls: "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 ring-1 ring-inset ring-amber-100 dark:ring-amber-900" };
   switch (ps.importSource) {
     case "website":
-      return { label: "Encontrado en web", cls: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100" };
+      return { label: "Encontrado en web", cls: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-100 dark:ring-emerald-900" };
     case "md":
-      return { label: "Confirmado por tu IA", cls: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100" };
+      return { label: "Confirmado por tu IA", cls: "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-100 dark:ring-emerald-900" };
     case "eva":
-      return { label: "Sugerido por Eva", cls: "bg-loca-50 text-loca-700 ring-1 ring-inset ring-loca-100" };
+      return { label: "Sugerido por Eva", cls: "bg-accent-subtle-bg text-accent-subtle-fg ring-1 ring-inset ring-accent-subtle-ring" };
     default:
       return null;
   }

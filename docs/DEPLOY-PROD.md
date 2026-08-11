@@ -1,0 +1,105 @@
+# LOCA — Info para poner en producción (handoff dev)
+
+Todo lo que el dev necesita para deployar LOCA y dejar la publicación en redes lista.
+Fuente de verdad de backlog/pendientes: `PLAN-v2.md`. Handoff diario: `RESUMEN-*.md`.
+
+## 1. Stack y hosting
+- **Next.js 14 (App Router) + TypeScript + Tailwind**. Deploy target: **Vercel** (route handlers en runtime `nodejs`).
+- **Supabase**: auth + Postgres + Storage (imágenes).
+- Comandos: `npm install` · `npm run build` · `npm run start` · `npm run typecheck`.
+- Node 20+ (probado con 22).
+
+## 2. Variables de entorno (Vercel → Project Settings → Environment Variables)
+
+### IA (texto e imágenes)
+| Var | Valor / nota |
+|-----|--------------|
+| `AI_TEXT_PROVIDER` | `anthropic` (o `openai`) |
+| `AI_IMAGE_PROVIDER` | `gemini` (o `openai`) |
+| `ANTHROPIC_API_KEY` | key real |
+| `ANTHROPIC_MODEL` | ⚠️ **VERIFICAR ID VÁLIDO** (hoy `claude-sonnet-4-6` es sospechoso; usar un modelo real vigente, p.ej. `claude-sonnet-4-5` o Claude 5). Si el ID es inválido, la app cae a MOCK en silencio. |
+| `GEMINI_API_KEY` | key real |
+| `GEMINI_IMAGE_MODEL` | ⚠️ **VERIFICAR ID VÁLIDO** (hoy `gemini-3-pro-image`). Confirmar el ID de imagen vigente. |
+| `OPENAI_API_KEY` | opcional (fallback de imágenes/texto) |
+| `OPENAI_TEXT_MODEL` | `gpt-4o-mini` (si se usa OpenAI) |
+| `OPENAI_IMAGE_MODEL` | `gpt-image-1` (si se usa OpenAI) |
+
+### Supabase
+| Var | Nota |
+|-----|------|
+| `NEXT_PUBLIC_SUPABASE_URL` | del proyecto Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | pública |
+| `SUPABASE_SERVICE_ROLE_KEY` | **secreta, solo server** |
+
+### Meta (Instagram/Facebook)
+| Var | Nota |
+|-----|------|
+| `META_APP_ID` | `1413889790567718` (app "LOCA", dueña INFINIDAD, negocio verificado) |
+
+Activos de LOCA en el Business Manager de INFINIDAD (creados 2026-08-09):
+- Página de Facebook: `1323141937538765` · Instagram: `17841415532490078` · Cuenta publicitaria: `1757064552092437`.
+- Pixel "LOCA": `1348727130754842` (→ `NEXT_PUBLIC_META_PIXEL_ID`). Pendiente Fase 2: Conversions API server-side con dedup (requiere access token del Events Manager).
+
+Google Ads (cuenta propia de LOCA, verificación con la LLC — creada 2026-08-09):
+- Customer ID: `363-630-4933` (vincular al MCC de INFINIDAD para administración).
+- Google tag: `AW-18380065250` (→ `NEXT_PUBLIC_GOOGLE_ADS_ID`).
+- Conversión "Signup LOCA" (Sign-up, same value USD 89, count One): `send_to` = `AW-18380065250/wZQ6CNfc5d4cEOKTprxE` (→ `NEXT_PUBLIC_GOOGLE_ADS_SIGNUP_LABEL`).
+| `META_APP_SECRET` | secreta |
+| `META_OAUTH_REDIRECT_URI` | **debe apuntar al dominio de prod**: `https://{DOMINIO}/api/integrations/meta/callback`. Si se deja vacío, se deriva del origin del request. |
+| `META_TOKEN_ENCRYPTION_KEY` | 32 bytes base64 (`openssl rand -base64 32`). Cifra los tokens. **No rotar sin migrar** o se pierden las conexiones. |
+| `META_SCOPES` | opcional, para pisar scopes |
+| `CRON_SECRET` | protege el cron de refresh de tokens (`openssl rand -hex 32`) |
+
+### Analytics (PostHog)
+| Var | Nota |
+|-----|------|
+| `NEXT_PUBLIC_POSTHOG_KEY` | Project API Key (`phc_...`) — PostHog → Settings → Project. Sin ella PostHog queda deshabilitado (los eventos de negocio igual van a la tabla `events` de Supabase). |
+| `NEXT_PUBLIC_POSTHOG_HOST` | `https://us.i.posthog.com` (proyecto en región US). |
+| `NEXT_PUBLIC_META_PIXEL_ID` | Opcional: ID del Meta Pixel (Business Manager INFINIDAD). Sin ella el pixel no se carga. |
+| `NEXT_PUBLIC_GOOGLE_ADS_ID` | Opcional: Google tag `AW-XXXXXXXXX` (al activar Google Ads). |
+| `NEXT_PUBLIC_GOOGLE_ADS_SIGNUP_LABEL` | Opcional: `AW-XXXXXXXXX/label` de la conversión de signup en Google Ads. |
+
+Plan completo de medición: `docs/ANALYTICS-PLAN.md`. Migración requerida: `0006_analytics.sql` (tablas `events` y `leads` + columnas nuevas de `ai_usage_log`).
+
+**📋 Checklist analytics para el deploy (Alan):**
+- [ ] Cargar en Vercel: `NEXT_PUBLIC_POSTHOG_KEY` = `phc_mSqXHtzzroNJoQeyv2LVRCFtqnX8XPZTAzfAnnaULPza` y `NEXT_PUBLIC_POSTHOG_HOST` = `https://us.i.posthog.com` (Production; Preview opcional).
+- [ ] Correr la migración `supabase/migrations/0006_analytics.sql` en Supabase → SQL Editor (después de la 0005).
+- [ ] Verificar post-deploy: navegar la web y ver que entren `$pageview` en PostHog → Activity, y que `https://{DOMINIO}/sitemap.xml` y `/robots.txt` respondan.
+- [ ] Cargar en Vercel: `NEXT_PUBLIC_META_PIXEL_ID` = `1348727130754842` (pixel "LOCA").
+- [ ] Cargar en Vercel: `NEXT_PUBLIC_GOOGLE_ADS_ID` = `AW-18380065250` y `NEXT_PUBLIC_GOOGLE_ADS_SIGNUP_LABEL` = `AW-18380065250/wZQ6CNfc5d4cEOKTprxE`.
+
+### Debug
+| Var | Nota |
+|-----|------|
+| `NEXT_PUBLIC_SHOW_AI_USAGE` | `true` en pruebas (muestra contador de tokens/costo); **poner `false` en prod real**. |
+
+## 3. Supabase — migraciones
+- Migraciones en `supabase/migrations/` → `0001_init.sql` … `0006_analytics.sql`.
+- Aplicarlas **en orden** en Supabase Dashboard → SQL Editor. Verificar esquema con `scripts/verify-supabase-schema.mts`.
+- Storage: bucket de imágenes con **URLs públicas** (necesario para publicar en Instagram, que rechaza data URLs).
+
+## 4. Crons (Vercel)
+- `vercel.json` define el cron `/api/cron/meta/refresh-tokens` (6 AM diario). Requiere `CRON_SECRET`.
+- ⚠️ **Pendiente para auto-publicación programada**: hoy NO hay cron que publique según fecha. Cuando se implemente, requiere **Vercel Pro** (cron por minuto/hora) o un scheduler externo. Sin eso, la publicación es manual (botón "Publicar ahora" o export pack).
+
+## 5. Meta — checklist antes de usuarios reales
+- [ ] **Privacy Policy URL** en Meta App → cargar `https://{DOMINIO}/legal/privacy`.
+- [ ] **Terms of Service URL** → cargar `https://{DOMINIO}/legal/terms` (⚠️ hoy apunta a facebook.com).
+- [ ] **Data Deletion URL** → `https://{DOMINIO}/legal/meta-data-deletion`.
+
+Legales (páginas Next que deployan con la app; también hay HTML autocontenidos en `docs/legal/`):
+- Entidad operadora: **INFINIDAD S.R.L.** · CUIT 30-71581900-3 · Condarco 3145, CABA.
+- Email de soporte/legales: **soporte@heyloca.ai** · Dominio: **heyloca.ai**.
+- ⚠️ Los legales son borradores operativos; que un asesor legal les dé el ok final antes de prod.
+- [ ] **Valid OAuth Redirect URIs** → incluir el de prod (y localhost para dev).
+- [ ] **App Domains** → el dominio de prod.
+- [ ] **App Review**: pedir Advanced Access de `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `instagram_basic`, `instagram_content_publish` (con screencast del flujo). Sin esto, publicar solo funciona para cuentas con rol en la app.
+- [ ] Pasar la app a **Live** una vez aprobado + negocio verificado (✅ INFINIDAD ya verificado).
+
+## 6. Dominio
+- Configurar el dominio de prod en Vercel. El `META_OAUTH_REDIRECT_URI`, las URLs legales y (a futuro) LinkedIn dependen de él.
+
+## 7. Verificado al 2026-08-02
+- ✅ Credenciales Meta (`META_APP_ID`+`META_APP_SECRET`) válidas contra Graph API. App = "LOCA".
+- ⚠️ Privacy Policy URL sin cargar · Terms apunta a facebook.com.
+- 🔴 Verificar model IDs de IA (ver sección 2) — posible mock silencioso.

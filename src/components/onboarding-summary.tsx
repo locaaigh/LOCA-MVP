@@ -85,10 +85,10 @@ export function OnboardingSummary({
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift animate-float">
           <Sparkles className="h-7 w-7" />
         </div>
-        <h2 className="mt-4 text-3xl font-bold tracking-tight text-zinc-900">Eva entendió esto de tu marca</h2>
-        <p className="mt-2 text-[15px] text-zinc-500">Revisalo y editá cualquier sección con el lápiz ✏️</p>
+        <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground">Eva entendió esto de tu marca</h2>
+        <p className="mt-2 text-[15px] text-muted-foreground">Revisalo y editá cualquier sección con el lápiz ✏️</p>
         {confidence != null && (
-          <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-loca-50 px-3.5 py-1.5 text-sm font-semibold text-loca-700 ring-1 ring-loca-100">
+          <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-accent-subtle-bg px-3.5 py-1.5 text-sm font-semibold text-accent-subtle-fg ring-1 ring-accent-subtle-ring">
             <Sparkles className="h-3.5 w-3.5" /> Eva entendió tu negocio en un {confidence}%
           </p>
         )}
@@ -96,16 +96,16 @@ export function OnboardingSummary({
 
       {/* Pendientes: resumen accionable arriba */}
       {missing.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50/60">
+        <Card className="border-amber-200 dark:border-amber-900/60 bg-amber-50/60 dark:bg-amber-950/40">
           <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
             <div className="flex items-start gap-3">
-              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-300" />
               <div>
-                <p className="font-semibold text-amber-800">
+                <p className="font-semibold text-amber-800 dark:text-amber-200">
                   Te {missing.length === 1 ? "falta" : "faltan"} {missing.length}{" "}
                   {missing.length === 1 ? "dato" : "datos"} para generar la estrategia
                 </p>
-                <p className="text-sm text-amber-700">Completalos de a uno. Eva puede sugerir lo que se pueda sin inventar.</p>
+                <p className="text-sm text-amber-700 dark:text-amber-300">Completalos de a uno. Eva puede sugerir lo que se pueda sin inventar.</p>
               </div>
             </div>
             <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
@@ -169,12 +169,12 @@ export function OnboardingSummary({
           <div className="space-y-2">
             <div className="flex flex-wrap gap-1.5">
               {(bk?.colors?.palette || []).slice(0, 6).map((c, i) => (
-                <span key={i} className="h-6 w-6 rounded-full border border-zinc-200" style={{ backgroundColor: c.hex }} title={`${c.name} ${c.hex}`} />
+                <span key={i} className="h-6 w-6 rounded-full border border-border" style={{ backgroundColor: c.hex }} title={`${c.name} ${c.hex}`} />
               ))}
-              {!bk?.colors?.palette?.length && <span className="text-zinc-400">Sin colores definidos.</span>}
+              {!bk?.colors?.palette?.length && <span className="text-faint">Sin colores definidos.</span>}
             </div>
             {bk?.typography?.heading?.family && (
-              <p className="text-xs text-zinc-500">Tipografía: {bk.typography.heading.family}</p>
+              <p className="text-xs text-muted-foreground">Tipografía: {bk.typography.heading.family}</p>
             )}
           </div>
         </SummaryCard>
@@ -207,8 +207,8 @@ export function OnboardingSummary({
         <SummaryCard icon={Target} title="Objetivos" onEdit={() => onEditSection("objetivos")} danger={miss.objetivos} onFix={onFixCritical}>
           {bi?.recommendedGoal?.goal ? (
             <>
-              <p className="font-medium text-zinc-800">{bi.recommendedGoal.goal}</p>
-              <p className="text-xs text-zinc-500">{bi.recommendedGoal.reason}</p>
+              <p className="font-medium text-foreground-soft">{bi.recommendedGoal.goal}</p>
+              <p className="text-xs text-muted-foreground">{bi.recommendedGoal.reason}</p>
             </>
           ) : (
             b.goals?.marketingObjectives || "Objetivo por definir."
@@ -218,18 +218,18 @@ export function OnboardingSummary({
         <SummaryCard icon={Ban} title="Palabras clave y a evitar" onEdit={() => onEditSection("keywords")}>
           <div className="space-y-1">
             {bk?.brandKeywords?.length ? (
-              <p className="text-xs text-zinc-600">Clave: {bk.brandKeywords.join(", ")}</p>
+              <p className="text-xs text-muted-foreground-2">Clave: {bk.brandKeywords.join(", ")}</p>
             ) : null}
             {bk?.avoidList?.length ? (
-              <p className="text-xs text-red-500">Evitar: {bk.avoidList.join("; ")}</p>
+              <p className="text-xs text-red-500 dark:text-red-400">Evitar: {bk.avoidList.join("; ")}</p>
             ) : (
-              <p className="text-xs text-zinc-400">Sin restricciones definidas.</p>
+              <p className="text-xs text-faint">Sin restricciones definidas.</p>
             )}
           </div>
         </SummaryCard>
       </div>
 
-      <p className="text-center text-xs text-zinc-400">
+      <p className="text-center text-xs text-faint">
         Antes de generar la estrategia, confirmá que Eva entendió bien tu negocio.
       </p>
       <div className="flex flex-col gap-2 sm:flex-row">
@@ -262,23 +262,23 @@ function SummaryCard({
   return (
     <Card
       className={`space-y-2.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-pop ${
-        danger ? "border-red-200 bg-red-50/40 ring-1 ring-red-100" : ""
+        danger ? "border-red-200 dark:border-red-900/60 bg-red-50/40 dark:bg-red-950/40 ring-1 ring-red-100 dark:ring-red-900" : ""
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <div className={`flex items-center gap-2 ${danger ? "text-red-500" : "text-loca-500"}`}>
-          <span className={`flex h-7 w-7 items-center justify-center rounded-xl ${danger ? "bg-red-100" : "bg-loca-50"}`}>
+        <div className={`flex items-center gap-2 ${danger ? "text-red-500 dark:text-red-400" : "text-loca-500"}`}>
+          <span className={`flex h-7 w-7 items-center justify-center rounded-xl ${danger ? "bg-red-100 dark:bg-red-900/50" : "bg-accent-subtle-bg"}`}>
             <Icon className="h-4 w-4" />
           </span>
           <SectionLabel>{title}</SectionLabel>
         </div>
         <div className="flex items-center gap-1.5">
           {danger ? (
-            <span className="rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-bold text-red-600">
+            <span className="rounded-full bg-red-100 dark:bg-red-900/50 px-2.5 py-1 text-[11px] font-bold text-red-600 dark:text-red-300">
               Falta completar
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-full bg-lima-50 px-2.5 py-1 text-[11px] font-bold text-lima-700 ring-1 ring-inset ring-lima-200">
+            <span className="inline-flex items-center gap-1 rounded-full bg-lima-50 dark:bg-lima-950/40 px-2.5 py-1 text-[11px] font-bold text-lima-700 dark:text-lima-300 ring-1 ring-inset ring-lima-200 dark:ring-lima-800">
               <Check className="h-3 w-3" /> Listo
             </span>
           )}
@@ -286,7 +286,7 @@ function SummaryCard({
             <button
               onClick={onEdit}
               aria-label={`Editar ${title}`}
-              className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-loca-50 hover:text-loca-600"
+              className="rounded-lg p-1.5 text-faint transition hover:bg-accent-subtle-bg hover:text-accent"
             >
               <Pencil className="h-4 w-4" />
             </button>
@@ -295,7 +295,7 @@ function SummaryCard({
       </div>
       {danger ? (
         <div className="space-y-2">
-          <p className="text-sm text-red-600">Necesitamos este dato para generar una estrategia correcta.</p>
+          <p className="text-sm text-red-600 dark:text-red-300">Necesitamos este dato para generar una estrategia correcta.</p>
           {(onFix || onEdit) && (
             <Button variant="danger" size="sm" onClick={onFix || onEdit}>
               <ArrowRight className="h-3.5 w-3.5" /> Completar este dato
@@ -303,7 +303,7 @@ function SummaryCard({
           )}
         </div>
       ) : (
-        <div className="text-sm leading-relaxed text-zinc-700">{children}</div>
+        <div className="text-sm leading-relaxed text-foreground-muted">{children}</div>
       )}
     </Card>
   );

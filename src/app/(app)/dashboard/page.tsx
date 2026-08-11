@@ -75,8 +75,8 @@ export default function DashboardPage() {
         <div className="flex items-center gap-4">
           <EvaAvatar size={56} />
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">{business.name}</h1>
-            <p className="mt-1 text-[15px] text-zinc-500">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{business.name}</h1>
+            <p className="mt-1 text-[15px] text-muted-foreground">
               {business.industry} · {business.city || business.country}
             </p>
           </div>
@@ -89,8 +89,8 @@ export default function DashboardPage() {
         <SectionLabel>Tu próximo paso</SectionLabel>
         <div className="mt-3 flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">{nextStep.title}</h2>
-            <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-zinc-600">{nextStep.desc}</p>
+            <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{nextStep.title}</h2>
+            <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-muted-foreground-2">{nextStep.desc}</p>
           </div>
           <Link href={nextStep.href} className="w-full shrink-0 sm:w-auto">
             <Button size="lg" className="w-full sm:w-auto">
@@ -134,11 +134,11 @@ export default function DashboardPage() {
 function MiniStat({ label, value, icon: Icon }: { label: string; value: any; icon: any }) {
   return (
     <Card className="flex flex-col gap-2 p-5">
-      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-loca-50">
+      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-subtle-bg">
         <Icon className="h-4 w-4 text-loca-500" />
       </div>
-      <div className="text-3xl font-bold tracking-tight text-zinc-900">{value}</div>
-      <div className="text-xs font-medium text-zinc-500">{label}</div>
+      <div className="text-3xl font-bold tracking-tight text-foreground">{value}</div>
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
     </Card>
   );
 }
@@ -148,15 +148,15 @@ function AccessCard({ href, title, desc, icon: Icon }: { href: string; title: st
     <Link href={href}>
       <Card className="group flex items-center justify-between p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-pop">
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 transition group-hover:bg-loca-50">
-            <Icon className="h-5 w-5 text-zinc-500 transition group-hover:text-loca-600" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-muted transition group-hover:bg-accent-subtle-bg">
+            <Icon className="h-5 w-5 text-muted-foreground transition group-hover:text-accent" />
           </div>
           <div>
-            <h3 className="text-[15px] font-semibold text-zinc-900">{title}</h3>
-            <p className="text-sm text-zinc-500">{desc}</p>
+            <h3 className="text-[15px] font-semibold text-foreground">{title}</h3>
+            <p className="text-sm text-muted-foreground">{desc}</p>
           </div>
         </div>
-        <ArrowRight className="h-4 w-4 text-zinc-300 transition group-hover:translate-x-0.5 group-hover:text-loca-600" />
+        <ArrowRight className="h-4 w-4 text-faint transition group-hover:translate-x-0.5 group-hover:text-accent" />
       </Card>
     </Link>
   );

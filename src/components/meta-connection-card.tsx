@@ -5,6 +5,7 @@
 // llegan al cliente.
 import { useCallback, useEffect, useState } from "react";
 import { Badge, Button, Card, useToast } from "@/components/ui";
+import { track } from "@/lib/analytics";
 import { Instagram, Link2, Unlink } from "lucide-react";
 
 type MetaConnection = {
@@ -95,10 +96,10 @@ export function MetaConnectionCard({
       {node}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-loca-50 text-loca-600">
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-accent-subtle-bg text-accent">
             <Instagram className="h-4 w-4" />
           </div>
-          <h2 className="text-lg font-bold tracking-tight text-zinc-900">Instagram y Facebook</h2>
+          <h2 className="text-lg font-bold tracking-tight text-foreground">Instagram y Facebook</h2>
         </div>
         {!loading && connection && (
           <Badge tone={active ? "lima" : "yellow"}>
@@ -108,14 +109,14 @@ export function MetaConnectionCard({
       </div>
 
       {isDemo ? (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-muted-foreground">
           En modo demo no se pueden conectar cuentas reales. Creá una cuenta para publicar en tus redes.
         </p>
       ) : loading ? (
-        <p className="text-sm text-zinc-400">Cargando…</p>
+        <p className="text-sm text-faint">Cargando…</p>
       ) : connection && active ? (
         <>
-          <div className="space-y-1 text-sm text-zinc-600">
+          <div className="space-y-1 text-sm text-muted-foreground-2">
             {connection.pageName && (
               <p>
                 Página de Facebook: <strong>{connection.pageName}</strong>
@@ -126,7 +127,7 @@ export function MetaConnectionCard({
                 Instagram: <strong>@{connection.igUsername}</strong>
               </p>
             ) : (
-              <p className="text-amber-700">
+              <p className="text-amber-700 dark:text-amber-300">
                 Tu página no tiene una cuenta de Instagram Business vinculada.
               </p>
             )}
@@ -137,7 +138,7 @@ export function MetaConnectionCard({
         </>
       ) : (
         <>
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-muted-foreground">
             {connection?.status === "revoked"
               ? "Quitaste el acceso de LOCA desde Facebook. Volvé a conectar para seguir publicando."
               : "Conectá tu página de Facebook y tu Instagram Business para que LOCA pueda publicar tus contenidos."}
@@ -145,6 +146,7 @@ export function MetaConnectionCard({
           <Button
             size="lg"
             onClick={() => {
+              track("meta_connect_clicked", { businessId });
               window.location.href = `/api/integrations/meta/connect?businessId=${encodeURIComponent(businessId)}`;
             }}
           >

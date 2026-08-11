@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LOCA — Pitch Deck</title>
+<style>
+  :root{
+    --bg:#FCFCFB; --ink:#17181A; --ink-2:#4B4F55; --ink-3:#8A8F96;
+    --pink:#DB2777; --pink-soft:#FDF2F8; --pink-border:#F9CFE3;
+    --green:#047857; --green-soft:#ECFDF5; --green-border:#BBE8D4;
+    --amber:#B45309;
+    --line:#E8E8E4; --card:#FFFFFF;
+    --radius:16px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    background:var(--bg); color:var(--ink);
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  }
+  main{height:100vh; overflow-y:auto; scroll-snap-type:y mandatory; scroll-behavior:smooth}
+  section.slide{
+    min-height:100vh; scroll-snap-align:start; scroll-snap-stop:always;
+    display:flex; align-items:center; justify-content:center; padding:64px 56px 88px;
+  }
+  .wrap{width:100%; max-width:1060px}
+  .kicker{
+    display:inline-block; font-size:12px; font-weight:700; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--pink); margin-bottom:18px;
+  }
+  h1{font-size:clamp(40px,6vw,72px); line-height:1.04; letter-spacing:-.02em; font-weight:800}
+  h2{font-size:clamp(30px,4vw,46px); line-height:1.08; letter-spacing:-.02em; font-weight:800; margin-bottom:14px}
+  .lede{font-size:clamp(16px,1.6vw,20px); color:var(--ink-2); line-height:1.55; max-width:64ch}
+  .grid{display:grid; gap:16px}
+  .cols-2{grid-template-columns:1fr 1fr}
+  .cols-3{grid-template-columns:1fr 1fr 1fr}
+  .cols-4{grid-template-columns:repeat(4,1fr)}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:22px 24px;
+  }
+  .card h3{font-size:17px; font-weight:700; margin-bottom:8px}
+  .card p{font-size:14.5px; color:var(--ink-2); line-height:1.55}
+  .num{font-size:clamp(28px,3vw,40px); font-weight:800; letter-spacing:-.02em}
+  .num small{font-size:.45em; font-weight:600; color:var(--ink-3); letter-spacing:0}
+  .tag{
+    display:inline-block; font-size:12px; font-weight:600; padding:5px 12px;
+    border-radius:999px; background:var(--pink-soft); color:var(--pink);
+    border:1px solid var(--pink-border);
+  }
+  .tag.green{background:var(--green-soft); color:var(--green); border-color:var(--green-border)}
+  .footnote{font-size:12px; color:var(--ink-3); line-height:1.5; margin-top:18px}
+  .footnote a{color:inherit}
+  .logo{font-weight:800; letter-spacing:-.01em}
+  .logo .dot{color:var(--pink)}
+
+  /* chrome */
+  .hud{
+    position:fixed; z-index:10; bottom:22px; left:0; right:0;
+    display:flex; justify-content:space-between; align-items:center; padding:0 28px;
+    pointer-events:none; font-size:13px; color:var(--ink-3);
+  }
+  .hud .brand{font-weight:700; color:var(--ink-2)}
+  .hud .brand span{color:var(--pink)}
+  .navbtns{pointer-events:auto; display:flex; gap:8px; align-items:center}
+  .navbtns button{
+    width:38px; height:38px; border-radius:999px; border:1px solid var(--line);
+    background:var(--card); color:var(--ink-2); font-size:16px; cursor:pointer;
+  }
+  .navbtns button:hover{border-color:var(--pink); color:var(--pink)}
+  .counter{min-width:52px; text-align:center; font-variant-numeric:tabular-nums}
+
+  /* portada */
+  .cover{background:linear-gradient(180deg,#FFF 0%,var(--pink-soft) 130%)}
+  .cover .badges{display:flex; gap:10px; margin:26px 0 0; flex-wrap:wrap}
+  .cover h1 em{font-style:normal; color:var(--pink)}
+
+  /* problema */
+  .painprice{font-size:22px; font-weight:800; color:var(--pink)}
+  blockquote{
+    border-left:3px solid var(--pink); padding:6px 0 6px 20px; margin-top:28px;
+    font-size:clamp(19px,2vw,24px); font-weight:600; line-height:1.4; max-width:56ch;
+  }
+
+  /* pasos */
+  .step{position:relative; padding-top:52px}
+  .step .n{
+    position:absolute; top:18px; left:24px; width:30px; height:30px; border-radius:999px;
+    background:var(--pink); color:#fff; font-weight:800; font-size:14px;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  /* mockup */
+  .mock{
+    background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden;
+    box-shadow:0 18px 40px -24px rgba(23,24,26,.25);
+  }
+  .mock .bar{display:flex; gap:6px; padding:10px 14px; border-bottom:1px solid var(--line); background:#FAFAF8}
+  .mock .bar i{width:9px; height:9px; border-radius:99px; background:var(--line); display:block}
+  .mock .body{padding:18px}
+  .mrow{display:flex; align-items:center; gap:10px; margin-bottom:12px}
+  .avatar{width:30px; height:30px; border-radius:999px; background:var(--pink); color:#fff; font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:center; flex:none}
+  .bubble{background:#F6F6F3; border-radius:12px; padding:10px 14px; font-size:13.5px; color:var(--ink-2); line-height:1.45}
+  .piece{border:1px solid var(--line); border-radius:12px; overflow:hidden}
+  .piece .img{height:120px; background:linear-gradient(135deg,var(--pink-soft),var(--green-soft)); display:flex; align-items:center; justify-content:center; color:var(--ink-3); font-size:12px; letter-spacing:.08em; text-transform:uppercase}
+  .piece .txt{padding:12px 14px; font-size:13px; color:var(--ink-2); line-height:1.5}
+  .approve{display:flex; gap:8px; padding:0 14px 14px}
+  .btn{font-size:12.5px; font-weight:700; padding:8px 14px; border-radius:999px; border:1px solid var(--line); color:var(--ink-2); background:#fff}
+  .btn.primary{background:var(--green); border-color:var(--green); color:#fff}
+
+  /* tabla competencia */
+  table{width:100%; border-collapse:separate; border-spacing:0; font-size:14px}
+  th,td{padding:13px 16px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top}
+  thead th{font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-3); font-weight:700}
+  td.check{color:var(--green); font-weight:700}
+  td.cross{color:var(--ink-3)}
+  tr.loca td{background:var(--pink-soft); font-weight:600}
+  tr.loca td:first-child{border-radius:12px 0 0 12px; color:var(--pink); font-weight:800}
+  tr.loca td:last-child{border-radius:0 12px 12px 0}
+  .tablewrap{overflow-x:auto; border:1px solid var(--line); border-radius:var(--radius); background:var(--card); padding:6px 10px}
+
+  /* mercado */
+  .tamring{display:flex; flex-direction:column; gap:12px}
+  .band{border-radius:14px; padding:18px 22px; border:1px solid var(--line); background:var(--card); display:flex; justify-content:space-between; align-items:baseline; gap:14px}
+  .band b{font-size:22px; letter-spacing:-.01em}
+  .band.tam{border-color:var(--pink-border); background:var(--pink-soft)}
+  .band.som{border-color:var(--green-border); background:var(--green-soft)}
+  .band small{color:var(--ink-2); font-size:13px; text-align:right; line-height:1.4}
+
+  /* chart proyecciones */
+  .chart{display:flex; align-items:flex-end; gap:34px; height:300px; padding:0 8px; border-bottom:2px solid var(--ink); max-width:640px}
+  .bargrp{flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; height:100%}
+  .bar{
+    width:64px; background:var(--pink); border-radius:4px 4px 0 0; position:relative;
+    transition:opacity .15s;
+  }
+  .chart:hover .bar{opacity:.45}
+  .chart .bargrp:hover .bar{opacity:1}
+  .bar .val{position:absolute; top:-28px; left:50%; transform:translateX(-50%); font-size:15px; font-weight:800; color:var(--ink); white-space:nowrap}
+  .bargrp .lbl{margin-top:10px; font-size:13px; color:var(--ink-2); font-weight:600}
+
+  /* uso de fondos */
+  .usebar{display:flex; height:52px; border-radius:10px; overflow:hidden; gap:2px; background:var(--bg)}
+  .usebar div{display:flex; align-items:center; justify-content:center}
+  .usebar .gtm{background:var(--pink); flex:7; border-radius:10px 0 0 10px}
+  .usebar .team{background:var(--green); flex:2}
+  .usebar .infra{background:var(--amber); flex:1; border-radius:0 10px 10px 0}
+  .uselegend{display:flex; gap:26px; margin-top:14px; flex-wrap:wrap}
+  .uselegend span{display:flex; align-items:center; gap:8px; font-size:14px; color:var(--ink-2)}
+  .uselegend i{width:11px; height:11px; border-radius:3px; display:inline-block}
+  .uselegend b{color:var(--ink)}
+
+  .checklist{list-style:none; display:grid; gap:10px}
+  .checklist li{padding-left:30px; position:relative; font-size:15.5px; color:var(--ink-2); line-height:1.5}
+  .checklist li::before{content:"✓"; position:absolute; left:0; top:0; color:var(--green); font-weight:800}
+  .checklist li b{color:var(--ink)}
+
+  .timeline{display:grid; grid-template-columns:repeat(3,1fr); gap:16px}
+  .phase{border-top:3px solid var(--pink); padding-top:14px}
+  .phase.alt{border-color:var(--green)}
+  .phase h4{font-size:13px; text-transform:uppercase; letter-spacing:.1em; color:var(--ink-3); margin-bottom:8px}
+  .phase p{font-size:14.5px; color:var(--ink-2); line-height:1.55}
+  .phase b{color:var(--ink)}
+
+  .team-card .role{font-size:12px; text-transform:uppercase; letter-spacing:.1em; color:var(--pink); font-weight:700; margin-bottom:4px}
+  .team-card h3{font-size:20px}
+  .team-card.eva{background:linear-gradient(160deg,var(--pink-soft),#fff); border-color:var(--pink-border)}
+
+  @media (max-height:860px){
+    section.slide{padding:40px 56px 78px}
+    h2{font-size:clamp(26px,3.2vw,38px)}
+    .lede{font-size:16px}
+    .card{padding:16px 18px}
+    .card p{font-size:13.5px}
+    .step{padding-top:46px}
+    .step .n{top:14px; left:18px; width:26px; height:26px; font-size:13px}
+    .grid{gap:12px}
+    .piece .img{height:96px}
+    blockquote{margin-top:20px}
+    .footnote{margin-top:12px}
+  }
+  @media (max-width:860px){
+    section.slide{padding:52px 22px 90px}
+    .cols-2,.cols-3,.cols-4,.timeline{grid-template-columns:1fr}
+    .chart{gap:16px}
+  }
+</style>
+</head>
+<body>
+
+<div class="hud">
+  <div class="brand">LOCA<span>.</span> — Pre-seed 2026 · Confidencial</div>
+  <div class="navbtns">
+    <button id="prev" aria-label="Anterior">←</button>
+    <div class="counter"><span id="cur">1</span> / <span id="tot">16</span></div>
+    <button id="next" aria-label="Siguiente">→</button>
+  </div>
+</div>
+
+<main id="deck">
+
+<!-- 1 · PORTADA -->
+<section class="slide cover">
+  <div class="wrap">
+    <div style="margin-bottom:46px"><span class="logo" style="font-size:26px">LOCA<span class="dot">.</span></span><span style="font-size:12px; letter-spacing:.24em; text-transform:uppercase; color:var(--ink-3); margin-left:14px; font-weight:600">LOw Cost Agency</span></div>
+    <span class="kicker">Humanless Marketing</span>
+    <h1>La agencia de marketing con IA<br>que <em>trabaja sola</em>.</h1>
+    <p class="lede" style="margin-top:22px">Estrategia, contenido y publicación para pymes, startups y profesionales independientes de Latinoamérica. El cliente solamente aprueba.</p>
+    <div class="badges">
+      <span class="tag">Ronda pre-seed · USD 500K</span>
+      <span class="tag green">MVP construido y funcionando</span>
+      <span class="tag">Lanzamiento: Argentina → México → LATAM</span>
+    </div>
+    <p class="footnote">heyloca.ai · Sebastián — CEO · Alan Roitman — CTO/CPO</p>
+  </div>
+</section>
+
+<!-- 2 · PROBLEMA -->
+<section class="slide">
+  <div class="wrap">
+    <span class="kicker">El problema</span>
+    <h2>Para un pequeño negocio, hacer buen marketing<br>es caro, lento o directamente imposible.</h2>
+    <div class="grid cols-3" style="margin-top:26px">
+      <div class="card">
+        <p class="painprice">USD 800–2.000+/mes</p>
+        <h3>Agencia tradicional</h3>
+        <p>Inalcanzable para la enorme mayoría de los negocios de la región. Mínimos de contrato, procesos lentos, atención despriorizada para cuentas chicas.</p>
+      </div>
+      <div class="card">
+        <p class="painprice">USD 200–500/mes</p>
+        <h3>Freelancer</h3>
+        <p>Calidad y constancia impredecibles. Sin estrategia real, alta rotación, y el negocio termina gestionando a una persona más.</p>
+      </div>
+      <div class="card">
+        <p class="painprice">USD 20–50/mes</p>
+        <h3>Herramientas con IA</h3>
+        <p>Canva, Predis, Ocoya: el trabajo sigue siendo del negocio — pensar, elegir, redactar, diseñar, programar. La herramienta no lo reemplaza.</p>
+      </div>
+    </div>
+    <div class="grid cols-3" style="margin-top:16px">
+      <div class="card" style="background:var(--pink-soft); border-color:var(--pink-border); text-align:center"><p class="num" style="color:var(--pink)">27,5M</p><p><b>de mipymes en América Latina</b> — el 99% de las empresas de la región (IFC / CEPAL)</p></div>
+      <div class="card" style="background:var(--pink-soft); border-color:var(--pink-border); text-align:center"><p class="num" style="color:var(--pink)">1 de 3</p><p><b>trabajadores de la región es independiente</b> (OIT) — profesionales y emprendimientos sin equipo de marketing posible</p></div>
+      <div class="card" style="background:var(--pink-soft); border-color:var(--pink-border); text-align:center"><p class="num" style="color:var(--pink)">0</p><p><b>opciones reales</b> entre la herramienta que no hace el trabajo y la agencia que no pueden pagar</p></div>
+    </div>
+    <blockquote>Un pequeño negocio no quiere hacer marketing.<br>Quiere que el marketing esté <u>hecho</u>.</blockquote>
+  </div>
+</section>
+
+<!-- 3 · SOLUCIÓN -->
+<section class="slide" style="background:linear-gradient(180deg,var(--bg),var(--green-soft) 160%)">
+  <div class="wrap">
+    <span class="kicker">La solución</span>
+    <h2>LOCA es la agencia. Completa,<br>y trabaja sola.</h2>
+    <p class="lede">Por una suscripción mensual, LOCA entrega lo que antes exigía contratar una agencia, un diseñador y un community: el marketing pasa todos los meses, sin que el negocio lo haga.</p>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:22px">
+      <span class="tag">Estrategia a medida</span>
+      <span class="tag">Calendario editorial</span>
+      <span class="tag">Piezas con identidad de marca</span>
+      <span class="tag">Publicación automática</span>
+      <span class="tag">Métricas</span>
+    </div>
+    <div class="grid cols-2" style="margin-top:24px; align-items:stretch">
+      <div class="card" style="display:flex; gap:16px; align-items:flex-start">
+        <span class="avatar" style="width:44px; height:44px; font-size:18px">E</span>
+        <div>
+          <h3>Eva, nuestra agente de IA</h3>
+          <p>Es quien acompaña a cada cliente: entiende su negocio, le presenta el trabajo listo y aprende de cada aprobación y cada feedback. La relación de agencia, sin la agencia.</p>
+        </div>
+      </div>
+      <div class="card" style="background:var(--pink-soft); border-color:var(--pink-border)">
+        <h3>El nombre es la promesa</h3>
+        <p><b>LO</b>w <b>C</b>ost <b>A</b>gency: servicio de agencia a precio de software. Desde <b style="color:var(--pink)">USD 89/mes</b> — el precio de unas horas de freelancer, el resultado de una agencia.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4 · CÓMO FUNCIONA -->
+<section class="slide">
+  <div class="wrap">
+    <span class="kicker">Cómo funciona</span>
+    <h2>Del alta a publicar en piloto automático.</h2>
+    <div class="grid cols-2" style="margin-top:26px; align-items:start">
+      <div class="grid" style="gap:14px">
+        <div class="card step"><span class="n">1</span><h3>Contás tu negocio (10 min)</h3><p>Eva escanea tu sitio y redes, detecta identidad, servicios y tono. Lo que no encuentra, te lo pregunta. Nunca inventa.</p></div>
+        <div class="card step"><span class="n">2</span><h3>Eva propone la estrategia</h3><p>Objetivos, pilares de contenido y calendario del mes. Editable sección por sección.</p></div>
+        <div class="card step"><span class="n">3</span><h3>Genera las piezas</h3><p>Copy + imagen alineados a tu marca. Si algo no te gusta, le das feedback y lo rehace.</p></div>
+        <div class="card step"><span class="n">4</span><h3>Aprobás → se publica solo</h3><p>Programación y publicación automática vía API oficial de Meta. Ves el post real desde tu panel.</p></div>
+      </div>
+      <div>
+        <div class="mock" aria-label="Pantalla real del MVP: pieza lista para aprobar">
+          <div class="bar"><i></i><i></i><i></i></div>
+          <img src="img/app-content.png" alt="Estudio de contenidos de LOCA: pieza con copy e imagen, botones Aprobar, Editar copy y fecha, Cambiar imagen" style="display:block; width:100%">
+        </div>
+        <p class="footnote" style="text-align:center; margin-top:10px">Pantalla real del MVP — el flujo de revisión y aprobación.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 · PRODUCTO HOY -->
+<section class="slide">
+  <div class="wrap">
+    <span class="kicker">Producto</span>
+    <h2>No es una idea: el producto ya existe.</h2>
+    <p class="lede">MVP funcional de punta a punta. Las pantallas de este deck son reales.</p>
+    <div class="grid cols-2" style="margin-top:24px; align-items:start">
+      <div>
+        <div class="mock"><div class="bar"><i></i><i></i><i></i></div><img src="img/app-strategy.png" alt="Estrategia generada por LOCA: posicionamiento, objetivo del mes, audiencia, tono de voz y canales, con botón Aprobar estrategia" style="display:block; width:100%; max-height:300px; object-fit:cover; object-position:top"></div>
+        <div class="mock" style="margin-top:12px"><div class="bar"><i></i><i></i><i></i></div><img src="img/app-calendar.png" alt="Calendario mensual de LOCA con publicaciones programadas por canal" style="display:block; width:100%; max-height:120px; object-fit:cover; object-position:top"></div>
+        <p class="footnote" style="margin-top:8px">Arriba: la estrategia generada y editable. Abajo: el mes programado por canal, listo para publicarse solo.</p>
+      </div>
+      <div class="card" style="background:var(--pink-soft); border-color:var(--pink-border); height:100%">
+        <h3 style="font-size:13px; text-transform:uppercase; letter-spacing:.1em; color:var(--pink)">La tecnología</h3>
+        <ul class="checklist" style="margin-top:14px">
+          <li><b>Orquestación determinística de agentes especializados</b> — estrategia, contenido, imagen, feedback — con control de calidad por pieza. No es un wrapper de chat.</li>
+          <li><b>Brand Bible por cliente:</b> la capa de datos propietaria (identidad, tono, productos, aprendizajes) que alimenta cada generación.</li>
+          <li><b>Model routing multi-proveedor:</b> el modelo justo para cada tarea, intercambiable sin rebuild. Cero dependencia de un solo proveedor.</li>
+          <li><b>Publicación vía APIs oficiales</b> (Meta hoy) con estado real de cada post y métricas de vuelta al sistema.</li>
+          <li><b>Multi-país nativo:</b> idioma, timezone, fechas comerciales y moneda por mercado, desde el día uno.</li>
+        </ul>
+        <p class="num" style="margin-top:18px; color:var(--pink)">~20 min</p>
+        <p style="font-size:14px; color:var(--ink-2)">del alta al primer mes de contenido listo para aprobar.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6 · POR QUÉ AHORA -->
+<section class="slide">
+  <div class="wrap">
+    <span class="kicker">Por qué ahora</span>
+    <h2>La ventana se abrió hace meses.<br>Todavía no tiene dueño en español.</h2>
+    <div class="grid cols-2" style="margin-top:26px">
+      <div class="card"><h3>La calidad cruzó el umbral</h3><p>Recién desde 2025 la generación de texto e imagen alcanza calidad de agencia de forma consistente. Antes de eso, este producto era imposible.</p></div>
+      <div class="card"><h3>Hoy se pagan 4 o 5 herramientas — y el trabajo sigue sin hacerse</h3><p>Diseño + programador de posts + IA de copy + IA de imagen + analytics: suscripciones sueltas que suman más que LOCA y dejan todo el trabajo en manos del negocio. Consolidamos el stack entero en un servicio terminado.</p></div>
+      <div class="card"><h3>La IA es barata solo si está bien usada</h3><p>El precio de la inferencia se desplomó — pero mal orquestada (regeneraciones infinitas, el modelo equivocado para cada tarea) se vuelve carísima. Saber operarla con margen es ingeniería, y es exactamente nuestro oficio.</p></div>
+      <div class="card"><h3>La categoría está vacante</h3><p>Las herramientas globales no hablan LATAM: ni el idioma, ni los precios, ni las fechas, ni la informalidad de sus pequeños negocios. El primero que gane la marca "agencia IA" en español define la categoría.</p></div>
+    </div>
+    <p class="footnote">Contexto: el 56% del gasto publicitario de LATAM ya es digital y la región será la segunda de mayor crecimiento del mundo en 2026 (eMarketer).</p>
+  </div>
+</section>
+
+<!-- 7 · MERCADO -->
+<section class="slide">
+  <div class="wrap">
+    <span class="kicker">Mercado</span>
+    <h2>El presupuesto ya existe.<br>Falta quién ejecute por ese precio.</h2>
+    <div class="grid cols-2" style="margin-top:26px; align-items:start">
+      <div class="tamring">
+        <div class="band tam"><div><b>TAM · USD ~29B/año</b><br><small style="text-align:left; display:block">Mipymes + independientes de LATAM a ticket LOCA (USD 89/mes)</small></div><small>27,5M de negocios<br>(IFC)</small></div>
+        <div class="band"><div><b>SAM · USD ~3B/año</b><br><small style="text-align:left; display:block">6 países de lanzamiento: segmento objetivo digitalmente activo</small></div><small>~2,8M de negocios<br>AR·MX·CO·CL·PE·UY</small></div>
+        <div class="band som"><div><b>SOM · USD ~8M ARR</b><br><small style="text-align:left; display:block">Año 3: ~6.500 clientes</small></div><small>0,25% del SAM</small></div>
+      </div>
+      <div class="grid" style="gap:14px">
+        <div class="card">
+          <h3>El target que nadie atiende</h3>
+          <p>Pequeños comercios, startups y profesionales independientes que necesitan presencia constante — no community management complejo. El segmento de independientes, por sí solo, es enorme y crece.</p>
+        </div>
+        <div class="card">
+          <h3>El gasto ya existe</h3>
+          <p>La publicidad digital en LATAM superó los <b>USD 40B en 2025</b> y llegará a <b>USD 50B en 2026</b>. LOCA no tiene que crear el gasto: solo capturarlo con un precio que por fin cierra.</p>
+        </div>
+        <div class="card" style="background:var(--green-soft); border-color:var(--green-border)">
+          <h3>Upside no modelado: EE.UU.</h3>
+          <p>~5M de negocios hispanos en EE.UU.: mismo idioma, mismo playbook, ticket 3–4× mayor. Fuera de estas proyecciones — es la expansión natural del año 3, con la próxima ronda.</p>
+        </div>
+      </div>
+    </div>
+    <p class="footnote">Fuentes: IFC/SME Finance Forum, CEPAL, OIT, eMarketer 2025–2026. Detalle de supuestos disponible en anexo.</p>
+  </div>
+</section>
+
+<!-- 8 · MODELO DE NEGOCIO -->
+<section class="slide">
+  <div class="wrap">
+    <span class="kicker">Modelo de negocio</span>
+    <h2>Suscripción simple. Margen de software.</h2>
+    <div class="grid cols-3" style="margin-top:26px">
+      <div class="card">
+        <h3>Contenidos</h3>
+        <p class="num">USD 89<small>/mes</small></p>
+        <p>12 contenidos mensuales, estrategia, calendario y publicación automática.</p>
+      </div>
+      <div class="card" style="border-color:var(--pink); box-shadow:0 12px 30px -18px rgba(219,39,119,.35)">
+        <h3 style="color:var(--pink)">Pro</h3>
+        <p class="num">USD 179<small>/mes</small></p>
+        <p>Más volumen y formatos, múltiples canales y prioridad de generación.</p>
+      </div>
+      <div class="card">
+        <h3>Enterprise</h3>
+        <p class="num" style="font-size:26px">A cotizar</p>
+        <p>Multi-marca y necesidades a medida. Un negocio = una suscripción.</p>
+      </div>
+    </div>
+    <div class="grid cols-3" style="margin-top:16px">
+      <div class="card" style="background:var(--green-soft); border-color:var(--green-border)"><h3>Costo de servir</h3><p><b>&lt; USD 20</b> de IA por cliente/mes, bajando con escala y optimización del pipeline.</p></div>
+      <div class="card" style="background:var(--green-soft); border-color:var(--green-border)"><h3>Margen bruto</h3><p><b>USD 50–70 por cliente/mes</b> (~65–75%), desde el día uno.</p></div>
+      <div class="card" style="background:var(--green-soft); border-color:var(--green-border)"><h3>Expansión</h3><p>Ads, email y web (roadmap) suben el ticket sin subir el CAC: se venden a clientes que ya confían en Eva.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 9 · UNIT ECONOMICS -->
+<section class="slide">
+  <div class="wrap">
+    <span class="kicker">Unit economics</span>
+    <h2>La vida de un cliente, en 4 pasos.</h2>
+    <div class="grid cols-4" style="margin-top:26px">
+      <div class="card step"><span class="n">1</span><p class="num" style="font-size:26px">USD ~130</p><h3>Conseguirlo</h3><p>Paid media + su primer mes gratis, ya incluido en el CAC. Es toda la inversión que ese cliente va a necesitar.</p></div>
+      <div class="card step"><span class="n">2</span><p class="num" style="font-size:26px">USD ~70/mes</p><h3>Servirlo con margen</h3><p>Paga USD ~105/mes (mix de planes) y servirlo cuesta poco: dos tercios quedan como margen bruto.</p></div>
+      <div class="card step"><span class="n">3</span><p class="num" style="font-size:26px">Mes 2</p><h3>Ya se repagó</h3><p>Con dos meses pagos, el margen acumulado supera el CAC. Desde ahí, todo es retorno — y el capital rota rápido.</p></div>
+      <div class="card step"><span class="n">4</span><p class="num" style="font-size:26px">USD ~1.150</p><h3>Lo que deja</h3><p>~16 meses de vida promedio (churn 6%/mes, conservador) × USD ~70 de margen. Ese es el LTV.</p></div>
+    </div>
+    <div class="card" style="margin-top:16px; background:var(--pink-soft); border-color:var(--pink-border); display:flex; align-items:center; gap:22px; justify-content:center; text-align:center">
+      <p class="num" style="color:var(--pink)">LTV / CAC &gt; 5×</p>
+      <p style="font-size:15px; color:var(--ink-2); max-width:44ch; text-align:left">Cada dólar invertido en adquisición vuelve multiplicado por cinco — aun con el churn pesimista típico de pequeños negocios. Cada punto de churn que baje, agranda el múltiplo.</p>
+    </div>
+    <p class="footnote">Supuestos explícitos: CAC benchmark de SaaS self-service ajustado a CPMs de LATAM (sensiblemente más bajos que EE.UU.); churn 6%/mes año 1 mejorando hacia 4,5%. Se validan en el piloto y primer trimestre comercial.</p>
+  </div>
+</section>
+
+<!-- 10 · COMPETENCIA -->
+<section class="slide">
+  <div class="wrap">
+    <span class="kicker">Competencia</span>
+    <h2>Las herramientas te dan el pincel.<br>LOCA te entrega el cuadro.</h2>
+    <div class="tablewrap" style="margin-top:26px">
+      <table>
+        <thead><tr><th></th><th>Precio/mes</th><th>¿Quién hace el trabajo?</th><th>Estrategia</th><th>Publica solo</th><th>Escala</th></tr></thead>
+        <tbody>
+          <tr><td><b>Agencia tradicional</b></td><td>USD 800–2.000+</td><td>La agencia</td><td class="check">Sí</td><td class="check">Sí</td><td class="cross">No — personas</td></tr>
+          <tr><td><b>Freelancer</b></td><td>USD 200–500</td><td>El freelancer (a veces)</td><td class="cross">Rara vez</td><td class="cross">Manual</td><td class="cross">No</td></tr>
+          <tr><td><b>Herramientas IA</b><br><small style="color:var(--ink-3)">Canva, Predis, Ocoya…</small></td><td>USD 20–50</td><td class="cross"><b>El cliente</b></td><td class="cross">No</td><td>Parcial</td><td class="check">Sí</td></tr>
+          <tr><td><b>Generadores de posts</b><br><small style="color:var(--ink-3)">Marky, Blaze (EE.UU.)</small></td><td>USD 23–60</td><td>La IA genera; el cliente cura y ajusta</td><td class="cross">Superficial</td><td class="check">Sí</td><td class="check">Sí</td></tr>
+          <tr class="loca"><td>LOCA</td><td>USD 89–179</td><td>Eva — el cliente solo aprueba</td><td class="check">Sí</td><td class="check">Sí</td><td class="check">Sí — software</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="lede" style="margin-top:22px; font-size:16px">Los más parecidos (Marky, Blaze) son generadores de posts en inglés: la estrategia, la curación y el resto del marketing siguen en manos del negocio. LOCA es la relación de agencia entera — con roadmap hacia ads, email y web — nativa en español y localizada para LATAM.</p>
+  </div>
+</section>
+
+<!-- 11 · HUMANLESS -->
+<section class="slide" style="background:var(--ink)">
+  <div class="wrap" style="text-align:center; max-width:900px">
+    <span class="kicker">Humanless Marketing</span>
+    <h2 style="color:#fff; font-size:clamp(32px,4.4vw,52px)">Resolvimos el mayor cuello de botella<br>de las agencias: <span style="color:#F472B6">el talento humano</span>.</h2>
+    <p class="lede" style="color:#C7CAD0; margin:22px auto 0; max-width:58ch">Una agencia tradicional crece contratando gente. LOCA crece como software: cada cliente nuevo no suma nómina, suma margen. Calidad que no depende de nadie, servicio que no duerme y un costo 10× menor. Marketing 100% digital, global y sin límites.</p>
+    <div style="display:flex; gap:12px; justify-content:center; margin-top:30px; flex-wrap:wrap">
+      <span class="tag">Sin equipo que gestionar</span>
+      <span class="tag">Sin reuniones ni calls</span>
+      <span class="tag">Escala sin sumar personas</span>
+    </div>
+  </div>
+</section>
+
+<!-- 12 · MOAT -->
+<section class="slide">
+  <div class="wrap">
+    <span class="kicker">Defensibilidad</span>
+    <h2>Cada aprobación nos hace mejores.<br>Cada mes, más difíciles de reemplazar.</h2>
+    <div class="grid cols-2" style="margin-top:26px">
+      <div class="card"><h3>Brand Bible propietaria</h3><p>Identidad, tono, productos, fotos, fechas y aprendizajes de cada cliente viven en LOCA. Migrar es volver a empezar de cero: el switching cost crece cada mes.</p></div>
+      <div class="card"><h3>Flywheel de datos</h3><p>Cada aprobación, edición y feedback entrena qué funciona por industria, país y formato. Miles de clientes → un sistema que ninguna herramienta genérica puede replicar.</p></div>
+      <div class="card"><h3>Ventaja de costos operativa</h3><p>La orquestación optimizada hace que servir cueste centavos donde a un imitador le cuesta dólares: el precio bajo sigue siendo rentable para nosotros y ruinoso para quien copie sin la curva de aprendizaje.</p></div>
+      <div class="card"><h3>Localización real de LATAM</h3><p>Fechas comerciales por país e industria, precios en moneda local, voseo/usted según mercado, entendimiento de la pyme informal. Lo que un player global no prioriza.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 12 · GO-TO-MARKET -->
+<section class="slide">
+  <div class="wrap">
+    <span class="kicker">Go-to-market</span>
+    <h2>La máquina de adquisición:<br>cuatro canales, un CAC objetivo.</h2>
+    <div class="grid cols-2" style="margin-top:26px">
+      <div class="card"><h3>Paid social</h3><p>CPMs de LATAM entre los más bajos del mundo: el mismo presupuesto rinde múltiplos de lo que rinde en EE.UU. Acá vive el CAC objetivo de USD 130.</p></div>
+      <div class="card"><h3>1er mes gratis como oferta de entrada</h3><p>Financiado dentro del CAC. El producto se vende solo una vez que Eva entrega el primer calendario: la barrera no es el precio, es probarlo.</p></div>
+      <div class="card"><h3>Alianzas de confianza</h3><p>Cámaras de comercio, estudios contables y coworks: canales con acceso directo y recomendación cálida a miles de pequeños negocios.</p></div>
+      <div class="card"><h3>Dogfooding</h3><p>El marketing de LOCA lo hace LOCA. Cada pieza nuestra es una demo pública del producto — y el laboratorio donde afinamos el playbook.</p></div>
+    </div>
+    <p class="footnote" style="margin-top:16px">Orden de mercados y disciplina de expansión: en la slide de roadmap. Regla: cada país nuevo se abre recién cuando el anterior repaga su adquisición. El producto ya nace multi-país; expandirse no requiere rebuild.</p>
+  </div>
+</section>
+
+<!-- 13 · ROADMAP -->
+<section class="slide">
+  <div class="wrap">
+    <span class="kicker">Roadmap · el plan de esta ronda</span>
+    <h2>24 meses, 3 etapas.<br>Cada etapa deja un hito medible.</h2>
+    <div class="timeline" style="margin-top:26px">
+      <div class="phase"><h4>Etapa 1 · Meses 0–6 — Validar</h4><p><b>Piloto + lanzamiento Argentina.</b> 15–20 negocios reales, 1 mes gratis, con targets declarados: ≥70% de aprobación en primer intento, ~20 min al primer contenido, máx. 2 regeneraciones y conversión a pago al cerrar el mes gratis.<br><b>Hito: CAC ≤ USD 130 y playbook validados con datos.</b></p></div>
+      <div class="phase"><h4>Etapa 2 · Meses 6–18 — Replicar</h4><p><b>México</b> (el mercado hispanohablante más grande, con red local vía Tu Socio Local) + producto: carruseles, reels y stories, LinkedIn, y Eva operando <b>Meta Ads y Google Ads</b>.<br><b>Hito: ~700 clientes y USD ~1M de ARR run-rate.</b></p></div>
+      <div class="phase alt"><h4>Etapa 3 · Meses 18–24 — Ampliar</h4><p><b>CO · CL · PE · UY</b> + marketing completo: email marketing, creación de páginas web y curaduría humana premium para cuentas Enterprise.<br><b>Hito: unit economics probados a escala → Seed.</b></p></div>
+    </div>
+    <p class="lede" style="margin-top:24px; font-size:16px">Cada módulo nuevo sube el ARPU de clientes existentes — expansión sin CAC adicional — y agranda el foso frente a herramientas de un solo propósito.</p>
+  </div>
+</section>
+
+<!-- 14 · EQUIPO -->
+<section class="slide">
+  <div class="wrap">
+    <span class="kicker">Equipo</span>
+    <h2>Una agencia real + producto técnico.<br>Founder-market fit de manual.</h2>
+    <div class="grid cols-3" style="margin-top:26px">
+      <div class="card team-card">
+        <p class="role">CEO</p>
+        <h3>Sebastián Adlerstein</h3>
+        <p style="margin-top:6px">Fundador de <b>INFINIDAD</b> (agencia de marketing en operación) y <b>Tu Socio Local</b> (expansión de empresas AR↔MX). Años atendiendo pequeños negocios: conoce el pain, el precio que aguantan y el servicio que esperan — desde adentro.</p>
+        <p style="margin-top:10px"><a href="#" style="font-size:13px; font-weight:700; color:var(--pink); text-decoration:none">LinkedIn ↗</a> <span class="tag" style="border-style:dashed; background:#FFF7E6; color:var(--amber); border-color:#EAD3A8; margin-left:6px">URL pendiente</span></p>
+      </div>
+      <div class="card team-card">
+        <p class="role">CTO / CPO</p>
+        <h3>Alan Roitman</h3>
+        <p style="margin-top:6px">Lidera la arquitectura del pipeline de agentes y la plataforma. <span class="tag" style="border-style:dashed; background:#FFF7E6; color:var(--amber); border-color:#EAD3A8">Bio y experiencia: pendiente</span></p>
+        <p style="margin-top:10px"><a href="#" style="font-size:13px; font-weight:700; color:var(--pink); text-decoration:none">LinkedIn ↗</a> <span class="tag" style="border-style:dashed; background:#FFF7E6; color:var(--amber); border-color:#EAD3A8; margin-left:6px">URL pendiente</span></p>
+      </div>
+      <div class="card team-card eva">
+        <p class="role">Directora de cuentas · IA</p>
+        <h3>Eva</h3>
+        <p style="margin-top:6px">Atiende a todos los clientes a la vez, 24/7, en su idioma y con su tono. No renuncia, no se enferma y mejora todas las semanas. La primera empleada que escala como software.</p>
+      </div>
+    </div>
+    <p class="footnote">Advisors: en conversaciones avanzadas con referentes de primera línea de la industria publicitaria mexicana. Con la ronda se suman roles de growth y customer success.</p>
+  </div>
+</section>
+
+<!-- 15 · PROYECCIONES -->
+<section class="slide">
+  <div class="wrap">
+    <span class="kicker">Proyecciones</span>
+    <h2>USD 8M de ARR run-rate en 3 años.</h2>
+    <div class="grid cols-2" style="margin-top:30px; align-items:end">
+      <div>
+        <div class="chart" role="img" aria-label="ARR run-rate proyectado: año 1 0,9 millones; año 2 3,5 millones; año 3 8,2 millones de dólares">
+          <div class="bargrp"><div class="bar" style="height:11%"><span class="val">$0,9M</span></div><span class="lbl">Año 1</span></div>
+          <div class="bargrp"><div class="bar" style="height:43%"><span class="val">$3,5M</span></div><span class="lbl">Año 2</span></div>
+          <div class="bargrp"><div class="bar" style="height:100%"><span class="val">$8,2M</span></div><span class="lbl">Año 3</span></div>
+        </div>
+        <p class="footnote">ARR run-rate a cierre de cada año desde el cierre de la ronda.</p>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th></th><th>Año 1</th><th>Año 2</th><th>Año 3</th></tr></thead>
+          <tbody>
+            <tr><td><b>Clientes activos</b></td><td>700</td><td>2.800</td><td>6.500</td></tr>
+            <tr><td><b>MRR (cierre)</b></td><td>USD 74K</td><td>USD 294K</td><td>USD 680K</td></tr>
+            <tr><td><b>Países activos</b></td><td>2 (AR + MX)</td><td>6</td><td>LATAM</td></tr>
+            <tr><td><b>Margen bruto</b></td><td>~65%</td><td>~70%</td><td>~75%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="footnote">Supuestos: ARPU USD 105 · CAC USD 130 · churn 6%→4,5%/mes · lanzamiento comercial en el mes 3 post-ronda · reinversión del margen en adquisición. Modelo detallado disponible.</p>
+  </div>
+</section>
+
+<!-- 16 · LA RONDA -->
+<section class="slide cover">
+  <div class="wrap">
+    <span class="kicker">La ronda</span>
+    <h2>USD 500K para ganar Argentina y México<br>— y abrir el camino al resto de LATAM.</h2>
+    <p class="lede" style="margin-top:8px">SAFE post-money · cap USD 3,5M · 20% de descuento · runway 18–24 meses.</p>
+
+    <div style="margin-top:30px; max-width:760px">
+      <div class="usebar" role="img" aria-label="Uso de fondos: 70% go-to-market, 20% equipo, 10% infraestructura de IA">
+        <div class="gtm"></div><div class="team"></div><div class="infra"></div>
+      </div>
+      <div class="uselegend">
+        <span><i style="background:var(--pink)"></i><b>70% · Go-to-market</b>&nbsp;— paid media, 1er mes gratis, marca y alianzas</span>
+        <span><i style="background:var(--green)"></i><b>20% · Equipo</b>&nbsp;— growth y customer success</span>
+        <span><i style="background:var(--amber)"></i><b>10% · Infra IA</b>&nbsp;— mejora de agentes y eficiencia de costos</span>
+      </div>
+    </div>
+
+    <div class="grid cols-3" style="margin-top:30px; max-width:900px">
+      <div class="card"><h3>Con esta ronda</h3><p>Las 3 etapas del roadmap completas: validar (Argentina), replicar (México) y ampliar (CO·CL·PE·UY) — 700+ clientes pagos, USD ~1M de ARR run-rate y unit economics con datos reales.</p></div>
+      <div class="card"><h3>Después: Seed</h3><p>Acelerar LATAM y abrir el mercado hispano de EE.UU. (el upside no modelado de la slide de mercado) — o directamente conversaciones estratégicas.</p></div>
+      <div class="card"><h3>La salida</h3><p>Venta estratégica en 3–5 años: plataformas de SMB software, holdings publicitarios y martech buscan exactamente esta capacidad y esta base de clientes.</p></div>
+    </div>
+
+    <p style="margin-top:34px; font-size:18px; font-weight:700">Sebastián · sebastian@infinidad.com.ar · heyloca.ai</p>
+  </div>
+</section>
+
+</main>
+
+<script>
+  const deck = document.getElementById('deck');
+  const slides = [...document.querySelectorAll('section.slide')];
+  const cur = document.getElementById('cur'), tot = document.getElementById('tot');
+  tot.textContent = slides.length;
+  let idx = 0;
+  function go(i){
+    idx = Math.max(0, Math.min(slides.length - 1, i));
+    slides[idx].scrollIntoView({behavior:'smooth'});
+  }
+  document.getElementById('next').onclick = () => go(idx + 1);
+  document.getElementById('prev').onclick = () => go(idx - 1);
+  addEventListener('keydown', e => {
+    if(['ArrowDown','ArrowRight','PageDown',' '].includes(e.key)){ e.preventDefault(); go(idx + 1); }
+    if(['ArrowUp','ArrowLeft','PageUp'].includes(e.key)){ e.preventDefault(); go(idx - 1); }
+  });
+  const obs = new IntersectionObserver(es => {
+    es.forEach(en => { if(en.isIntersecting){ idx = slides.indexOf(en.target); cur.textContent = idx + 1; } });
+  }, {root: deck, threshold: .6});
+  slides.forEach(s => obs.observe(s));
+</script>
+</body>
+</html>

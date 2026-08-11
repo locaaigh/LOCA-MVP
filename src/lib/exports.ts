@@ -28,7 +28,6 @@ export function exportContentsCsv(business: Business, items: ContentItem[]) {
     hook: c.hook,
     caption: c.caption,
     cta: c.cta,
-    hashtags: c.hashtags.join(" "),
     concepto_visual: c.visualConcept,
     prompt_imagen: c.imagePrompt,
     estado: CONTENT_STATUS_LABELS[c.status] || c.status,

@@ -8,6 +8,8 @@ export type PublishResult = {
   /** ID del post/media creado en Meta */
   mediaId: string;
   platform: "instagram" | "facebook";
+  /** Permalink público del post (para "ver contenido"). Best-effort. */
+  permalink?: string;
 };
 
 const CONTAINER_POLL_MS = 1500;
@@ -53,7 +55,18 @@ export async function publishToInstagram(
     pageAccessToken,
     { creation_id: container.id }
   );
-  return { mediaId: published.id, platform: "instagram" };
+
+  // 4. Permalink (best-effort, no rompe si falla)
+  let permalink: string | undefined;
+  try {
+    const info = await graphGet<{ permalink?: string }>(`/${published.id}`, pageAccessToken, {
+      fields: "permalink",
+    });
+    permalink = info.permalink;
+  } catch {
+    /* noop */
+  }
+  return { mediaId: published.id, platform: "instagram", permalink };
 }
 
 /**
@@ -71,10 +84,24 @@ export async function publishToFacebook(
       pageAccessToken,
       { url: input.imageUrl, message: input.message }
     );
-    return { mediaId: res.post_id || res.id, platform: "facebook" };
+    const postId = res.post_id || res.id;
+    return { mediaId: postId, platform: "facebook", permalink: await fbPermalink(postId, pageAccessToken) };
   }
   const res = await graphPost<{ id: string }>(`/${pageId}/feed`, pageAccessToken, {
     message: input.message,
   });
-  return { mediaId: res.id, platform: "facebook" };
+  return { mediaId: res.id, platform: "facebook", permalink: await fbPermalink(res.id, pageAccessToken) };
+}
+
+// Permalink de un post de página de Facebook (best-effort).
+async function fbPermalink(postId: string, token: string): Promise<string | undefined> {
+  try {
+    const info = await graphGet<{ permalink_url?: string }>(`/${postId}`, token, { fields: "permalink_url" });
+    if (info.permalink_url) {
+      return info.permalink_url.startsWith("http") ? info.permalink_url : `https://www.facebook.com${info.permalink_url}`;
+    }
+  } catch {
+    /* noop */
+  }
+  return `https://www.facebook.com/${postId}`;
 }

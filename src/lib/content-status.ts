@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────
 // Clasificación de contenidos para las tabs (Revisión / Aprobados / Publicados).
-// Mientras no haya API real de redes, "publicado" se infiere por fecha pasada
-// + aprobado, o por status explícito published/publicado_manualmente.
+// "Publicado" = publicación REAL (status published/publicado_manualmente o con
+// publishedAt). Ya NO se infiere por fecha vencida. Ver PLAN-v2 item 11.
 // ─────────────────────────────────────────────────────────────
 import type { ContentItem } from "./types";
 
@@ -18,10 +18,14 @@ export function datePassed(dateIso?: string): boolean {
   return dateIso.slice(0, 10) < today;
 }
 
-export function isPublished(c: ContentItem, dateIso?: string): boolean {
-  if (c.status === "published" || c.status === "publicado_manualmente") return true;
-  if (c.status === "aprobado" && datePassed(dateIso)) return true;
-  return false;
+/** Publicación REAL confirmada (no inferida por fecha). */
+export function isPublished(c: ContentItem, _dateIso?: string): boolean {
+  return c.status === "published" || c.status === "publicado_manualmente" || !!c.publishedAt;
+}
+
+/** La última publicación falló y todavía no se publicó → alerta + reintentar. */
+export function hasPublishError(c: ContentItem): boolean {
+  return !!c.publishError && !isPublished(c);
 }
 
 export function bucketOf(c: ContentItem, dateIso?: string): ContentBucket {

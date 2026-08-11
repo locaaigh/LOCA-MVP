@@ -1,10 +1,16 @@
 import type {
   Business,
   CalendarItem,
+  ContentFormat,
   ContentItem,
   ProductService,
   Strategy,
 } from "../types";
+import { isFormatEnabled } from "../constants";
+
+// Formatos que hoy se pueden generar/publicar end-to-end (ver PLAN-v2 A2).
+const ALL_FORMATS: ContentFormat[] = ["post_estatico", "carrusel", "reel", "story", "ad", "email"];
+const ENABLED_FORMATS = ALL_FORMATS.filter(isFormatEnabled);
 
 export const SYSTEM_EVA = `Sos Eva, la agente de marketing de LOCA ("Humanless marketing").
 Generás estrategia y contenido de marketing de altísima calidad para micro y pequeñas empresas.
@@ -62,8 +68,8 @@ Generá una estrategia de marketing/contenido completa. Devolvé EXACTAMENTE est
   "monthlyGoal": string,
   "recommendedCta": string,
   "offerIdeas": string[],
-  "dos": string[],
-  "donts": string[],
+  "dos": string[],   // 4 a 6. Cada uno CONCRETO y accionable para ESTE negocio, con un mini-ejemplo real después de un guion. Ej: "Mostrá el detrás de escena — ej: video corto preparando un pedido".
+  "donts": string[], // 4 a 6. Cada uno CONCRETO, con un mini-ejemplo de qué evitar después de un guion. Ej: "No uses jerga técnica — ej: evitá 'sinergia omnicanal B2B'".
   "keyMessages": string[],
   "contentMix": [{ "type": string, "percentage": number }],
   "nextActions": string[]
@@ -86,6 +92,7 @@ Canales: ${s.recommendedChannels.join(", ")}
 CTA: ${s.recommendedCta}
 ${feedback ? `\nAJUSTE PEDIDO POR EL USUARIO (aplicalo): "${feedback}"\n` : ""}
 Generá un calendario de ${count} publicaciones para el próximo mes, variando formatos y pilares.
+IMPORTANTE: usá SOLO estos formatos: ${ENABLED_FORMATS.join(", ")}. NO uses ningún otro (por ahora no generamos carrusel ni reel).
 Devolvé EXACTAMENTE este JSON:
 {
   "items": [
@@ -93,7 +100,7 @@ Devolvé EXACTAMENTE este JSON:
       "dayOffset": number,        // días desde hoy (1..30)
       "suggestedTime": string,    // ej "18:30"
       "channel": string,          // Instagram | Facebook | TikTok | LinkedIn
-      "format": string,           // post_estatico | carrusel | reel | story | ad | email
+      "format": string,           // usar SOLO: ${ENABLED_FORMATS.join(" | ")}
       "contentPillar": string,
       "objective": string,        // Alcance | Engagement | Conversión
       "topic": string
@@ -110,6 +117,11 @@ PIEZA A GENERAR:
 Canal: ${item.channel} | Formato: ${item.format} | Pilar: ${item.contentPillar} | Objetivo: ${item.objective}
 Tema: ${item.topic}
 
+REGLAS DE ESCRITURA:
+- NO uses hashtags (no incluyas "#..." en ningún campo).
+- No repitas la misma idea: título, hook, caption, body y CTA deben aportar cosas distintas, sin decir tres veces lo mismo.
+- Caption fluido y natural, sin relleno.
+
 Generá la pieza completa. Devolvé EXACTAMENTE este JSON:
 {
   "title": string,
@@ -117,7 +129,6 @@ Generá la pieza completa. Devolvé EXACTAMENTE este JSON:
   "hook": string,
   "body": string,
   "cta": string,
-  "hashtags": string[],
   "visualConcept": string,
   "imagePrompt": string,   // prompt en inglés o español para generar la imagen, SIN texto incrustado
   "suggestedLayout": string,
@@ -146,7 +157,6 @@ ${JSON.stringify(
       hook: item.hook,
       body: item.body,
       cta: item.cta,
-      hashtags: item.hashtags,
       visualConcept: item.visualConcept,
       imagePrompt: item.imagePrompt,
     },
@@ -156,14 +166,13 @@ ${JSON.stringify(
 
 INSTRUCCIÓN DE AJUSTE DEL USUARIO: "${feedbackText}"
 
-Regenerá la pieza aplicando el ajuste, manteniendo coherencia con la marca. Devolvé EXACTAMENTE este JSON:
+Regenerá la pieza aplicando el ajuste, manteniendo coherencia con la marca. NO uses hashtags ni repitas la misma idea en varios campos. Devolvé EXACTAMENTE este JSON:
 {
   "title": string,
   "caption": string,
   "hook": string,
   "body": string,
   "cta": string,
-  "hashtags": string[],
   "visualConcept": string,
   "imagePrompt": string,
   "suggestedLayout": string,

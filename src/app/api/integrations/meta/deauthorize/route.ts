@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseSignedRequest } from "@/lib/meta/signed-request";
 import { revokeByMetaUserId } from "@/lib/meta/repository";
+import { logEvent } from "@/lib/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,6 +34,13 @@ export async function POST(req: NextRequest) {
   try {
     const revoked = await revokeByMetaUserId(payload.user_id);
     console.log(`[meta/deauthorize] user ${payload.user_id}: ${revoked} conexiones revocadas`);
+    // Churn de integración iniciado desde Facebook (no hay userId nuestro acá).
+    await logEvent({
+      userId: null,
+      name: "meta_deauthorized",
+      props: { metaUserId: payload.user_id, revoked },
+      isAuthenticated: false,
+    });
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Error revocando tokens";

@@ -8,6 +8,10 @@ import { completeOnboardingAndGoToStrategy } from "@/lib/onboarding/complete";
 import { saveOnboardingDraft } from "@/lib/onboarding-draft";
 import type { Business } from "@/lib/types";
 import { Button, Field, Input, Modal } from "@/components/ui";
+import { TermsCheckbox } from "@/components/terms-checkbox";
+import { getFirstTouchUtm, track } from "@/lib/analytics";
+
+// TODO (producción): sumar "Continuar con Google" (ver nota en src/app/signup/page.tsx).
 
 type Props = {
   open: boolean;
@@ -20,12 +24,17 @@ export function OnboardingSignupModal({ open, business, onClose, router }: Props
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim() || !password) return;
+    if (!accepted) {
+      setError("Tenés que aceptar los Términos y la Política de Privacidad para continuar.");
+      return;
+    }
     setError("");
     setLoading(true);
     try {
@@ -51,6 +60,11 @@ export function OnboardingSignupModal({ open, business, onClose, router }: Props
         return;
       }
       await establishAuthenticatedUser(data.session.user);
+      track(
+        "signup_completed",
+        { source: "onboarding_modal", ...(getFirstTouchUtm() ?? {}) },
+        { businessId: business.id }
+      );
       await completeOnboardingAndGoToStrategy(business, router);
       onClose();
     } finally {
@@ -66,7 +80,7 @@ export function OnboardingSignupModal({ open, business, onClose, router }: Props
 
   return (
     <Modal open={open} onClose={onClose} title="Creá tu cuenta para continuar">
-      <p className="mb-5 text-sm text-zinc-600">
+      <p className="mb-5 text-sm text-muted-foreground-2">
         Tu negocio está listo. Creá una cuenta para que Eva genere tu estrategia y guarde todo en la
         nube.
       </p>
@@ -97,17 +111,18 @@ export function OnboardingSignupModal({ open, business, onClose, router }: Props
             minLength={6}
           />
         </Field>
-        {error && <p className="text-sm font-medium text-red-600">{error}</p>}
-        <Button type="submit" size="lg" className="w-full" disabled={loading}>
+        <TermsCheckbox checked={accepted} onChange={setAccepted} />
+        {error && <p className="text-sm font-medium text-red-600 dark:text-red-300">{error}</p>}
+        <Button type="submit" size="lg" className="w-full" disabled={loading || !accepted}>
           {loading ? "Creando cuenta…" : "Crear cuenta y preparar estrategia"}
         </Button>
       </form>
-      <p className="mt-5 text-center text-sm text-zinc-500">
+      <p className="mt-5 text-center text-sm text-muted-foreground">
         ¿Ya tenés cuenta?{" "}
         <button
           type="button"
           onClick={goLogin}
-          className="font-semibold text-loca-600 hover:underline"
+          className="font-semibold text-accent hover:underline"
         >
           Iniciar sesión
         </button>

@@ -1,7 +1,7 @@
 import type { Business, CalendarItem, ContentItem, Strategy } from "@/lib/types";
 import { mockContent } from "../mock";
 import { SYSTEM_EVA, contentPrompt } from "../prompts";
-import { asArray, asString, normalizePhoto, normalizeVideo } from "../shared/normalize";
+import { asString, normalizePhoto, normalizeVideo } from "../shared/normalize";
 import type { Agent, AgentResult } from "../shared/result";
 import { withTextAgent } from "./_shared";
 
@@ -38,7 +38,7 @@ export const contentAgent: Agent<ContentAgentInput, ContentItem> = {
           hook: asString(j.hook, fb.hook),
           body: asString(j.body, fb.body),
           cta: asString(j.cta, fb.cta),
-          hashtags: asArray(j.hashtags).length ? asArray(j.hashtags) : fb.hashtags,
+          hashtags: [], // sin hashtags (item 19)
           visualConcept: asString(j.visualConcept, fb.visualConcept),
           imagePrompt: asString(j.imagePrompt, fb.imagePrompt),
           suggestedLayout: asString(j.suggestedLayout, fb.suggestedLayout),

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserId } from "@/lib/supabase/server";
 import { getConnection, deleteConnection, toPublic } from "@/lib/meta/repository";
 import { hasSupabaseAdminConfig } from "@/lib/supabase/admin";
+import { logEvent } from "@/lib/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +38,7 @@ export async function DELETE(req: NextRequest) {
 
   try {
     await deleteConnection(userId, businessId);
+    await logEvent({ userId, businessId, name: "meta_disconnected" });
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Error desconectando";

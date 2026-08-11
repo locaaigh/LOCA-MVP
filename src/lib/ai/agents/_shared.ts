@@ -16,6 +16,7 @@ export async function withTextAgent<T>(
     return { data: fallback(), meta: { provider: "mock" } };
   }
   let usage: TokenUsage | undefined;
+  const startedAt = Date.now();
   try {
     const data = await run(
       (system, user) => provider.chatJson(system, user, (u) => (usage = u)),
@@ -26,14 +27,21 @@ export async function withTextAgent<T>(
       meta: {
         provider: provider.id,
         model: provider.model,
+        durationMs: Date.now() - startedAt,
         usage: usage && { ...usage, costUsd: estimateTextCostUsd(provider.model, usage) },
       },
     };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
+    // Fallback a mock: meta.warning queda seteado y ai_usage_log lo
+    // registra como success=false / is_mock=true (antes era invisible).
     return {
       data: fallback(),
-      meta: { provider: "mock", warning: `${warningPrefix}. (${msg})` },
+      meta: {
+        provider: "mock",
+        durationMs: Date.now() - startedAt,
+        warning: `${warningPrefix}. (${msg})`,
+      },
     };
   }
 }

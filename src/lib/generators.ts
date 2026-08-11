@@ -3,7 +3,12 @@
 import { useSyncExternalStore } from "react";
 import { api } from "./api";
 import { useStore } from "./store";
+import { mockStrategy, mockCalendar, mockContent } from "./ai/mock";
+import { brandedPlaceholder } from "./placeholder";
 import type { Business, CalendarItem, Channel, ContentItem, GoogleAdsStrategy, MetaAdsStrategy } from "./types";
+
+// Modo demo: simula el tiempo de generación (todo corre con mock, sin server).
+const demoDelay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function withCrosspost(content: ContentItem, business: Business): ContentItem {
   if (content.distributionPlatforms?.length) return content;
@@ -90,6 +95,18 @@ export function useGenerators() {
 
   /** Genera solo el texto de la pieza (rápido) y la deja con imagen pendiente. */
   async function generateContentOnly(business: Business, item: CalendarItem) {
+    if (business.isDemo) {
+      const strategy = store.strategies[business.id] || mockStrategy(business);
+      const base = mockContent(business, strategy, item);
+      const content = withCrosspost(
+        { ...base, imageStatus: "pendiente", imageUrl: undefined, imageProvider: undefined, imageError: undefined } as ContentItem,
+        business
+      );
+      store.upsertContent(content);
+      store.updateCalendarItem({ ...item, status: "generado" });
+      await demoDelay(120);
+      return content;
+    }
     const res = await api.content(business.id, item.id);
     const content = withCrosspost(res.data, business);
     store.upsertContent(content);
@@ -98,6 +115,13 @@ export function useGenerators() {
   }
 
   async function generateStrategy(business: Business, feedback?: string) {
+    if (business.isDemo) {
+      await demoDelay(800);
+      const data = mockStrategy(business);
+      store.setStrategy(business.id, { ...data, status: "pending_review" });
+      store.setFlow(business.id, { strategy: "pending_review" });
+      return { provider: "mock" as const };
+    }
     const res = await api.strategy(business.id, feedback);
     store.setStrategy(business.id, { ...res.data, status: "pending_review" });
     store.setFlow(business.id, { strategy: "pending_review" });
@@ -105,6 +129,18 @@ export function useGenerators() {
   }
 
   async function generateCalendar(business: Business, count: number, feedback?: string) {
+    if (business.isDemo) {
+      let strategy = store.strategies[business.id];
+      if (!strategy) {
+        strategy = mockStrategy(business);
+        store.setStrategy(business.id, { ...strategy, status: "pending_review" });
+      }
+      await demoDelay(600);
+      const cal = mockCalendar(business, strategy, count);
+      store.setCalendar(business.id, cal);
+      store.setFlow(business.id, { calendar: "pending_review" });
+      return { provider: "mock" as const };
+    }
     let strategy = store.strategies[business.id];
     if (!strategy) {
       const s = await api.strategy(business.id);
@@ -134,17 +170,28 @@ export function useGenerators() {
 
     let strategy = st().strategies[business.id];
     if (!strategy) {
-      const s = await api.strategy(business.id);
-      st().setStrategy(business.id, { ...s.data, status: "pending_review" });
-      strategy = s.data;
+      if (business.isDemo) {
+        strategy = mockStrategy(business);
+        st().setStrategy(business.id, { ...strategy, status: "pending_review" });
+      } else {
+        const s = await api.strategy(business.id);
+        st().setStrategy(business.id, { ...s.data, status: "pending_review" });
+        strategy = s.data;
+      }
     }
 
     let cal = st().calendars[business.id] || [];
     if (!cal.length) {
-      const res = await api.calendar(business.id, count);
-      st().setCalendar(business.id, res.data);
-      st().setFlow(business.id, { calendar: "approved" });
-      cal = res.data;
+      if (business.isDemo) {
+        cal = mockCalendar(business, strategy, count);
+        st().setCalendar(business.id, cal);
+        st().setFlow(business.id, { calendar: "approved" });
+      } else {
+        const res = await api.calendar(business.id, count);
+        st().setCalendar(business.id, res.data);
+        st().setFlow(business.id, { calendar: "approved" });
+        cal = res.data;
+      }
     }
 
     const existing = new Set(
@@ -224,6 +271,21 @@ export function useGenerators() {
     opts?: { skipSync?: boolean }
   ) {
     store.updateContent(content.id, { imageStatus: "generando" });
+    if (business.isDemo) {
+      await demoDelay(500);
+      const url = brandedPlaceholder({
+        format: content.imageFormat,
+        label: business.name,
+        concept: content.visualConcept,
+      });
+      store.updateContent(content.id, {
+        imageStatus: "generada",
+        imageUrl: url,
+        imageProvider: "mock",
+        imageError: undefined,
+      });
+      return { imageUrl: url, prompt: content.imagePrompt, provider: "mock" as const, status: "generada" as const };
+    }
     try {
       const res = await api.image(
         business.id,

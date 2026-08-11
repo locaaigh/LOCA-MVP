@@ -1,7 +1,7 @@
 import type { Business, ContentItem } from "@/lib/types";
 import { nowIso, uid } from "@/lib/utils";
 import { SYSTEM_EVA, feedbackPrompt } from "../prompts";
-import { asArray, asString } from "../shared/normalize";
+import { asString } from "../shared/normalize";
 import type { Agent, AgentResult } from "../shared/result";
 import { withTextAgent } from "./_shared";
 
@@ -52,7 +52,7 @@ export const contentFeedbackAgent: Agent<ContentFeedbackAgentInput, ContentItem>
           hook: asString(j.hook, item.hook),
           body: asString(j.body, item.body),
           cta: asString(j.cta, item.cta),
-          hashtags: asArray(j.hashtags).length ? asArray(j.hashtags) : item.hashtags,
+          hashtags: [], // sin hashtags (item 19)
           visualConcept: asString(j.visualConcept, item.visualConcept),
           imagePrompt: asString(j.imagePrompt, item.imagePrompt),
           suggestedLayout: asString(j.suggestedLayout, item.suggestedLayout),

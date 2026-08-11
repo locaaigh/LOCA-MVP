@@ -28,6 +28,8 @@ export function requiresAuthForStrategy(): boolean {
 
 /** ¿Puede ir a /strategy?generate=1 con este usuario? */
 export function canGenerateStrategy(user: User | null | undefined): boolean {
+  // El modo demo genera con datos mock (client-side), sin cuenta ni costo.
+  if (user?.isDemo) return true;
   if (!requiresAuthForStrategy()) return true;
   return !!user && !isLocalOnlyUser(user);
 }

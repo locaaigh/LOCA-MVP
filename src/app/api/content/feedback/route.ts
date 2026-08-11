@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { contentFeedbackAgent } from "@/lib/ai/agents";
 import { resolveContent, jsonError } from "@/lib/repository/resolve";
 import { logAiUsage } from "@/lib/ai-usage";
+import { logEvent } from "@/lib/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +33,13 @@ export async function POST(req: NextRequest) {
       businessId: resolved.business.id,
       agent: "content-feedback",
       meta: result.meta,
+    });
+    await logEvent({
+      userId: resolved.ctx.userId,
+      businessId: resolved.business.id,
+      name: "content_feedback_applied",
+      props: { contentId, feedbackLength: feedback.length },
+      isAuthenticated: resolved.ctx.isAuthenticated,
     });
 
     return NextResponse.json(result);

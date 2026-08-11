@@ -8,6 +8,7 @@ import {
 import { fetchMetaUser, fetchPages, pickPage } from "@/lib/meta/accounts";
 import { saveConnection } from "@/lib/meta/repository";
 import { getMetaScopes } from "@/lib/meta/config";
+import { logEvent } from "@/lib/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -66,6 +67,13 @@ export async function GET(req: NextRequest) {
       pageAccessToken: page?.access_token ?? null,
       tokenExpiresAt: expiresAt,
       scopes: getMetaScopes(),
+    });
+
+    await logEvent({
+      userId: state.userId,
+      businessId: state.businessId,
+      name: "meta_connected",
+      props: { hasPage: !!page, hasInstagram: !!page?.instagram_business_account?.id },
     });
 
     return NextResponse.redirect(`${origin}/settings?meta=connected`);

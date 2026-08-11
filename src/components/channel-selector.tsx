@@ -70,13 +70,13 @@ export function ChannelSelector({
             className={cn(
               "flex items-center gap-2.5 rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition",
               active
-                ? "border-loca-400 bg-loca-50 text-loca-700 ring-2 ring-loca-100"
-                : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
+                ? "border-loca-400 bg-accent-subtle-bg text-accent-subtle-fg ring-2 ring-accent-subtle-ring"
+                : "border-border bg-card text-foreground-muted hover:border-border-strong hover:bg-surface-subtle"
             )}
           >
-            <Icon className={cn("h-5 w-5 shrink-0", active ? "text-loca-600" : "text-zinc-400")} />
+            <Icon className={cn("h-5 w-5 shrink-0", active ? "text-accent" : "text-faint")} />
             <span className="min-w-0 flex-1 truncate">{ch.label}</span>
-            {active && <Check className="h-4 w-4 shrink-0 text-loca-600" />}
+            {active && <Check className="h-4 w-4 shrink-0 text-accent" />}
           </button>
         );
       })}

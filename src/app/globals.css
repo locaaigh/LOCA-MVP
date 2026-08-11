@@ -2,8 +2,87 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+@layer base {
+  :root {
+    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+    /* ── Tokens semánticos · LIGHT ──
+       Cada valor = exactamente el color hardcodeado que reemplaza, así el
+       modo claro queda pixel-idéntico. Formato: triplete HSL sin hsl() para
+       que funcione hsl(var(--x) / <alpha-value>). */
+    --background: 240 6% 99%;        /* #fbfbfc */
+    --card: 0 0% 100%;               /* white */
+    --card-glass: 0 0% 100%;         /* white (barras glass) */
+    --surface-subtle: 240 5% 98%;    /* zinc-50 */
+    --surface-muted: 240 5% 96%;     /* zinc-100 */
+    --surface-inverse: 240 6% 10%;   /* zinc-900 */
+    --overlay: 240 6% 10%;           /* zinc-900 (scrims con alpha) */
+
+    --foreground: 240 6% 10%;        /* zinc-900 */
+    --foreground-soft: 240 4% 16%;   /* zinc-800 */
+    --foreground-muted: 240 5% 26%;  /* zinc-700 */
+    --muted-foreground: 240 4% 46%;  /* zinc-500 */
+    --muted-foreground-2: 240 5% 34%;/* zinc-600 */
+    --faint: 240 4% 65%;             /* zinc-400 */
+
+    --border-subtle: 240 5% 96%;     /* zinc-100 */
+    --border: 240 6% 90%;            /* zinc-200 */
+    --border-strong: 240 5% 84%;     /* zinc-300 */
+
+    --input: 0 0% 100%;              /* white */
+    --input-border: 240 6% 90%;      /* zinc-200 */
+    --ring: 326 78% 95%;             /* loca-100 */
+
+    --accent: 333 71% 51%;           /* loca-600 */
+    --accent-strong: 336 74% 42%;    /* loca-700 */
+    --accent-foreground: 0 0% 100%;  /* white sobre relleno rosa */
+    --accent-subtle-bg: 327 73% 97%; /* loca-50 */
+    --accent-subtle-fg: 336 74% 42%; /* loca-700 */
+    --accent-subtle-ring: 326 78% 95%;/* loca-100 */
+
+    --selection-bg: 326 82% 90%;     /* #fbcfe8 (loca-200) */
+    --selection-fg: 336 62% 30%;     /* #831843 (loca-900) */
+    --scrollbar-thumb: 240 6% 90%;   /* zinc-200 */
+    --scrollbar-thumb-hover: 240 5% 84%; /* zinc-300 */
+  }
+
+  .dark {
+    /* ── Tokens semánticos · DARK · neutra profunda ── */
+    --background: 240 6% 7%;
+    --card: 240 5% 11%;
+    --card-glass: 240 5% 13%;
+    --surface-subtle: 240 5% 15%;
+    --surface-muted: 240 5% 18%;
+    --surface-inverse: 240 5% 96%;
+    --overlay: 240 10% 2%;
+
+    --foreground: 240 6% 96%;
+    --foreground-soft: 240 5% 88%;
+    --foreground-muted: 240 5% 82%;
+    --muted-foreground: 240 5% 64%;
+    --muted-foreground-2: 240 5% 72%;
+    --faint: 240 5% 50%;
+
+    --border-subtle: 240 4% 17%;
+    --border: 240 4% 22%;
+    --border-strong: 240 4% 30%;
+
+    --input: 240 5% 14%;
+    --input-border: 240 4% 24%;
+    --ring: 330 65% 42%;
+
+    --accent: 330 81% 70%;           /* loca-400 (AA sobre superficies dark) */
+    --accent-strong: 330 81% 64%;
+    --accent-foreground: 240 6% 10%;
+    --accent-subtle-bg: 330 42% 16%;
+    --accent-subtle-fg: 327 87% 82%; /* loca-300 */
+    --accent-subtle-ring: 330 45% 30%;
+
+    --selection-bg: 330 50% 30%;
+    --selection-fg: 327 87% 88%;
+    --scrollbar-thumb: 240 4% 26%;
+    --scrollbar-thumb-hover: 240 4% 34%;
+  }
 }
 
 html,
@@ -17,11 +96,19 @@ body {
   background:
     radial-gradient(140% 80% at 100% -10%, #fdf2f8 0%, rgba(253, 242, 248, 0) 38%),
     radial-gradient(120% 70% at -10% 0%, #faf5ff 0%, rgba(250, 245, 255, 0) 34%),
-    #fbfbfc;
+    hsl(var(--background));
   background-attachment: fixed;
-  color: #18181b;
+  color: hsl(var(--foreground));
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* Dark: base carbón + un susurro de glow rosa/violeta, nunca negro puro */
+.dark body {
+  background:
+    radial-gradient(140% 80% at 100% -10%, hsl(330 45% 12% / 0.4) 0%, transparent 40%),
+    radial-gradient(120% 70% at -10% 0%, hsl(270 35% 12% / 0.35) 0%, transparent 34%),
+    hsl(var(--background));
 }
 
 * {
@@ -29,8 +116,8 @@ body {
 }
 
 ::selection {
-  background: #fbcfe8;
-  color: #831843;
+  background: hsl(var(--selection-bg));
+  color: hsl(var(--selection-fg));
 }
 
 @layer base {
@@ -45,18 +132,24 @@ body {
 @layer components {
   /* Inputs grandes, aireados, con foco rosa suave */
   .loca-input {
-    @apply w-full rounded-2xl border border-zinc-200/90 bg-white px-4 py-3.5 text-[15px] text-zinc-900 shadow-sm outline-none transition-all duration-150 placeholder:text-zinc-400 hover:border-zinc-300 focus:border-loca-400 focus:shadow-none focus:ring-4 focus:ring-loca-100;
+    @apply w-full rounded-2xl border border-input-border bg-input px-4 py-3.5 text-[15px] text-foreground shadow-sm outline-none transition-all duration-150 placeholder:text-muted-foreground hover:border-border-strong focus:border-loca-400 focus:shadow-none focus:ring-4 focus:ring-ring;
   }
   .loca-label {
-    @apply mb-2 block text-sm font-semibold text-zinc-700;
+    @apply mb-2 block text-sm font-semibold text-foreground-muted;
   }
   /* Card premium: borde apenas visible + sombra en capas */
   .loca-card {
-    @apply rounded-[1.75rem] border border-zinc-200/50 bg-white shadow-card;
+    @apply rounded-[1.75rem] border border-border/50 bg-card shadow-card;
+  }
+  .dark .loca-card {
+    @apply border-border-strong/60;
   }
   /* Fondo suave reutilizable para heros / bloques destacados */
   .loca-soft-bg {
     background: radial-gradient(120% 120% at 100% 0%, #fdf2f8 0%, #ffffff 45%);
+  }
+  .dark .loca-soft-bg {
+    background: radial-gradient(120% 120% at 100% 0%, hsl(330 40% 14%) 0%, hsl(var(--card)) 55%);
   }
   /* Evita que copy/hashtags largos rompan el layout de las cards */
   .overflow-wrap-anywhere {
@@ -70,6 +163,12 @@ body {
       radial-gradient(120% 120% at 100% 100%, #f7fee7 0%, rgba(255, 255, 255, 0) 50%),
       #ffffff;
   }
+  .dark .loca-hero-bg {
+    background:
+      radial-gradient(120% 120% at 0% 0%, hsl(330 40% 14% / 0.6) 0%, transparent 55%),
+      radial-gradient(120% 120% at 100% 100%, hsl(74 30% 14% / 0.5) 0%, transparent 50%),
+      hsl(var(--card));
+  }
   /* Orbe decorativo difuminado para fondos hero (AI-first) */
   .loca-orb {
     @apply pointer-events-none absolute -z-10 rounded-full blur-3xl;
@@ -78,9 +177,12 @@ body {
   .loca-gradient-text {
     @apply bg-gradient-to-r from-loca-600 to-loca-400 bg-clip-text text-transparent;
   }
+  .dark .loca-gradient-text {
+    @apply from-loca-300 to-loca-500;
+  }
   /* Barra/encabezado con efecto vidrio */
   .loca-glass {
-    @apply border-zinc-200/60 bg-white/70 backdrop-blur-xl;
+    @apply border-border/60 bg-card-glass/70 backdrop-blur-xl;
   }
 }
 
@@ -90,9 +192,9 @@ body {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #e4e4e7;
+  background: hsl(var(--scrollbar-thumb));
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #d4d4d8;
+  background: hsl(var(--scrollbar-thumb-hover));
 }

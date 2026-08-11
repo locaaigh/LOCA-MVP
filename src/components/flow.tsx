@@ -49,7 +49,7 @@ export function buildFlowSteps(flow: FlowState, hasBusiness: boolean): FlowStep[
 // ── Progress tracker del flujo ───────────────────────────────
 export function ProgressTracker({ steps }: { steps: FlowStep[] }) {
   return (
-    <div className="flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-zinc-200/60 bg-white/70 px-4 py-3 shadow-soft">
+    <div className="flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-border/60 bg-card/70 px-4 py-3 shadow-soft">
       {steps.map((s, i) => {
         const dot =
           s.status === "aprobado" ? (
@@ -61,7 +61,7 @@ export function ProgressTracker({ steps }: { steps: FlowStep[] }) {
               <Loader2 className="h-4 w-4 animate-spin" />
             </span>
           ) : (
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-400">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-muted text-faint">
               <Circle className="h-3 w-3" />
             </span>
           );
@@ -70,10 +70,10 @@ export function ProgressTracker({ steps }: { steps: FlowStep[] }) {
             className={cn(
               "whitespace-nowrap text-[13px] font-semibold",
               s.status === "aprobado"
-                ? "text-lima-700"
+                ? "text-lima-700 dark:text-lima-300"
                 : s.status === "en_progreso"
-                  ? "text-loca-700"
-                  : "text-zinc-400"
+                  ? "text-accent-subtle-fg"
+                  : "text-faint"
             )}
           >
             {s.label}
@@ -95,7 +95,7 @@ export function ProgressTracker({ steps }: { steps: FlowStep[] }) {
               <div
                 className={cn(
                   "h-1 w-5 shrink-0 rounded-full sm:w-8",
-                  s.status === "aprobado" ? "bg-lima-400" : "bg-zinc-200"
+                  s.status === "aprobado" ? "bg-lima-400" : "bg-border"
                 )}
               />
             )}
@@ -133,7 +133,7 @@ export function ApprovalActions({
   if (approved) {
     return (
       <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-100">
+        <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 text-sm font-semibold text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-100 dark:ring-emerald-900">
           <Check className="h-4 w-4" /> {approvedLabel}
         </span>
         <div className="flex items-center gap-2">
@@ -168,8 +168,10 @@ export function ApprovalActions({
 
 // ── Barra sticky de aprobación (mobile-first, offset del sidebar) ─
 export function StickyApproveBar({ children }: { children: React.ReactNode }) {
+  // En mobile se apoya por encima del bottom tab bar (~56px); en desktop va al
+  // fondo y corrida por la sidebar.
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200/70 bg-white/90 backdrop-blur-md md:left-72">
+    <div className="fixed inset-x-0 bottom-16 z-30 border-t border-border/70 bg-card/90 backdrop-blur-md md:bottom-0 md:left-72">
       <div className="mx-auto max-w-6xl px-4 py-3.5 sm:px-10">{children}</div>
     </div>
   );
@@ -201,8 +203,8 @@ export function FeedbackPanel({
   return (
     <Card className="space-y-4 border-loca-200 shadow-glow">
       <div>
-        <h3 className="text-lg font-bold text-zinc-900">{title}</h3>
-        <p className="text-sm text-zinc-500">
+        <h3 className="text-lg font-bold text-foreground">{title}</h3>
+        <p className="text-sm text-muted-foreground">
           Elegí una o varias opciones. Eva aplica los cambios por vos.
         </p>
       </div>
@@ -215,8 +217,8 @@ export function FeedbackPanel({
             className={cn(
               "rounded-full border px-3.5 py-2 text-sm font-medium transition",
               selected.includes(o.value)
-                ? "border-loca-400 bg-loca-50 text-loca-700 ring-2 ring-loca-100"
-                : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
+                ? "border-loca-400 bg-accent-subtle-bg text-accent-subtle-fg ring-2 ring-accent-subtle-ring"
+                : "border-border bg-card text-foreground-muted hover:border-border-strong hover:bg-surface-subtle"
             )}
           >
             {o.label}
@@ -228,8 +230,8 @@ export function FeedbackPanel({
           className={cn(
             "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition",
             showCustom
-              ? "border-loca-400 bg-loca-50 text-loca-700 ring-2 ring-loca-100"
-              : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
+              ? "border-loca-400 bg-accent-subtle-bg text-accent-subtle-fg ring-2 ring-accent-subtle-ring"
+              : "border-border bg-card text-foreground-muted hover:border-border-strong hover:bg-surface-subtle"
           )}
         >
           <MessageSquarePlus className="h-3.5 w-3.5" /> Dar feedback personalizado

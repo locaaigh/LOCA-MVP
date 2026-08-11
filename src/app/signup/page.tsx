@@ -7,7 +7,14 @@ import { useStore } from "@/lib/store";
 import { getSupabaseBrowser, hasSupabaseClientConfig } from "@/lib/supabase/client";
 import { toLocaUser } from "@/lib/auth/user";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { TermsCheckbox } from "@/components/terms-checkbox";
 import { Logo } from "@/components/brand";
+import { getFirstTouchUtm, identifyUser, track } from "@/lib/analytics";
+
+// TODO (producción): sumar "Continuar con Google". Supabase ya soporta OAuth y la
+// ruta /auth/callback ya intercambia el code. Faltan: (1) crear la OAuth app en
+// Google Cloud, (2) configurar el provider Google en el panel de Supabase, y
+// (3) agregar un botón que llame a supabase.auth.signInWithOAuth({ provider: "google" }).
 
 export default function SignupPage() {
   const router = useRouter();
@@ -17,6 +24,7 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -25,6 +33,10 @@ export default function SignupPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
+    if (!accepted) {
+      setError("Tenés que aceptar los Términos y la Política de Privacidad para continuar.");
+      return;
+    }
     setError("");
 
     if (!supabaseEnabled) {
@@ -59,6 +71,8 @@ export default function SignupPage() {
       const prev = useStore.getState().user;
       if (prev?.id !== newUser.id) clearUserData();
       setUser(newUser);
+      identifyUser(newUser);
+      track("signup_completed", { source: "signup_page", ...(getFirstTouchUtm() ?? {}) });
       router.push("/dashboard");
     } finally {
       setLoading(false);
@@ -72,11 +86,11 @@ export default function SignupPage() {
           <Link href="/" className="inline-block transition hover:opacity-80">
             <Logo className="text-3xl" />
           </Link>
-          <p className="mt-3 text-sm text-zinc-500">Tu marketing listo en minutos.</p>
+          <p className="mt-3 text-sm text-muted-foreground">Tu marketing listo en minutos.</p>
         </div>
         <Card className="p-8 shadow-glow">
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Creá tu cuenta</h1>
-          <p className="mt-1.5 text-sm text-zinc-500">Empezá gratis, sin tarjeta. Toma 2 minutos.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Creá tu cuenta</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">Empezá gratis. Toma 2 minutos.</p>
           <form onSubmit={submit} className="space-y-4">
             <Field label="Nombre">
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tu nombre" />
@@ -102,14 +116,15 @@ export default function SignupPage() {
                 />
               </Field>
             )}
-            {error && <p className="text-sm font-medium text-red-600">{error}</p>}
-            <Button type="submit" size="lg" className="w-full" disabled={loading}>
+            <TermsCheckbox checked={accepted} onChange={setAccepted} />
+            {error && <p className="text-sm font-medium text-red-600 dark:text-red-300">{error}</p>}
+            <Button type="submit" size="lg" className="w-full" disabled={loading || !accepted}>
               {loading ? "Creando cuenta…" : "Crear cuenta y empezar"}
             </Button>
           </form>
-          <p className="mt-7 text-center text-sm text-zinc-500">
+          <p className="mt-7 text-center text-sm text-muted-foreground">
             ¿Ya tenés cuenta?{" "}
-            <Link href="/login" className="font-semibold text-loca-600 hover:underline">
+            <Link href="/login" className="font-semibold text-accent hover:underline">
               Iniciar sesión
             </Link>
           </p>

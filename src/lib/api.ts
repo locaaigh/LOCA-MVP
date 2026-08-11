@@ -130,4 +130,11 @@ export const api = {
       { businessId, draft },
       business ? { includeBusiness: business } : undefined
     ),
+
+  // Publicación real en Meta (Instagram/Facebook). Ver PLAN-v2 item 11 / A.
+  publishMeta: (businessId: string, contentId: string, platform?: "instagram" | "facebook") =>
+    post<{ ok: boolean; mediaId: string; platform: string; permalink?: string }>(
+      "/api/integrations/meta/publish",
+      { businessId, contentId, platform }
+    ),
 };

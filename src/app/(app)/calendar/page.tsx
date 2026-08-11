@@ -155,13 +155,13 @@ function ContentMonthView({
 
         return (
           <div key={mk}>
-            <h3 className="mb-3 text-lg font-bold capitalize text-zinc-800">{MONTHS[m - 1]} <span className="text-zinc-400">{y}</span></h3>
+            <h3 className="mb-3 text-lg font-bold capitalize text-foreground-soft">{MONTHS[m - 1]} <span className="text-faint">{y}</span></h3>
 
             {/* Grilla (desktop) */}
-            <div className="hidden rounded-3xl border border-zinc-200/70 bg-white p-3 shadow-card sm:block">
+            <div className="hidden rounded-3xl border border-border/70 bg-card p-3 shadow-card sm:block">
               <div className="grid grid-cols-7 gap-1.5">
                 {WEEKDAYS.map((d) => (
-                  <div key={d} className="py-1.5 text-center text-[11px] font-bold uppercase tracking-wide text-zinc-400">{d}</div>
+                  <div key={d} className="py-1.5 text-center text-[11px] font-bold uppercase tracking-wide text-faint">{d}</div>
                 ))}
                 {cells.map((day, i) => {
                   const isToday = isCurrentMonth && day === todayDate;
@@ -170,22 +170,22 @@ function ContentMonthView({
                     <div
                       key={i}
                       className={`min-h-[104px] rounded-2xl border p-1.5 transition ${
-                        day ? "border-zinc-100 hover:border-zinc-200" : "border-transparent bg-zinc-50/40"
-                      } ${isToday ? "border-loca-200 bg-loca-50/40 ring-1 ring-loca-100" : ""}`}
+                        day ? "border-border-subtle hover:border-border" : "border-transparent bg-surface-subtle/40"
+                      } ${isToday ? "border-loca-200 bg-accent-subtle-bg/40 ring-1 ring-accent-subtle-ring" : ""}`}
                     >
                       {day && (
                         <>
-                          <div className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${isToday ? "bg-loca-600 text-white" : "text-zinc-400"}`}>{day}</div>
+                          <div className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${isToday ? "bg-loca-600 text-white" : "text-faint"}`}>{day}</div>
                           <div className="space-y-1">
                             {dayItems.map((c) => (
                               <button
                                 key={c.id}
                                 onClick={() => onItemClick(c)}
-                                className="flex w-full items-center gap-1.5 rounded-lg bg-zinc-50 px-1.5 py-1 text-left transition hover:bg-loca-50 hover:ring-1 hover:ring-loca-100"
+                                className="flex w-full items-center gap-1.5 rounded-lg bg-surface-subtle px-1.5 py-1 text-left transition hover:bg-accent-subtle-bg hover:ring-1 hover:ring-accent-subtle-ring"
                                 title={`${c.channel} · ${c.title}`}
                               >
                                 <PlatformLogo channel={c.channel} size={18} className="shrink-0 !rounded-md" />
-                                <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-zinc-600">{c.title}</span>
+                                <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-muted-foreground-2">{c.title}</span>
                               </button>
                             ))}
                           </div>
@@ -203,19 +203,19 @@ function ContentMonthView({
                 .map(Number)
                 .sort((a, b) => a - b)
                 .map((day) => (
-                  <div key={day} className="rounded-2xl border border-zinc-200/70 bg-white p-4 shadow-card">
-                    <p className="mb-2.5 text-sm font-bold text-zinc-700">{day} de {MONTHS[m - 1]}</p>
+                  <div key={day} className="rounded-2xl border border-border/70 bg-card p-4 shadow-card">
+                    <p className="mb-2.5 text-sm font-bold text-foreground-muted">{day} de {MONTHS[m - 1]}</p>
                     <div className="space-y-2">
                       {itemsByDay[day].map((c) => (
                         <button
                           key={c.id}
                           onClick={() => onItemClick(c)}
-                          className="flex w-full items-center gap-3 rounded-xl bg-zinc-50 px-3 py-2.5 text-left transition hover:bg-loca-50"
+                          className="flex w-full items-center gap-3 rounded-xl bg-surface-subtle px-3 py-2.5 text-left transition hover:bg-accent-subtle-bg"
                         >
                           <PlatformLogo channel={c.channel} size={32} className="shrink-0" />
-                          <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-700">{c.title}</span>
+                          <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground-muted">{c.title}</span>
                           {c.scheduledTime && (
-                            <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-zinc-400">
+                            <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-faint">
                               <Clock className="h-3 w-3" /> {c.scheduledTime}
                             </span>
                           )}

@@ -141,9 +141,11 @@ export function EvaChatBubble({ raised = false }: { raised?: boolean }) {
     }
   };
 
-  // Se eleva sobre los bottom-bars sticky (onboarding) para no tapar CTAs en mobile.
-  const btnPos = raised ? "bottom-24 sm:bottom-6" : "bottom-5 sm:bottom-6";
-  const panelPos = raised ? "bottom-40 sm:bottom-24" : "bottom-20 sm:bottom-24";
+  // En mobile hay bottom tab bar (~56px) siempre, y en páginas de revisión
+  // además la barra de aprobación: el botón/panel de Eva se eleva por encima.
+  // En desktop (sm+) no hay tab bar, así que va abajo a la derecha normal.
+  const btnPos = raised ? "bottom-32 sm:bottom-6" : "bottom-20 sm:bottom-6";
+  const panelPos = raised ? "bottom-48 sm:bottom-24" : "bottom-36 sm:bottom-24";
 
   return (
     <>
@@ -163,11 +165,11 @@ export function EvaChatBubble({ raised = false }: { raised?: boolean }) {
       {open && (
         <div
           className={cn(
-            "fixed right-4 z-40 flex max-h-[70vh] w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-3xl border border-zinc-200/70 bg-white shadow-pop animate-fade-in-up sm:right-6",
+            "fixed right-4 z-40 flex max-h-[70vh] w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-3xl border border-border/70 bg-card shadow-pop animate-fade-in-up sm:right-6",
             panelPos
           )}
         >
-          <div className="flex items-center gap-2 border-b border-zinc-100 bg-gradient-to-r from-loca-600 to-loca-700 px-4 py-3 text-white">
+          <div className="flex items-center gap-2 border-b border-border-subtle bg-gradient-to-r from-loca-600 to-loca-700 px-4 py-3 text-white">
             <EvaAvatar size={32} />
             <div className="min-w-0">
               <p className="text-sm font-bold leading-tight">Eva</p>
@@ -182,7 +184,7 @@ export function EvaChatBubble({ raised = false }: { raised?: boolean }) {
                 className={cn(
                   "max-w-[85%] rounded-2xl px-3 py-2 text-sm",
                   m.from === "eva"
-                    ? "bg-zinc-100 text-zinc-700"
+                    ? "bg-surface-muted text-foreground-muted"
                     : "ml-auto bg-loca-600 text-white"
                 )}
               >
@@ -191,8 +193,8 @@ export function EvaChatBubble({ raised = false }: { raised?: boolean }) {
             ))}
           </div>
 
-          <div className="border-t border-zinc-100 p-3">
-            <p className="mb-1.5 flex items-center gap-1 text-xs font-medium text-zinc-400">
+          <div className="border-t border-border-subtle p-3">
+            <p className="mb-1.5 flex items-center gap-1 text-xs font-medium text-muted-foreground">
               <Sparkles className="h-3 w-3" /> Acciones rápidas
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -200,7 +202,7 @@ export function EvaChatBubble({ raised = false }: { raised?: boolean }) {
                 <button
                   key={a.label}
                   onClick={() => handleAction(a)}
-                  className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:border-loca-400 hover:bg-loca-50 hover:text-loca-700"
+                  className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground-muted transition hover:border-loca-400 hover:bg-accent-subtle-bg hover:text-accent-subtle-fg"
                 >
                   {a.label}
                 </button>

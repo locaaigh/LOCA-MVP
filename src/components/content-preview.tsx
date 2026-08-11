@@ -3,6 +3,7 @@
 import type { Business, ContentItem } from "@/lib/types";
 import { brandedPlaceholder } from "@/lib/placeholder";
 import { cn } from "@/lib/utils";
+import { EvaWorking } from "./eva-working";
 
 const ASPECT: Record<string, string> = {
   "1:1": "aspect-square",
@@ -10,7 +11,9 @@ const ASPECT: Record<string, string> = {
   "9:16": "aspect-[9/16]",
 };
 
-// Preview visual editable de la pieza: imagen + marca + overlay + CTA.
+// Preview de la pieza: muestra la imagen REAL limpia, sin texto/CTA encima
+// (para no hacer creer que la imagen incluye esos textos). El logo de la red
+// lo agrega la card; el copy va debajo. Ver PLAN-v2 (imagen limpia en aprobados).
 export function ContentPreview({
   content,
   business,
@@ -29,6 +32,9 @@ export function ContentPreview({
           ? "Sin imagen — generá una desde la pieza"
           : "Imagen no disponible";
 
+  // Imagen real generada: se muestra en su PROPORCIÓN ORIGINAL, sin recortar
+  // (es lo que se va a publicar). El placeholder sí usa el formato pedido.
+  const hasRealImage = !!content.imageUrl;
   const img =
     content.imageUrl ||
     brandedPlaceholder({
@@ -39,29 +45,23 @@ export function ContentPreview({
   const brandColor = business.brandColors?.[0] || "#ec4899";
 
   return (
-    <div className={cn("relative w-full overflow-hidden rounded-2xl bg-zinc-900 shadow-soft", ASPECT[content.imageFormat], className)}>
+    <div
+      className={cn(
+        "relative w-full overflow-hidden rounded-2xl bg-surface-muted shadow-soft",
+        !hasRealImage && ASPECT[content.imageFormat],
+        className
+      )}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={img} alt={content.title} className="absolute inset-0 h-full w-full object-cover" />
-      {/* Gradiente para legibilidad */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-      {/* Marca */}
-      <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-white/90 px-2.5 py-1 text-xs font-bold">
-        <span style={{ color: brandColor }}>{business.name}</span>
-      </div>
-      {/* Overlay de texto */}
-      <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-        {content.designTextOverlay && (
-          <p className="overflow-wrap-anywhere line-clamp-3 text-lg font-extrabold leading-tight drop-shadow-md">
-            {content.designTextOverlay}
-          </p>
-        )}
-        <span
-          className="overflow-wrap-anywhere mt-2 inline-block max-w-full rounded-full px-3 py-1 text-xs font-semibold text-white"
-          style={{ backgroundColor: brandColor }}
-        >
-          {content.cta}
-        </span>
-      </div>
+      <img
+        src={img}
+        alt={content.title}
+        className={hasRealImage ? "block h-auto w-full" : "absolute inset-0 h-full w-full object-cover"}
+      />
+      {/* Imagen limpia: sin marca / texto / CTA superpuestos. La red social se
+          indica con el logo que agrega la card, y el copy va debajo. */}
+      {/* Mientras Eva genera la imagen: overlay animado en vez del placeholder "LOCA" (item 12) */}
+      {content.imageStatus === "generando" && !content.imageUrl && <EvaWorking brandColor={brandColor} />}
     </div>
   );
 }

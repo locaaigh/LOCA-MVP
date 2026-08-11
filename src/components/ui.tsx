@@ -14,9 +14,9 @@ const VARIANTS: Record<Variant, string> = {
   // Verde = aprobar. Protagonista, claro y positivo.
   success: "bg-gradient-to-b from-emerald-500 to-emerald-600 text-white shadow-sm hover:to-emerald-700 hover:shadow-[0_12px_36px_-12px_rgba(5,150,105,0.50)] active:scale-[0.98]",
   lima: "bg-gradient-to-b from-lima-300 to-lima-400 text-ink shadow-sm hover:to-lima-500 hover:shadow-glow-lima active:scale-[0.98]",
-  secondary: "bg-zinc-900 text-white hover:bg-zinc-800 active:scale-[0.98]",
-  outline: "border border-zinc-200/80 bg-white/80 text-zinc-800 shadow-soft backdrop-blur hover:bg-white hover:border-zinc-300 hover:shadow-card",
-  ghost: "text-zinc-500 hover:bg-zinc-100/80 hover:text-zinc-900",
+  secondary: "bg-zinc-900 text-white hover:bg-zinc-800 active:scale-[0.98] dark:bg-surface-inverse dark:text-background dark:hover:bg-surface-inverse/90",
+  outline: "border border-border/80 bg-card/80 text-foreground-soft shadow-soft backdrop-blur hover:bg-card hover:border-border-strong hover:shadow-card",
+  ghost: "text-muted-foreground hover:bg-surface-muted/80 hover:text-foreground",
   danger: "bg-gradient-to-b from-red-500 to-red-600 text-white shadow-sm hover:to-red-700 active:scale-[0.98]",
 };
 const SIZES: Record<Size, string> = {
@@ -41,7 +41,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-2xl font-semibold tracking-[-0.01em] transition-all duration-150 outline-none focus-visible:ring-4 focus-visible:ring-loca-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:active:scale-100",
+        "inline-flex items-center justify-center gap-2 rounded-2xl font-semibold tracking-[-0.01em] transition-all duration-150 outline-none focus-visible:ring-4 focus-visible:ring-accent-subtle-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:active:scale-100",
         VARIANTS[variant],
         SIZES[size],
         className
@@ -62,13 +62,13 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
 
 // ── Badge ────────────────────────────────────────────────────
 const BADGE_TONES: Record<string, string> = {
-  default: "bg-zinc-100 text-zinc-600",
-  pink: "bg-loca-50 text-loca-700 ring-1 ring-inset ring-loca-100",
-  lima: "bg-lima-50 text-lima-700 ring-1 ring-inset ring-lima-200",
-  green: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100",
-  yellow: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-100",
-  red: "bg-red-50 text-red-600 ring-1 ring-inset ring-red-100",
-  blue: "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-100",
+  default: "bg-surface-muted text-muted-foreground-2",
+  pink: "bg-accent-subtle-bg text-accent-subtle-fg ring-1 ring-inset ring-accent-subtle-ring dark:bg-accent-subtle-bg dark:text-accent-subtle-fg dark:ring-loca-900",
+  lima: "bg-lima-50 text-lima-700 ring-1 ring-inset ring-lima-200 dark:bg-lima-950/60 dark:text-lima-300 dark:ring-lima-800",
+  green: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800",
+  yellow: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-100 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800",
+  red: "bg-red-50 text-red-600 ring-1 ring-inset ring-red-100 dark:bg-red-950/60 dark:text-red-300 dark:ring-red-800",
+  blue: "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-100 dark:bg-blue-950/60 dark:text-blue-300 dark:ring-blue-800",
 };
 export function Badge({
   tone = "default",
@@ -109,16 +109,27 @@ export function Field({
   label,
   hint,
   children,
+  className,
 }: {
   label: string;
   hint?: string;
   children: React.ReactNode;
+  className?: string;
 }) {
+  // Asocia el label con el control (a11y): tocar el label enfoca el input y los
+  // lectores de pantalla anuncian el nombre del campo.
+  const genId = React.useId();
+  const el = React.isValidElement(children) ? (children as React.ReactElement) : null;
+  const existingId = el?.props?.id as string | undefined;
+  const fieldId = el ? existingId || genId : undefined;
+  const control = el && !existingId ? React.cloneElement(el, { id: genId }) : children;
   return (
-    <div>
-      <label className="loca-label">{label}</label>
-      {children}
-      {hint && <p className="mt-1 text-xs text-zinc-400">{hint}</p>}
+    <div className={className}>
+      <label htmlFor={fieldId} className="loca-label">
+        {label}
+      </label>
+      {control}
+      {hint && <p className="mt-1 text-xs text-muted-foreground-2">{hint}</p>}
     </div>
   );
 }
@@ -156,8 +167,8 @@ export function ChipSelect({
             className={cn(
               "rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition",
               chips.includes(opt)
-                ? "border-loca-400 bg-loca-50 text-loca-700 ring-2 ring-loca-100"
-                : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
+                ? "border-loca-400 bg-accent-subtle-bg text-accent-subtle-fg ring-2 ring-accent-subtle-ring"
+                : "border-border bg-card text-muted-foreground-2 hover:border-border-strong hover:bg-surface-subtle"
             )}
           >
             {opt}
@@ -170,7 +181,7 @@ export function ChipSelect({
               key={v}
               type="button"
               onClick={() => toggle(v)}
-              className="rounded-full border border-loca-400 bg-loca-50 px-3.5 py-1.5 text-[13px] font-medium text-loca-700 ring-2 ring-loca-100"
+              className="rounded-full border border-loca-400 bg-accent-subtle-bg px-3.5 py-1.5 text-[13px] font-medium text-accent-subtle-fg ring-2 ring-accent-subtle-ring"
             >
               {v} ✕
             </button>
@@ -211,11 +222,14 @@ export function Modal({
   title?: string;
   children: React.ReactNode;
 }) {
+  const titleId = React.useId();
+  const dialogRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
+    dialogRef.current?.focus();
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
@@ -225,11 +239,22 @@ export function Modal({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
-      <div className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />
-      <div className="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-pop animate-fade-in-up sm:rounded-3xl">
-        <div className="flex items-center justify-between border-b border-zinc-100 px-6 py-4">
-          <h2 className="text-lg font-bold tracking-tight text-zinc-900">{title}</h2>
-          <button onClick={onClose} className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700">
+      <div className="absolute inset-0 bg-overlay/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        tabIndex={-1}
+        className="relative z-10 flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-card shadow-pop outline-none animate-fade-in-up sm:rounded-3xl"
+      >
+        <div className="flex items-center justify-between border-b border-border-subtle px-6 py-4">
+          <h2 id={titleId} className="text-lg font-bold tracking-tight text-foreground">{title}</h2>
+          <button
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="rounded-xl p-2 text-muted-foreground transition hover:bg-surface-muted hover:text-foreground-muted"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -287,10 +312,10 @@ export function EvaLoading({
         <div className="h-16 w-16 rounded-full bg-gradient-to-br from-loca-500 to-loca-700 shadow-lift" />
         <Loader2 className="absolute inset-0 m-auto h-7 w-7 animate-spin text-white" />
       </div>
-      <p key={index} className="min-h-[1.25rem] animate-fade-in-up text-sm font-medium text-zinc-600">
+      <p key={index} className="min-h-[1.25rem] animate-fade-in-up text-sm font-medium text-muted-foreground-2">
         {lines[index]}
       </p>
-      {hint ? <p className="text-xs text-zinc-400">{hint}</p> : null}
+      {hint ? <p className="text-xs text-muted-foreground-2">{hint}</p> : null}
     </div>
   );
 }
@@ -308,8 +333,8 @@ export function PageHeader({
   return (
     <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 sm:text-4xl">{title}</h1>
-        {subtitle && <p className="mt-2 text-[15px] text-zinc-500">{subtitle}</p>}
+        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{title}</h1>
+        {subtitle && <p className="mt-2 text-[15px] text-muted-foreground">{subtitle}</p>}
       </div>
       {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
     </div>
@@ -319,7 +344,7 @@ export function PageHeader({
 // ── Label de sección (uppercase sutil) ───────────────────────
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">{children}</p>
+    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{children}</p>
   );
 }
 
@@ -337,11 +362,11 @@ export function EmptyState({
 }) {
   return (
     <Card className="flex flex-col items-center px-6 py-16 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-loca-50 text-loca-600 shadow-glow">
+      <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-accent-subtle-bg text-accent shadow-glow">
         <Icon className="h-7 w-7" />
       </div>
-      <h2 className="mt-5 text-xl font-bold text-zinc-900">{title}</h2>
-      {description && <p className="mt-2 max-w-sm text-[15px] text-zinc-500">{description}</p>}
+      <h2 className="mt-5 text-xl font-bold text-foreground">{title}</h2>
+      {description && <p className="mt-2 max-w-sm text-[15px] text-muted-foreground">{description}</p>}
       {children && <div className="mt-6 flex flex-wrap items-center justify-center gap-2">{children}</div>}
     </Card>
   );
@@ -355,7 +380,7 @@ export function useToast() {
     setTimeout(() => setMsg(null), 2200);
   }, []);
   const node = msg ? (
-    <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-zinc-900 px-4 py-2 text-sm text-white shadow-lg">
+    <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-zinc-900 px-4 py-2 text-sm text-white shadow-lg dark:bg-surface-inverse dark:text-background">
       {msg}
     </div>
   ) : null;

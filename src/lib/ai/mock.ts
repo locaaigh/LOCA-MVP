@@ -244,7 +244,7 @@ export function mockContent(
       b.values[0] ? `Creemos en ${b.values[0].toLowerCase()}.` : ""
     }`,
     cta,
-    hashtags: hashtagsFor(b, item),
+    hashtags: [], // sin hashtags (item 19)
     visualConcept: visualConceptFor(item, b),
     imagePrompt: imagePromptFor(item, b),
     imageFormat: (item.format === "story" || item.format === "reel" ? "9:16" : "4:5") as ImageFormat,
@@ -332,16 +332,6 @@ function hookFor(item: CalendarItem, b: Business): string {
   return pick(hooks, item.topic.length + item.date.length);
 }
 
-function hashtagsFor(b: Business, item: CalendarItem): string[] {
-  const base = [
-    b.name.replace(/\s+/g, ""),
-    b.city.replace(/\s+/g, ""),
-    b.subcategory?.replace(/\s+/g, "") || "",
-    item.contentPillar.replace(/\s+/g, ""),
-  ].filter(Boolean);
-  const generic = ["marketing", "negociolocal", "emprender", "calidad", "comunidad"];
-  return [...base, ...generic].slice(0, 8).map((t) => `#${t.toLowerCase()}`);
-}
 
 function visualConceptFor(item: CalendarItem, b: Business): string {
   return `${item.format === "reel" ? "Video vertical" : "Imagen"} con estética de ${b.name}: foco en ${topSeller(

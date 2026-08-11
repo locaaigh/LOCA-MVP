@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: [
     "./src/**/*.{js,ts,jsx,tsx,mdx}",
   ],
@@ -30,12 +31,48 @@ const config: Config = {
           500: "#84cc16",
           600: "#65a30d",
           700: "#4d7c0f",
+          800: "#3f6212",
+          900: "#365314",
+          950: "#1a2e05",
         },
         ink: {
           DEFAULT: "#18181b",
           soft: "#27272a",
           muted: "#52525b",
         },
+
+        // ── Tokens semánticos (light en :root, dark en .dark, ver globals.css) ──
+        // Usan la técnica hsl(var(--x) / <alpha-value>) para conservar los
+        // modificadores de opacidad de Tailwind (bg-card/70, border-border/50, …).
+        background: "hsl(var(--background) / <alpha-value>)",
+        card: "hsl(var(--card) / <alpha-value>)",
+        "card-glass": "hsl(var(--card-glass) / <alpha-value>)",
+        "surface-subtle": "hsl(var(--surface-subtle) / <alpha-value>)",
+        "surface-muted": "hsl(var(--surface-muted) / <alpha-value>)",
+        "surface-inverse": "hsl(var(--surface-inverse) / <alpha-value>)",
+        overlay: "hsl(var(--overlay) / <alpha-value>)",
+
+        foreground: "hsl(var(--foreground) / <alpha-value>)",
+        "foreground-soft": "hsl(var(--foreground-soft) / <alpha-value>)",
+        "foreground-muted": "hsl(var(--foreground-muted) / <alpha-value>)",
+        "muted-foreground": "hsl(var(--muted-foreground) / <alpha-value>)",
+        "muted-foreground-2": "hsl(var(--muted-foreground-2) / <alpha-value>)",
+        faint: "hsl(var(--faint) / <alpha-value>)",
+
+        "border-subtle": "hsl(var(--border-subtle) / <alpha-value>)",
+        border: "hsl(var(--border) / <alpha-value>)",
+        "border-strong": "hsl(var(--border-strong) / <alpha-value>)",
+
+        input: "hsl(var(--input) / <alpha-value>)",
+        "input-border": "hsl(var(--input-border) / <alpha-value>)",
+        ring: "hsl(var(--ring) / <alpha-value>)",
+
+        accent: "hsl(var(--accent) / <alpha-value>)",
+        "accent-strong": "hsl(var(--accent-strong) / <alpha-value>)",
+        "accent-foreground": "hsl(var(--accent-foreground) / <alpha-value>)",
+        "accent-subtle-bg": "hsl(var(--accent-subtle-bg) / <alpha-value>)",
+        "accent-subtle-fg": "hsl(var(--accent-subtle-fg) / <alpha-value>)",
+        "accent-subtle-ring": "hsl(var(--accent-subtle-ring) / <alpha-value>)",
       },
       fontFamily: {
         sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
