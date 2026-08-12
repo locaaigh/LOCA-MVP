@@ -194,7 +194,26 @@ hacer signup, y confirmar en PostHog que la persona quedó con `$initial_utm_sou
 Borrar `NEXT_PUBLIC_APP_ORIGIN` y redeployar. El middleware vuelve a no redirigir y los tres
 dominios sirven la app completa, como antes. Un solo switch, sin migración de datos.
 
-## 7. Verificado al 2026-08-02
+## 7. Estado verificado
+
+### 2026-08-12 — split de dominios ACTIVO en producción ✅
+Matriz corrida contra prod, todo OK:
+- `www.heyloca.ai/dashboard` → 307 → `app.heyloca.ai/dashboard`; querystring preservado.
+- `heyloca.ai/dashboard` (apex) → 2 saltos → `app.heyloca.ai/dashboard` (308 de Vercel + 307 del middleware).
+- `app.heyloca.ai/` → `/dashboard`; `/precios` y `/contacto` → `www.heyloca.ai`.
+- `/legal/*` y `/api/*`: 200 en ambos hosts, sin redirect.
+- `X-Robots-Tag: noindex` en todo el host de app; ausente en marketing.
+- `sitemap.xml` y `robots.txt` con URLs `https://www.heyloca.ai` (la env var tomó efecto).
+- UTMs cruzan de dominio: los CTAs llevan `utm_*`/`gclid` al saltar al subdominio.
+
+### 🔴 Analytics APAGADO en producción (detectado 2026-08-12)
+`posthog`, `fbq` y `gtag` **no se cargan** en prod: faltan las tres env vars, que están sin
+tildar en el checklist de §2. Consecuencia: no hay pageviews, ni funnels, ni session replay,
+ni atribución de campañas — y `captureFirstTouchUtm()` nunca corre, así que el store
+`loca-utm` queda vacío (el reenvío de UTMs por link igual funciona, pero pierde el fallback
+para quien navega el sitio antes de hacer clic). Los valores ya están escritos en §2.
+
+### Pendientes de antes
 - ✅ Credenciales Meta (`META_APP_ID`+`META_APP_SECRET`) válidas contra Graph API. App = "LOCA".
-- ⚠️ Privacy Policy URL sin cargar · Terms apunta a facebook.com.
+- ⚠️ Terms of Service apunta a facebook.com — bloquea App Review.
 - 🔴 Verificar model IDs de IA (ver sección 2) — posible mock silencioso.
