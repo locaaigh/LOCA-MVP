@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseSignedRequest } from "@/lib/meta/signed-request";
-import { revokeByMetaUserId } from "@/lib/meta/repository";
+import { revokeByProviderUserId } from "@/lib/connections/repository";
 import { logEvent } from "@/lib/events";
 
 export const runtime = "nodejs";
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const revoked = await revokeByMetaUserId(payload.user_id);
+    const revoked = await revokeByProviderUserId("facebook", payload.user_id);
     console.log(`[meta/deauthorize] user ${payload.user_id}: ${revoked} conexiones revocadas`);
     // Churn de integración iniciado desde Facebook (no hay userId nuestro acá).
     await logEvent({

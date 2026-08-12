@@ -5,10 +5,10 @@
 // refrescan por higiene (se re-obtienen de /me/accounts).
 // ─────────────────────────────────────────────────────────────
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
-import { decryptToken, encryptToken } from "./crypto";
+import { decryptToken, encryptToken } from "@/lib/connections/crypto";
 import { exchangeForLongLivedToken } from "./oauth";
 import { fetchPages } from "./accounts";
-import type { MetaConnectionRow } from "./repository";
+import type { ConnectionRow } from "@/lib/connections/repository";
 
 const REFRESH_WINDOW_DAYS = 14;
 
@@ -22,14 +22,18 @@ export async function refreshExpiringTokens(): Promise<RefreshSummary> {
   const admin = getSupabaseAdmin();
   const cutoff = new Date(Date.now() + REFRESH_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
+  // Solo conexiones de Facebook: el intercambio de abajo es de Graph API
+  // (fb_exchange_token + /me/accounts). Instagram y LinkedIn renuevan por
+  // otros endpoints y tienen su propio paso en el cron.
   const { data, error } = await admin
-    .from("meta_connections")
+    .from("social_connections")
     .select("*")
+    .eq("provider", "facebook")
     .eq("status", "active")
     .lt("token_expires_at", cutoff);
   if (error) throw new Error(`Error buscando tokens por vencer: ${error.message}`);
 
-  const rows = (data ?? []) as MetaConnectionRow[];
+  const rows = (data ?? []) as ConnectionRow[];
   const summary: RefreshSummary = { checked: rows.length, refreshed: 0, failed: [] };
 
   for (const row of rows) {
@@ -42,10 +46,10 @@ export async function refreshExpiringTokens(): Promise<RefreshSummary> {
 
       // Re-obtener el Page token con el token nuevo (si hay page conectada)
       let pageTokenEnc = row.page_access_token_enc;
-      if (row.page_id) {
+      if (row.account_id) {
         try {
           const pages = await fetchPages(renewed.access_token);
-          const page = pages.find((p) => p.id === row.page_id);
+          const page = pages.find((p) => p.id === row.account_id);
           if (page) pageTokenEnc = encryptToken(page.access_token);
         } catch {
           // Si falla, conservamos el Page token anterior (no expira solo)
@@ -53,7 +57,7 @@ export async function refreshExpiringTokens(): Promise<RefreshSummary> {
       }
 
       const { error: upErr } = await admin
-        .from("meta_connections")
+        .from("social_connections")
         .update({
           user_access_token_enc: encryptToken(renewed.access_token),
           page_access_token_enc: pageTokenEnc,
@@ -61,7 +65,10 @@ export async function refreshExpiringTokens(): Promise<RefreshSummary> {
           updated_at: new Date().toISOString(),
         })
         .eq("user_id", row.user_id)
-        .eq("business_id", row.business_id);
+        .eq("business_id", row.business_id)
+        // Sin esto pisaría también las conexiones de IG/LinkedIn del negocio:
+        // la PK ahora incluye el proveedor.
+        .eq("provider", row.provider);
       if (upErr) throw new Error(upErr.message);
 
       summary.refreshed++;
@@ -70,10 +77,11 @@ export async function refreshExpiringTokens(): Promise<RefreshSummary> {
       summary.failed.push({ businessId: row.business_id, error: msg });
       // Marcar en error para que la UI ofrezca reconectar
       await admin
-        .from("meta_connections")
+        .from("social_connections")
         .update({ status: "error", updated_at: new Date().toISOString() })
         .eq("user_id", row.user_id)
-        .eq("business_id", row.business_id);
+        .eq("business_id", row.business_id)
+        .eq("provider", row.provider);
     }
   }
 

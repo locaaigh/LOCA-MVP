@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserId } from "@/lib/supabase/server";
-import { getConnection } from "@/lib/meta/repository";
-import { decryptToken } from "@/lib/meta/crypto";
+import { getConnection } from "@/lib/connections/repository";
+import { decryptToken } from "@/lib/connections/crypto";
 import {
   fetchIgAccountInsights,
   fetchIgMediaInsights,
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const mediaId = req.nextUrl.searchParams.get("mediaId");
     if (!businessId) return NextResponse.json({ error: "Falta businessId" }, { status: 400 });
 
-    const connection = await getConnection(userId, businessId);
+    const connection = await getConnection(userId, businessId, "facebook");
     if (!connection || connection.status !== "active" || !connection.page_access_token_enc) {
       return NextResponse.json(
         { error: "No hay una conexión activa con Meta." },
@@ -44,8 +44,8 @@ export async function GET(req: NextRequest) {
       connection.ig_user_id
         ? fetchIgAccountInsights(connection.ig_user_id, pageToken)
         : Promise.resolve(null),
-      connection.page_id
-        ? fetchPageInsights(connection.page_id, pageToken)
+      connection.account_id
+        ? fetchPageInsights(connection.account_id, pageToken)
         : Promise.resolve(null),
     ]);
 

@@ -6,7 +6,7 @@ import {
   verifyState,
 } from "@/lib/meta/oauth";
 import { fetchMetaUser, fetchPages, pickPage } from "@/lib/meta/accounts";
-import { saveConnection } from "@/lib/meta/repository";
+import { saveConnection } from "@/lib/connections/repository";
 import { getMetaScopes } from "@/lib/meta/config";
 import { logEvent } from "@/lib/events";
 
@@ -58,9 +58,10 @@ export async function GET(req: NextRequest) {
     await saveConnection({
       userId: state.userId,
       businessId: state.businessId,
-      metaUserId: metaUser.id,
-      pageId: page?.id ?? null,
-      pageName: page?.name ?? null,
+      provider: "facebook",
+      providerUserId: metaUser.id,
+      accountId: page?.id ?? null,
+      accountName: page?.name ?? null,
       igUserId: page?.instagram_business_account?.id ?? null,
       igUsername: page?.instagram_business_account?.username ?? null,
       userAccessToken: userToken,

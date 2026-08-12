@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserId } from "@/lib/supabase/server";
 import { resolveContent, jsonError } from "@/lib/repository/resolve";
-import { getConnection } from "@/lib/meta/repository";
-import { decryptToken } from "@/lib/meta/crypto";
+import { getConnection } from "@/lib/connections/repository";
+import { decryptToken } from "@/lib/connections/crypto";
 import { publishToInstagram, publishToFacebook } from "@/lib/meta/publish";
 import { logEvent } from "@/lib/events";
 
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     if ("error" in resolved) return jsonError(resolved);
     const { ctx, content } = resolved;
 
-    const connection = await getConnection(userId, businessId);
+    const connection = await getConnection(userId, businessId, "facebook");
     if (!connection || connection.status !== "active") {
       return NextResponse.json(
         { error: "No hay una conexión activa con Meta. Conectá tus cuentas en Configuración." },
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
         caption,
       });
     } else {
-      result = await publishToFacebook(connection.page_id!, pageToken, {
+      result = await publishToFacebook(connection.account_id!, pageToken, {
         message: caption,
         imageUrl: content.imageUrl,
       });

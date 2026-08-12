@@ -82,8 +82,12 @@ Plan completo de medición: `docs/ANALYTICS-PLAN.md`. Migración requerida: `000
 | `NEXT_PUBLIC_SHOW_AI_USAGE` | `true` en pruebas (muestra contador de tokens/costo); **poner `false` en prod real**. |
 
 ## 3. Supabase — migraciones
-- Migraciones en `supabase/migrations/` → `0001_init.sql` … `0006_analytics.sql`.
+- Migraciones en `supabase/migrations/` → `0001_init.sql` … `0007_social_connections.sql`.
 - Aplicarlas **en orden** en Supabase Dashboard → SQL Editor. Verificar esquema con `scripts/verify-supabase-schema.mts`.
+- ⚠️ **`0007` va ANTES de deployar el código que la usa.** Renombra `meta_connections`
+  a `social_connections` y amplía la PK a `(user_id, business_id, provider)`; con la PK
+  vieja el upsert nuevo no encuentra su constraint, y con la PK nueva el upsert viejo
+  tampoco. No hay ventana en la que ambas versiones funcionen.
 - Storage: bucket de imágenes con **URLs públicas** (necesario para publicar en Instagram, que rechaza data URLs).
 
 ## 4. Crons (Vercel)

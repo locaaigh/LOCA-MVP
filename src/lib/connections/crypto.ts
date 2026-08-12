@@ -1,8 +1,12 @@
 // ─────────────────────────────────────────────────────────────
-// Cifrado de tokens de Meta con AES-256-GCM.
+// Cifrado de tokens de redes sociales con AES-256-GCM.
 // La clave viene de META_TOKEN_ENCRYPTION_KEY (32 bytes en base64):
 //   openssl rand -base64 32
 // Formato guardado: base64(iv) . base64(authTag) . base64(ciphertext)
+//
+// El nombre de la env var es histórico (esto nació solo para Meta) y se
+// mantiene a propósito: renombrarla dejaría ilegibles los tokens ya
+// cifrados. Hoy la usan también Instagram y LinkedIn.
 // ─────────────────────────────────────────────────────────────
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 

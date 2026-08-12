@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserId } from "@/lib/supabase/server";
-import { getConnection, deleteConnection, toPublic } from "@/lib/meta/repository";
+import { getConnection, deleteConnection, toPublic } from "@/lib/connections/repository";
 import { hasSupabaseAdminConfig } from "@/lib/supabase/admin";
 import { logEvent } from "@/lib/events";
 
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const row = await getConnection(userId, businessId);
+    const row = await getConnection(userId, businessId, "facebook");
     return NextResponse.json({ connection: row ? toPublic(row) : null });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Error leyendo conexión";
@@ -37,7 +37,7 @@ export async function DELETE(req: NextRequest) {
   if (!businessId) return NextResponse.json({ error: "Falta businessId" }, { status: 400 });
 
   try {
-    await deleteConnection(userId, businessId);
+    await deleteConnection(userId, businessId, "facebook");
     await logEvent({ userId, businessId, name: "meta_disconnected" });
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {
