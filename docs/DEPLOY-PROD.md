@@ -15,7 +15,7 @@ Fuente de verdad de backlog/pendientes: `PLAN-v2.md`. Handoff diario: `RESUMEN-*
 | Var | Nota |
 |-----|------|
 | `NEXT_PUBLIC_APP_ORIGIN` | `https://app.heyloca.ai`. **Es el interruptor del split**: vacía, todo convive en un dominio; seteada, el middleware rutea por host y los CTAs de la web apuntan al subdominio. Scope **Production solamente** (ver §6). |
-| `NEXT_PUBLIC_MARKETING_ORIGIN` | `https://heyloca.ai`. Usada por `robots.ts`, `sitemap.ts` y el `metadataBase` del layout. Si se deja vacía el default es ese mismo valor. |
+| `NEXT_PUBLIC_MARKETING_ORIGIN` | `https://www.heyloca.ai` — el canónico es **www** (el apex hace 308 a www). **Obligatoria**: usada por `robots.ts`, `sitemap.ts` y el `metadataBase` del layout, y su default es el apex. Sin ella el sitemap y los canonical listarían URLs de `heyloca.ai` que redirigen todas. |
 
 ⚠️ Ambas son `NEXT_PUBLIC_*`: se **inlinean en build time**. Cambiarlas exige **redeploy**, no alcanza con reiniciar.
 
@@ -109,10 +109,15 @@ Legales (páginas Next que deployan con la app; también hay HTML autocontenidos
 ## 6. Dominios — split web de marketing / plataforma
 
 ```
-heyloca.ai      → web de marketing   (/, /precios, /funcionalidades, /como-funciona, /contacto, /para/*)
+www.heyloca.ai  → web de marketing   (/, /precios, /funcionalidades, /como-funciona, /contacto, /para/*)
+heyloca.ai      → 308 a www.heyloca.ai (redirect de dominio en Vercel; www es el canónico)
 app.heyloca.ai  → plataforma          (/dashboard, /onboarding, /login, /signup, /strategy, /content, …)
 /legal/*, /api/*                      → compartidas, se sirven en ambos hosts sin redirect
 ```
+
+El middleware compara hosts ignorando el prefijo `www.` (`sameHost()`), así que reconoce el
+apex y el `www` como el mismo dominio de marketing sin importar cuál sea el canónico — no
+depende de que el redirect de Vercel corra antes que el middleware.
 
 **Un solo codebase y un solo proyecto de Vercel** sirven los dos hosts; el ruteo lo hace
 `src/middleware.ts` leyendo el header `Host`. **No** hay que crear un segundo proyecto, ni
@@ -122,17 +127,17 @@ deploy en cualquiera de los dos hosts).
 El interruptor es `NEXT_PUBLIC_APP_ORIGIN`: sin ella el middleware no redirige nada y todo
 convive en un dominio (así funcionan dev y los previews de Vercel).
 
-### 6.1 Vercel + DNS
-1. **Un solo proyecto** (el que ya deployea este repo).
-2. Settings → Domains → agregar los tres: `heyloca.ai`, `www.heyloca.ai`, `app.heyloca.ai`.
-3. Marcar **`heyloca.ai` (apex) como dominio primario**, con `www.heyloca.ai` redirigiendo a él.
-   El middleware acepta `www` como host de marketing pero **no canonicaliza a apex** — eso lo
-   resuelve Vercel. Sin este paso, `www` y apex quedan como contenido duplicado.
-4. Cargar en el registrar los registros DNS que muestre Vercel (apex + CNAME del subdominio).
-   Esperar verificación y emisión de SSL de los tres.
-5. **Todavía no setear `NEXT_PUBLIC_APP_ORIGIN`.** Verificar primero que los tres hosts sirven
-   la app igual que hoy, sin redirects. Ese es el estado seguro previo, y separa "el DNS
-   funciona" de "el split funciona".
+### 6.1 Vercel + DNS — ✅ HECHO (2026-08-12)
+1. **Un solo proyecto** (`loca-mvp`, el que ya deployea este repo).
+2. Domains con los tres: `www.heyloca.ai` (Production), `heyloca.ai` (308 → www),
+   `app.heyloca.ai` (Production). Uno de los dos, apex o www, tiene que ser el canónico y el
+   otro redirigirle; acá el canónico es **www**.
+3. DNS en **Namecheap** (`dns1/dns2.registrar-servers.com`), no en Vercel: cada subdominio
+   nuevo necesita su registro allá. El de la plataforma es
+   `CNAME  app → 3f2466feaa834aaf.vercel-dns-017.com`.
+4. Los tres verificados y con SSL emitido.
+5. Estado previo confirmado antes de activar: los tres hosts sirven la misma app, sin
+   redirects cruzados ni `X-Robots-Tag`. Esto separa "el DNS funciona" de "el split funciona".
 
 ⚠️ **Scope de las env vars: Production solamente.** En Preview harían que los CTAs de la web
 apunten al `app.heyloca.ai` de producción (`appHref()` genera URL absoluta), rompiendo el
@@ -150,27 +155,35 @@ Ver checklist de §5: legales en `heyloca.ai`, OAuth redirect en `app.heyloca.ai
 con los dos.
 
 ### 6.4 Activar el split
-Setear en Vercel (Production) `NEXT_PUBLIC_APP_ORIGIN=https://app.heyloca.ai` y
-`NEXT_PUBLIC_MARKETING_ORIGIN=https://heyloca.ai`, y **redeployar**.
+En Vercel → Environment Variables, scope **Production**:
+
+```
+NEXT_PUBLIC_APP_ORIGIN       = https://app.heyloca.ai
+NEXT_PUBLIC_MARKETING_ORIGIN = https://www.heyloca.ai
+META_OAUTH_REDIRECT_URI      = https://app.heyloca.ai/api/integrations/meta/callback
+```
+
+Y **redeployar** (Deployments → Redeploy): son `NEXT_PUBLIC_*`, se inlinean en el build.
 
 ### 6.5 Verificar después de activar
 | Caso | Esperado |
 |---|---|
 | `app.heyloca.ai/` | 307 → `app.heyloca.ai/dashboard` |
-| `app.heyloca.ai/precios` | 307 → `heyloca.ai/precios` |
-| `heyloca.ai/dashboard` | 307 → `app.heyloca.ai/dashboard` |
-| `heyloca.ai/login?next=/x` | 307 → `app.heyloca.ai/login?next=/x` (querystring preservado) |
+| `app.heyloca.ai/precios` | 307 → `www.heyloca.ai/precios` |
+| `www.heyloca.ai/dashboard` | 307 → `app.heyloca.ai/dashboard` |
+| `heyloca.ai/dashboard` (apex) | llega a `app.heyloca.ai/dashboard` |
+| `www.heyloca.ai/login?next=/x` | 307 → `app.heyloca.ai/login?next=/x` (querystring preservado) |
 | `/legal/privacy` en ambos hosts | 200 en los dos, sin redirect |
-| `heyloca.ai/contacto` → enviar form | 200 y lead en Supabase (`POST /api/contact`) |
+| `www.heyloca.ai/contacto` → enviar form | 200 y lead en Supabase (`POST /api/contact`) |
 | `app.heyloca.ai` (cualquier ruta) | header `X-Robots-Tag: noindex` |
-| `heyloca.ai/robots.txt` y `/sitemap.xml` | URLs absolutas a `heyloca.ai` (no `www`, no `app`) |
+| `www.heyloca.ai/robots.txt` y `/sitemap.xml` | URLs absolutas a `www.heyloca.ai` |
 
 Flujos end-to-end en `app.heyloca.ai`: signup → mail de confirmación → `/auth/callback` → sesión
 → `/dashboard`; y conectar Meta desde `/settings` (si el `redirect_uri` no coincide exacto con
 Meta Console, falla acá).
 
-Atribución: entrar a `heyloca.ai/?utm_source=test&utm_campaign=split`, tocar "Empezar", hacer
-signup, y confirmar en PostHog que la persona quedó con `$initial_utm_source=test`.
+Atribución: entrar a `www.heyloca.ai/?utm_source=test&utm_campaign=split`, tocar "Empezar",
+hacer signup, y confirmar en PostHog que la persona quedó con `$initial_utm_source=test`.
 
 ### 6.6 Rollback
 Borrar `NEXT_PUBLIC_APP_ORIGIN` y redeployar. El middleware vuelve a no redirigir y los tres

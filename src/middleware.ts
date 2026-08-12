@@ -36,6 +36,18 @@ function startsWithAny(pathname: string, prefixes: readonly string[]): boolean {
   return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
+/**
+ * Compara hosts ignorando el prefijo "www.", así da igual cuál de los dos sea
+ * el canónico: con `heyloca.ai` o con `www.heyloca.ai` en
+ * NEXT_PUBLIC_MARKETING_ORIGIN, ambas variantes se reconocen como marketing.
+ * (Vercel ya redirige una a la otra, pero no dependemos de que eso pase antes
+ * que el middleware.)
+ */
+function sameHost(a: string, b: string): boolean {
+  const bare = (h: string) => h.replace(/^www\./, "");
+  return bare(a) === bare(b);
+}
+
 /** Qué dominio del split está sirviendo la request. */
 type HostRole = "app" | "marketing" | "unknown";
 
@@ -75,11 +87,7 @@ function resolveHosts(request: NextRequest): ResolvedHosts | null {
   const host = request.headers.get("host") ?? "";
   // Host desconocido (localhost, previews de Vercel): no interferir.
   const role: HostRole =
-    host === appHost
-      ? "app"
-      : host === marketingHost || host === `www.${marketingHost}`
-        ? "marketing"
-        : "unknown";
+    host === appHost ? "app" : sameHost(host, marketingHost) ? "marketing" : "unknown";
 
   return { role, appOrigin, marketingOrigin };
 }
