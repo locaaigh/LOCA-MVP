@@ -91,18 +91,23 @@ Plan completo de medición: `docs/ANALYTICS-PLAN.md`. Migración requerida: `000
 - ⚠️ **Pendiente para auto-publicación programada**: hoy NO hay cron que publique según fecha. Cuando se implemente, requiere **Vercel Pro** (cron por minuto/hora) o un scheduler externo. Sin eso, la publicación es manual (botón "Publicar ahora" o export pack).
 
 ## 5. Meta — checklist antes de usuarios reales
-> Los legales viven en el dominio de marketing; el OAuth en el de la plataforma.
+> A Meta el producto se le presenta como `app.heyloca.ai`, así que las URLs cargadas ahí usan
+> ese host. `/legal/*` está en `SHARED_PREFIXES` del middleware: responde 200 en los dos
+> dominios sin redirect, así que la versión pública e indexable sigue viva en
+> `www.heyloca.ai/legal/*` (la que linkea el footer de la web). Son URLs independientes.
 
-- [ ] **Privacy Policy URL** en Meta App → cargar `https://heyloca.ai/legal/privacy`.
-- [ ] **Terms of Service URL** → cargar `https://heyloca.ai/legal/terms` (⚠️ hoy apunta a facebook.com).
-- [ ] **Data Deletion URL** → `https://heyloca.ai/legal/meta-data-deletion`.
+- [ ] **Privacy Policy URL** en Meta App → `https://app.heyloca.ai/legal/privacy`.
+- [ ] **Terms of Service URL** → `https://app.heyloca.ai/legal/terms` (⚠️ hoy apunta a facebook.com).
+- [ ] **Data Deletion URL** → `https://app.heyloca.ai/legal/meta-data-deletion`.
 
 Legales (páginas Next que deployan con la app; también hay HTML autocontenidos en `docs/legal/`):
 - Entidad operadora: **INFINIDAD S.R.L.** · CUIT 30-71581900-3 · Condarco 3145, CABA.
 - Email de soporte/legales: **soporte@heyloca.ai** · Dominio: **heyloca.ai**.
 - ⚠️ Los legales son borradores operativos; que un asesor legal les dé el ok final antes de prod.
 - [ ] **Valid OAuth Redirect URIs** → `https://app.heyloca.ai/api/integrations/meta/callback` (exacto, igual a `META_OAUTH_REDIRECT_URI`) + `http://localhost:3000/api/integrations/meta/callback` para dev.
-- [ ] **App Domains** → `heyloca.ai` y `app.heyloca.ai`.
+- [ ] **App Domains** → `heyloca.ai` (la doc de Meta dice que cubre "domains **and subdomains**",
+      así que incluye `www.` y `app.`; agregar `app.heyloca.ai` explícito es redundante pero inofensivo).
+      Solo restringe desde dónde se puede hacer Facebook Login — no tiene relación con las URLs legales.
 - [ ] **App Review**: pedir Advanced Access de `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `instagram_basic`, `instagram_content_publish` (con screencast del flujo). Sin esto, publicar solo funciona para cuentas con rol en la app.
 - [ ] Pasar la app a **Live** una vez aprobado + negocio verificado (✅ INFINIDAD ya verificado).
 
