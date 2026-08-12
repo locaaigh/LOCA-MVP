@@ -36,12 +36,22 @@ function startsWithAny(pathname: string, prefixes: readonly string[]): boolean {
   return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
+/** Qué dominio del split está sirviendo la request. */
+type HostRole = "app" | "marketing" | "unknown";
+
+type ResolvedHosts = {
+  role: HostRole;
+  appOrigin: URL;
+  marketingOrigin: URL;
+};
+
 /**
- * Ruteo por host. Solo se activa si NEXT_PUBLIC_APP_ORIGIN está seteado
- * (ej. "https://app.heyloca.ai"). Sin esa env, todo convive en un dominio y
- * esta función no hace nada (comportamiento actual de dev / deploy único).
+ * Resuelve los orígenes del split y en cuál de ellos entró la request.
+ * Solo se activa si NEXT_PUBLIC_APP_ORIGIN está seteado (ej.
+ * "https://app.heyloca.ai"); sin esa env devuelve null y todo convive en un
+ * dominio (comportamiento de dev / deploy único).
  */
-function hostRedirect(request: NextRequest): NextResponse | null {
+function resolveHosts(request: NextRequest): ResolvedHosts | null {
   const appOriginRaw = process.env.NEXT_PUBLIC_APP_ORIGIN;
   if (!appOriginRaw) return null;
 
@@ -63,30 +73,39 @@ function hostRedirect(request: NextRequest): NextResponse | null {
     : new URL(`${appOrigin.protocol}//${marketingHost}`);
 
   const host = request.headers.get("host") ?? "";
-  const isAppHost = host === appHost;
-  const isMarketingHost = host === marketingHost || host === `www.${marketingHost}`;
-
   // Host desconocido (localhost, previews de Vercel): no interferir.
-  if (!isAppHost && !isMarketingHost) return null;
+  const role: HostRole =
+    host === appHost
+      ? "app"
+      : host === marketingHost || host === `www.${marketingHost}`
+        ? "marketing"
+        : "unknown";
+
+  return { role, appOrigin, marketingOrigin };
+}
+
+/** Ruteo por host: manda cada ruta al dominio al que pertenece. */
+function hostRedirect(request: NextRequest, hosts: ResolvedHosts): NextResponse | null {
+  if (hosts.role === "unknown") return null;
 
   const { pathname, search } = request.nextUrl;
   if (startsWithAny(pathname, SHARED_PREFIXES)) return null;
 
-  if (isAppHost) {
+  if (hosts.role === "app") {
     // En el subdominio de la app, la raíz va al dashboard.
     if (pathname === "/") {
-      return NextResponse.redirect(new URL(`/dashboard${search}`, appOrigin));
+      return NextResponse.redirect(new URL(`/dashboard${search}`, hosts.appOrigin));
     }
     // Rutas de marketing pedidas en el subdominio de app → mandarlas a la web.
     if (startsWithAny(pathname, MARKETING_ONLY_PREFIXES)) {
-      return NextResponse.redirect(new URL(`${pathname}${search}`, marketingOrigin));
+      return NextResponse.redirect(new URL(`${pathname}${search}`, hosts.marketingOrigin));
     }
     return null;
   }
 
-  // isMarketingHost: rutas de la plataforma pedidas en la web → mandarlas a la app.
+  // marketing: rutas de la plataforma pedidas en la web → mandarlas a la app.
   if (startsWithAny(pathname, APP_PREFIXES)) {
-    return NextResponse.redirect(new URL(`${pathname}${search}`, appOrigin));
+    return NextResponse.redirect(new URL(`${pathname}${search}`, hosts.appOrigin));
   }
   return null;
 }
@@ -121,9 +140,22 @@ async function refreshSession(request: NextRequest): Promise<NextResponse> {
 }
 
 export async function middleware(request: NextRequest) {
-  const redirect = hostRedirect(request);
-  if (redirect) return redirect;
-  return refreshSession(request);
+  const hosts = resolveHosts(request);
+  if (hosts) {
+    const redirect = hostRedirect(request, hosts);
+    if (redirect) return redirect;
+  }
+
+  const response = await refreshSession(request);
+
+  // La plataforma no se indexa nunca. robots.ts se sirve idéntico en los dos
+  // hosts, así que sin este header las rutas compartidas (/legal/*, que están
+  // en SHARED_PREFIXES y no se redirigen) quedarían duplicadas en Google.
+  if (hosts?.role === "app") {
+    response.headers.set("X-Robots-Tag", "noindex");
+  }
+
+  return response;
 }
 
 export const config = {

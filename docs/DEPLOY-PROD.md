@@ -11,6 +11,14 @@ Fuente de verdad de backlog/pendientes: `PLAN-v2.md`. Handoff diario: `RESUMEN-*
 
 ## 2. Variables de entorno (Vercel → Project Settings → Environment Variables)
 
+### Dominios (split web / plataforma — ver §6)
+| Var | Nota |
+|-----|------|
+| `NEXT_PUBLIC_APP_ORIGIN` | `https://app.heyloca.ai`. **Es el interruptor del split**: vacía, todo convive en un dominio; seteada, el middleware rutea por host y los CTAs de la web apuntan al subdominio. Scope **Production solamente** (ver §6). |
+| `NEXT_PUBLIC_MARKETING_ORIGIN` | `https://heyloca.ai`. Usada por `robots.ts`, `sitemap.ts` y el `metadataBase` del layout. Si se deja vacía el default es ese mismo valor. |
+
+⚠️ Ambas son `NEXT_PUBLIC_*`: se **inlinean en build time**. Cambiarlas exige **redeploy**, no alcanza con reiniciar.
+
 ### IA (texto e imágenes)
 | Var | Valor / nota |
 |-----|--------------|
@@ -45,7 +53,7 @@ Google Ads (cuenta propia de LOCA, verificación con la LLC — creada 2026-08-0
 - Google tag: `AW-18380065250` (→ `NEXT_PUBLIC_GOOGLE_ADS_ID`).
 - Conversión "Signup LOCA" (Sign-up, same value USD 89, count One): `send_to` = `AW-18380065250/wZQ6CNfc5d4cEOKTprxE` (→ `NEXT_PUBLIC_GOOGLE_ADS_SIGNUP_LABEL`).
 | `META_APP_SECRET` | secreta |
-| `META_OAUTH_REDIRECT_URI` | **debe apuntar al dominio de prod**: `https://{DOMINIO}/api/integrations/meta/callback`. Si se deja vacío, se deriva del origin del request. |
+| `META_OAUTH_REDIRECT_URI` | **debe apuntar al subdominio de la plataforma**: `https://app.heyloca.ai/api/integrations/meta/callback`. Si se deja vacío se deriva del origin del request (funciona, pero queda dependiendo de por qué host entró el usuario). Tiene que coincidir **exacto** con lo registrado en Meta Console. |
 | `META_TOKEN_ENCRYPTION_KEY` | 32 bytes base64 (`openssl rand -base64 32`). Cifra los tokens. **No rotar sin migrar** o se pierden las conexiones. |
 | `META_SCOPES` | opcional, para pisar scopes |
 | `CRON_SECRET` | protege el cron de refresh de tokens (`openssl rand -hex 32`) |
@@ -64,7 +72,7 @@ Plan completo de medición: `docs/ANALYTICS-PLAN.md`. Migración requerida: `000
 **📋 Checklist analytics para el deploy (Alan):**
 - [ ] Cargar en Vercel: `NEXT_PUBLIC_POSTHOG_KEY` = `phc_mSqXHtzzroNJoQeyv2LVRCFtqnX8XPZTAzfAnnaULPza` y `NEXT_PUBLIC_POSTHOG_HOST` = `https://us.i.posthog.com` (Production; Preview opcional).
 - [ ] Correr la migración `supabase/migrations/0006_analytics.sql` en Supabase → SQL Editor (después de la 0005).
-- [ ] Verificar post-deploy: navegar la web y ver que entren `$pageview` en PostHog → Activity, y que `https://{DOMINIO}/sitemap.xml` y `/robots.txt` respondan.
+- [ ] Verificar post-deploy: navegar la web y ver que entren `$pageview` en PostHog → Activity, y que `https://heyloca.ai/sitemap.xml` y `/robots.txt` respondan.
 - [ ] Cargar en Vercel: `NEXT_PUBLIC_META_PIXEL_ID` = `1348727130754842` (pixel "LOCA").
 - [ ] Cargar en Vercel: `NEXT_PUBLIC_GOOGLE_ADS_ID` = `AW-18380065250` y `NEXT_PUBLIC_GOOGLE_ADS_SIGNUP_LABEL` = `AW-18380065250/wZQ6CNfc5d4cEOKTprxE`.
 
@@ -83,21 +91,90 @@ Plan completo de medición: `docs/ANALYTICS-PLAN.md`. Migración requerida: `000
 - ⚠️ **Pendiente para auto-publicación programada**: hoy NO hay cron que publique según fecha. Cuando se implemente, requiere **Vercel Pro** (cron por minuto/hora) o un scheduler externo. Sin eso, la publicación es manual (botón "Publicar ahora" o export pack).
 
 ## 5. Meta — checklist antes de usuarios reales
-- [ ] **Privacy Policy URL** en Meta App → cargar `https://{DOMINIO}/legal/privacy`.
-- [ ] **Terms of Service URL** → cargar `https://{DOMINIO}/legal/terms` (⚠️ hoy apunta a facebook.com).
-- [ ] **Data Deletion URL** → `https://{DOMINIO}/legal/meta-data-deletion`.
+> Los legales viven en el dominio de marketing; el OAuth en el de la plataforma.
+
+- [ ] **Privacy Policy URL** en Meta App → cargar `https://heyloca.ai/legal/privacy`.
+- [ ] **Terms of Service URL** → cargar `https://heyloca.ai/legal/terms` (⚠️ hoy apunta a facebook.com).
+- [ ] **Data Deletion URL** → `https://heyloca.ai/legal/meta-data-deletion`.
 
 Legales (páginas Next que deployan con la app; también hay HTML autocontenidos en `docs/legal/`):
 - Entidad operadora: **INFINIDAD S.R.L.** · CUIT 30-71581900-3 · Condarco 3145, CABA.
 - Email de soporte/legales: **soporte@heyloca.ai** · Dominio: **heyloca.ai**.
 - ⚠️ Los legales son borradores operativos; que un asesor legal les dé el ok final antes de prod.
-- [ ] **Valid OAuth Redirect URIs** → incluir el de prod (y localhost para dev).
-- [ ] **App Domains** → el dominio de prod.
+- [ ] **Valid OAuth Redirect URIs** → `https://app.heyloca.ai/api/integrations/meta/callback` (exacto, igual a `META_OAUTH_REDIRECT_URI`) + `http://localhost:3000/api/integrations/meta/callback` para dev.
+- [ ] **App Domains** → `heyloca.ai` y `app.heyloca.ai`.
 - [ ] **App Review**: pedir Advanced Access de `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `instagram_basic`, `instagram_content_publish` (con screencast del flujo). Sin esto, publicar solo funciona para cuentas con rol en la app.
 - [ ] Pasar la app a **Live** una vez aprobado + negocio verificado (✅ INFINIDAD ya verificado).
 
-## 6. Dominio
-- Configurar el dominio de prod en Vercel. El `META_OAUTH_REDIRECT_URI`, las URLs legales y (a futuro) LinkedIn dependen de él.
+## 6. Dominios — split web de marketing / plataforma
+
+```
+heyloca.ai      → web de marketing   (/, /precios, /funcionalidades, /como-funciona, /contacto, /para/*)
+app.heyloca.ai  → plataforma          (/dashboard, /onboarding, /login, /signup, /strategy, /content, …)
+/legal/*, /api/*                      → compartidas, se sirven en ambos hosts sin redirect
+```
+
+**Un solo codebase y un solo proyecto de Vercel** sirven los dos hosts; el ruteo lo hace
+`src/middleware.ts` leyendo el header `Host`. **No** hay que crear un segundo proyecto, ni
+separar repos, ni configurar CORS (los `fetch("/api/…")` son relativos y resuelven al mismo
+deploy en cualquiera de los dos hosts).
+
+El interruptor es `NEXT_PUBLIC_APP_ORIGIN`: sin ella el middleware no redirige nada y todo
+convive en un dominio (así funcionan dev y los previews de Vercel).
+
+### 6.1 Vercel + DNS
+1. **Un solo proyecto** (el que ya deployea este repo).
+2. Settings → Domains → agregar los tres: `heyloca.ai`, `www.heyloca.ai`, `app.heyloca.ai`.
+3. Marcar **`heyloca.ai` (apex) como dominio primario**, con `www.heyloca.ai` redirigiendo a él.
+   El middleware acepta `www` como host de marketing pero **no canonicaliza a apex** — eso lo
+   resuelve Vercel. Sin este paso, `www` y apex quedan como contenido duplicado.
+4. Cargar en el registrar los registros DNS que muestre Vercel (apex + CNAME del subdominio).
+   Esperar verificación y emisión de SSL de los tres.
+5. **Todavía no setear `NEXT_PUBLIC_APP_ORIGIN`.** Verificar primero que los tres hosts sirven
+   la app igual que hoy, sin redirects. Ese es el estado seguro previo, y separa "el DNS
+   funciona" de "el split funciona".
+
+⚠️ **Scope de las env vars: Production solamente.** En Preview harían que los CTAs de la web
+apunten al `app.heyloca.ai` de producción (`appHref()` genera URL absoluta), rompiendo el
+testing de los previews. El middleware en sí es seguro ahí (host desconocido → no toca nada).
+
+### 6.2 Supabase Auth
+- **Site URL** → `https://app.heyloca.ai`. El signup no pasa `emailRedirectTo`, así que el link
+  de confirmación sale de acá.
+- **Additional Redirect URLs** → `https://app.heyloca.ai/**` + `http://localhost:3000/**`.
+- Red de contención: si un link viejo cae en `heyloca.ai/auth/callback`, el middleware lo manda
+  al host de app **preservando el querystring**, así que el `code` sobrevive y el login anda igual.
+
+### 6.3 Meta Developer Console
+Ver checklist de §5: legales en `heyloca.ai`, OAuth redirect en `app.heyloca.ai`, App Domains
+con los dos.
+
+### 6.4 Activar el split
+Setear en Vercel (Production) `NEXT_PUBLIC_APP_ORIGIN=https://app.heyloca.ai` y
+`NEXT_PUBLIC_MARKETING_ORIGIN=https://heyloca.ai`, y **redeployar**.
+
+### 6.5 Verificar después de activar
+| Caso | Esperado |
+|---|---|
+| `app.heyloca.ai/` | 307 → `app.heyloca.ai/dashboard` |
+| `app.heyloca.ai/precios` | 307 → `heyloca.ai/precios` |
+| `heyloca.ai/dashboard` | 307 → `app.heyloca.ai/dashboard` |
+| `heyloca.ai/login?next=/x` | 307 → `app.heyloca.ai/login?next=/x` (querystring preservado) |
+| `/legal/privacy` en ambos hosts | 200 en los dos, sin redirect |
+| `heyloca.ai/contacto` → enviar form | 200 y lead en Supabase (`POST /api/contact`) |
+| `app.heyloca.ai` (cualquier ruta) | header `X-Robots-Tag: noindex` |
+| `heyloca.ai/robots.txt` y `/sitemap.xml` | URLs absolutas a `heyloca.ai` (no `www`, no `app`) |
+
+Flujos end-to-end en `app.heyloca.ai`: signup → mail de confirmación → `/auth/callback` → sesión
+→ `/dashboard`; y conectar Meta desde `/settings` (si el `redirect_uri` no coincide exacto con
+Meta Console, falla acá).
+
+Atribución: entrar a `heyloca.ai/?utm_source=test&utm_campaign=split`, tocar "Empezar", hacer
+signup, y confirmar en PostHog que la persona quedó con `$initial_utm_source=test`.
+
+### 6.6 Rollback
+Borrar `NEXT_PUBLIC_APP_ORIGIN` y redeployar. El middleware vuelve a no redirigir y los tres
+dominios sirven la app completa, como antes. Un solo switch, sin migración de datos.
 
 ## 7. Verificado al 2026-08-02
 - ✅ Credenciales Meta (`META_APP_ID`+`META_APP_SECRET`) válidas contra Graph API. App = "LOCA".

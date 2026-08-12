@@ -14,7 +14,8 @@ import { isMirroredClientEvent, type ClientEventName } from "@/lib/analytics-eve
 const KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 const HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
 const UTM_STORAGE_KEY = "loca-utm";
-const UTM_KEYS = [
+/** Params de campaña que viajan por querystring (los reenvía AppLinkUtms). */
+export const UTM_KEYS = [
   "utm_source",
   "utm_medium",
   "utm_campaign",

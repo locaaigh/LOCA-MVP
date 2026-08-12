@@ -30,6 +30,11 @@ export const MARKETING_DOMAIN = "heyloca.ai";
  * - En producción con dominios separados: seteá NEXT_PUBLIC_APP_ORIGIN
  *   (ej. "https://app.heyloca.ai") y los CTAs apuntan al subdominio.
  * - Sin esa env (dev / un solo dominio): devuelve un path relativo.
+ *
+ * No agrega los params de campaña: se evalúa en el servidor (y algunos
+ * llamados son en module scope, ver PLANS), así que no puede conocer el
+ * querystring del visitante. Eso lo completa <AppLinkUtms /> después de
+ * montar — ver components/app-link-utms.tsx.
  */
 export function appHref(path: string): string {
   const origin = process.env.NEXT_PUBLIC_APP_ORIGIN?.replace(/\/$/, "");
