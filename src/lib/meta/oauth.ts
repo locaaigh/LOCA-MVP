@@ -9,6 +9,7 @@ import {
   getMetaScopes,
   getMetaAppId,
   getMetaAppSecret,
+  getMetaLoginConfigId,
 } from "./config";
 
 // ── State firmado (anti-CSRF, lleva userId + businessId) ─────
@@ -56,9 +57,16 @@ export function buildAuthUrl(redirectUri: string, state: string): string {
     client_id: getMetaAppId(),
     redirect_uri: redirectUri,
     state,
-    scope: getMetaScopes().join(","),
     response_type: "code",
   });
+
+  // Facebook Login for Business: los permisos salen de la configuration del
+  // dashboard, no de `scope` — mandar ambos es un error. Sin config_id caemos
+  // al login clásico por scopes (apps de desarrollo / pruebas locales).
+  const configId = getMetaLoginConfigId();
+  if (configId) params.set("config_id", configId);
+  else params.set("scope", getMetaScopes().join(","));
+
   return `${META_DIALOG_URL}?${params.toString()}`;
 }
 

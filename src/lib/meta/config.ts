@@ -3,15 +3,30 @@
 // Solo servidor: nunca importar desde componentes cliente.
 // ─────────────────────────────────────────────────────────────
 
-export const META_GRAPH_VERSION = "v21.0";
+/**
+ * Versión de Graph API. Overridable por env para poder volver atrás sin
+ * deploy: al subir de versión Meta deprecia métricas de Insights, y si alguna
+ * de las que pide insights.ts desaparece, el endpoint falla entero.
+ */
+export const META_GRAPH_VERSION = process.env.META_GRAPH_VERSION || "v23.0";
 export const META_GRAPH_URL = `https://graph.facebook.com/${META_GRAPH_VERSION}`;
 export const META_DIALOG_URL = `https://www.facebook.com/${META_GRAPH_VERSION}/dialog/oauth`;
 
-/** Permisos por defecto para publicar contenido y leer métricas de IG/FB. */
+/**
+ * Permisos para publicar contenido y leer métricas de IG/FB.
+ *
+ * Solo se usan en el camino de fallback (sin META_LOGIN_CONFIG_ID). En
+ * producción los permisos los define la configuration del dashboard, y la
+ * lista que se manda a App Review vive ahí — incluye además `public_profile`
+ * (que Meta otorga solo) y `business_management` (exigido por el caso de uso,
+ * aunque este código no lo necesite). No agregarlos acá: esta lista describe
+ * lo que la app realmente usa.
+ */
 const DEFAULT_SCOPES = [
   "pages_show_list",
   "pages_read_engagement",
   "pages_manage_posts",
+  "read_insights",
   "instagram_basic",
   "instagram_content_publish",
   "instagram_manage_insights",
@@ -29,6 +44,17 @@ export function getMetaScopes(): string[] {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+/**
+ * ID de la "configuration" de Facebook Login for Business.
+ * Las apps de Meta tipo *Business* no piden permisos por `scope`: los toman de
+ * una configuration creada en el dashboard (Inicio de sesión con Facebook →
+ * Configuraciones). Sin esta env var caemos al login clásico por scopes, que
+ * sirve para apps de desarrollo pero no pasa App Review en una app Business.
+ */
+export function getMetaLoginConfigId(): string | null {
+  return process.env.META_LOGIN_CONFIG_ID || null;
 }
 
 export function hasMetaConfig(): boolean {
