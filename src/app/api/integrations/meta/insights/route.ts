@@ -7,6 +7,10 @@ import {
   fetchIgMediaInsights,
   fetchPageInsights,
 } from "@/lib/meta/insights";
+import {
+  fetchIgAccountInsights as fetchIgAccountInsightsDirect,
+  fetchIgMediaInsights as fetchIgMediaInsightsDirect,
+} from "@/lib/instagram/insights";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,35 +30,60 @@ export async function GET(req: NextRequest) {
     const mediaId = req.nextUrl.searchParams.get("mediaId");
     if (!businessId) return NextResponse.json({ error: "Falta businessId" }, { status: 400 });
 
-    const connection = await getConnection(userId, businessId, "facebook");
-    if (!connection || connection.status !== "active" || !connection.page_access_token_enc) {
+    // Preferimos la conexión de Meta (FB + IG). Si el negocio conectó solo
+    // Instagram, usamos esa conexión y su propio host (graph.instagram.com).
+    const fbConnection = await getConnection(userId, businessId, "facebook");
+    if (fbConnection && fbConnection.status === "active" && fbConnection.page_access_token_enc) {
+      const pageToken = decryptToken(fbConnection.page_access_token_enc);
+
+      if (mediaId) {
+        const media = await fetchIgMediaInsights(mediaId, pageToken);
+        return NextResponse.json({ media });
+      }
+
+      const [ig, page] = await Promise.allSettled([
+        fbConnection.ig_user_id
+          ? fetchIgAccountInsights(fbConnection.ig_user_id, pageToken)
+          : Promise.resolve(null),
+        fbConnection.account_id
+          ? fetchPageInsights(fbConnection.account_id, pageToken)
+          : Promise.resolve(null),
+      ]);
+
+      return NextResponse.json({
+        instagram: ig.status === "fulfilled" ? ig.value : null,
+        facebook: page.status === "fulfilled" ? page.value : null,
+        errors: {
+          instagram: ig.status === "rejected" ? String(ig.reason?.message || ig.reason) : undefined,
+          facebook: page.status === "rejected" ? String(page.reason?.message || page.reason) : undefined,
+        },
+      });
+    }
+
+    // Fallback: conexión de Instagram Login (solo IG, con el token del usuario).
+    const igConnection = await getConnection(userId, businessId, "instagram");
+    if (!igConnection || igConnection.status !== "active" || !igConnection.account_id) {
       return NextResponse.json(
-        { error: "No hay una conexión activa con Meta." },
+        { error: "No hay una conexión activa." },
         { status: 409 }
       );
     }
-    const pageToken = decryptToken(connection.page_access_token_enc);
+    const igToken = decryptToken(igConnection.user_access_token_enc);
 
     if (mediaId) {
-      const media = await fetchIgMediaInsights(mediaId, pageToken);
+      const media = await fetchIgMediaInsightsDirect(mediaId, igToken);
       return NextResponse.json({ media });
     }
 
-    const [ig, page] = await Promise.allSettled([
-      connection.ig_user_id
-        ? fetchIgAccountInsights(connection.ig_user_id, pageToken)
-        : Promise.resolve(null),
-      connection.account_id
-        ? fetchPageInsights(connection.account_id, pageToken)
-        : Promise.resolve(null),
+    const account = await Promise.allSettled([
+      fetchIgAccountInsightsDirect(igConnection.account_id, igToken),
     ]);
-
+    const ig = account[0];
     return NextResponse.json({
       instagram: ig.status === "fulfilled" ? ig.value : null,
-      facebook: page.status === "fulfilled" ? page.value : null,
+      facebook: null,
       errors: {
         instagram: ig.status === "rejected" ? String(ig.reason?.message || ig.reason) : undefined,
-        facebook: page.status === "rejected" ? String(page.reason?.message || page.reason) : undefined,
       },
     });
   } catch (e: unknown) {

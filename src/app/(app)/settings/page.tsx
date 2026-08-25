@@ -11,6 +11,7 @@ import { AiStatusBadge, useAiStatus } from "@/components/ai-status";
 import { Badge, Button, Card, Field, Input, Modal, PageHeader, useToast } from "@/components/ui";
 import { PendingFlow } from "@/components/pending-flow";
 import { MetaConnectionCard } from "@/components/meta-connection-card";
+import { InstagramConnectionCard } from "@/components/instagram-connection-card";
 import { SearchableCountrySelect } from "@/components/inputs";
 import { BrandKitEditor } from "@/components/brand-kit";
 import { SocialLinksEditor } from "@/components/social-links-editor";
@@ -276,6 +277,11 @@ export default function SettingsPage() {
       {/* ── Conexión Instagram/Facebook (Meta) ── */}
       {business && (
         <MetaConnectionCard businessId={business.id} isDemo={!!user?.isDemo || !!business.isDemo} />
+      )}
+
+      {/* ── Conexión solo Instagram (para negocios sin página de Facebook) ── */}
+      {business && (
+        <InstagramConnectionCard businessId={business.id} isDemo={!!user?.isDemo || !!business.isDemo} />
       )}
 
       <Card className="space-y-3">

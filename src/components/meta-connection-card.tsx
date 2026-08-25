@@ -1,17 +1,19 @@
 "use client";
 
-// Card de Settings para conectar Instagram/Facebook (OAuth de Meta).
-// Solo muestra la vista pública de la conexión: los tokens nunca
-// llegan al cliente.
+// Card de Settings para conectar Facebook + Instagram (OAuth de Meta).
+// Opción recomendada: cubre página de FB e IG Business en un solo login.
+// Solo muestra la vista pública de la conexión: los tokens nunca llegan
+// al cliente.
 import { useCallback, useEffect, useState } from "react";
 import { Badge, Button, Card, useToast } from "@/components/ui";
 import { track } from "@/lib/analytics";
-import { Instagram, Link2, Unlink } from "lucide-react";
+import { CheckCircle2, Link2, Unlink } from "lucide-react";
+import { FacebookLogo, InstagramLogo } from "@/components/icons/BrandLogos";
 
 type MetaConnection = {
   businessId: string;
-  pageId: string | null;
-  pageName: string | null;
+  accountId: string | null;
+  accountName: string | null;
   igUserId: string | null;
   igUsername: string | null;
   status: "active" | "revoked" | "error";
@@ -28,6 +30,7 @@ export function MetaConnectionCard({
 }) {
   const [connection, setConnection] = useState<MetaConnection | null>(null);
   const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const { show, node } = useToast();
 
@@ -60,7 +63,7 @@ export function MetaConnectionCard({
     const params = new URLSearchParams(window.location.search);
     const result = params.get("meta");
     if (!result) return;
-    if (result === "connected") show("Instagram y Facebook conectados ✨");
+    if (result === "connected") show("Facebook e Instagram conectados ✨");
     else if (result === "cancelled") show("Conexión cancelada");
     else if (result === "not_configured") show("La integración con Meta no está configurada en el servidor");
     else show("No pudimos conectar con Meta. Probá de nuevo.");
@@ -72,7 +75,7 @@ export function MetaConnectionCard({
   }, [show]);
 
   const disconnect = async () => {
-    if (!confirm("¿Desconectar Instagram y Facebook? Se borran los tokens de acceso guardados.")) return;
+    if (!confirm("¿Desconectar Facebook e Instagram? Se borran los tokens de acceso guardados.")) return;
     setDisconnecting(true);
     try {
       const res = await fetch(
@@ -92,20 +95,26 @@ export function MetaConnectionCard({
   const active = connection?.status === "active";
 
   return (
-    <Card className="space-y-3">
+    // Opción recomendada: ring de acento sutil para destacarla sobre la de
+    // "Solo Instagram", sin romper el design system.
+    <Card className="space-y-4 ring-1 ring-accent-subtle-ring">
       {node}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-accent-subtle-bg text-accent">
-            <Instagram className="h-4 w-4" />
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center">
+            <FacebookLogo className="h-8 w-8 drop-shadow-sm" />
+            <InstagramLogo className="-ml-2 h-8 w-8 drop-shadow-sm" />
           </div>
-          <h2 className="text-lg font-bold tracking-tight text-foreground">Instagram y Facebook</h2>
+          <h2 className="text-lg font-bold tracking-tight text-foreground">Facebook + Instagram</h2>
         </div>
-        {!loading && connection && (
-          <Badge tone={active ? "lima" : "yellow"}>
-            {active ? "Conectado" : connection.status === "revoked" ? "Revocado" : "Error"}
-          </Badge>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          <Badge tone="pink">Recomendado</Badge>
+          {!loading && connection && (
+            <Badge tone={active ? "lima" : "yellow"}>
+              {active ? "Conectado" : connection.status === "revoked" ? "Revocado" : "Error"}
+            </Badge>
+          )}
+        </div>
       </div>
 
       {isDemo ? (
@@ -116,21 +125,32 @@ export function MetaConnectionCard({
         <p className="text-sm text-faint">Cargando…</p>
       ) : connection && active ? (
         <>
-          <div className="space-y-1 text-sm text-muted-foreground-2">
-            {connection.pageName && (
-              <p>
-                Página de Facebook: <strong>{connection.pageName}</strong>
-              </p>
-            )}
-            {connection.igUsername ? (
-              <p>
-                Instagram: <strong>@{connection.igUsername}</strong>
+          <div className="space-y-1.5 text-sm text-muted-foreground-2">
+            {connection.accountName ? (
+              <p className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                Página de Facebook: <strong>{connection.accountName}</strong>
               </p>
             ) : (
+              // Conectó con Meta pero su cuenta no administra ninguna página de
+              // Facebook: sin página no se puede publicar por este flujo.
               <p className="text-amber-700 dark:text-amber-300">
-                Tu página no tiene una cuenta de Instagram Business vinculada.
+                Tu cuenta de Facebook no administra ninguna página. Para publicar
+                necesitás una página de Facebook, o conectá tu Instagram
+                directamente con la opción <strong>“Solo Instagram”</strong> de abajo.
               </p>
             )}
+            {connection.accountName &&
+              (connection.igUsername ? (
+                <p className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                  Instagram: <strong>@{connection.igUsername}</strong>
+                </p>
+              ) : (
+                <p className="text-amber-700 dark:text-amber-300">
+                  Tu página no tiene una cuenta de Instagram Business vinculada.
+                </p>
+              ))}
           </div>
           <Button variant="outline" size="sm" loading={disconnecting} onClick={disconnect}>
             <Unlink className="h-3.5 w-3.5" /> Desconectar
@@ -141,12 +161,14 @@ export function MetaConnectionCard({
           <p className="text-sm text-muted-foreground">
             {connection?.status === "revoked"
               ? "Quitaste el acceso de LOCA desde Facebook. Volvé a conectar para seguir publicando."
-              : "Conectá tu página de Facebook y tu Instagram Business para que LOCA pueda publicar tus contenidos."}
+              : "La opción más común. Conectá tu página de Facebook y tu cuenta de Instagram Business en un solo paso."}
           </p>
           <Button
             size="lg"
+            loading={connecting}
             onClick={() => {
               track("meta_connect_clicked", { businessId });
+              setConnecting(true);
               window.location.href = `/api/integrations/meta/connect?businessId=${encodeURIComponent(businessId)}`;
             }}
           >

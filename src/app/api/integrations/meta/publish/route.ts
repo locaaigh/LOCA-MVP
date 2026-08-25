@@ -4,6 +4,7 @@ import { resolveContent, jsonError } from "@/lib/repository/resolve";
 import { getConnection } from "@/lib/connections/repository";
 import { decryptToken } from "@/lib/connections/crypto";
 import { publishToInstagram, publishToFacebook } from "@/lib/meta/publish";
+import { publishToInstagram as publishToInstagramDirect } from "@/lib/instagram/publish";
 import { logEvent } from "@/lib/events";
 
 export const runtime = "nodejs";
@@ -41,33 +42,69 @@ export async function POST(req: NextRequest) {
     if ("error" in resolved) return jsonError(resolved);
     const { ctx, content } = resolved;
 
-    const connection = await getConnection(userId, businessId, "facebook");
-    if (!connection || connection.status !== "active") {
-      return NextResponse.json(
-        { error: "No hay una conexión activa con Meta. Conectá tus cuentas en Configuración." },
-        { status: 409 }
-      );
-    }
-    if (!connection.page_access_token_enc) {
-      return NextResponse.json(
-        { error: "La conexión no tiene una página de Facebook asociada." },
-        { status: 409 }
-      );
-    }
-    const pageToken = decryptToken(connection.page_access_token_enc);
-
-    // Plataforma destino: explícita o inferida del canal de la pieza
-    const target =
-      platform ?? (content.channel === "Facebook" ? "facebook" : "instagram");
+    // Preferimos la conexión de Meta (Facebook): cubre FB + IG con un solo
+    // login. Si el negocio no tiene página de Facebook, cae a la conexión de
+    // Instagram Login (solo IG). El proveedor elegido decide el cliente.
+    const fbConnection = await getConnection(userId, businessId, "facebook");
+    const usingFacebook = !!(
+      fbConnection &&
+      fbConnection.status === "active" &&
+      fbConnection.page_access_token_enc
+    );
 
     // Caption final: solo el caption (sin hashtags — item 19)
     const caption = content.caption;
 
     let result;
-    if (target === "instagram") {
-      if (!connection.ig_user_id) {
+    if (usingFacebook) {
+      const connection = fbConnection!;
+      const pageToken = decryptToken(connection.page_access_token_enc!);
+
+      // Plataforma destino: explícita o inferida del canal de la pieza
+      const target = platform ?? (content.channel === "Facebook" ? "facebook" : "instagram");
+
+      if (target === "instagram") {
+        if (!connection.ig_user_id) {
+          return NextResponse.json(
+            { error: "Tu página no tiene una cuenta de Instagram Business vinculada." },
+            { status: 409 }
+          );
+        }
+        if (!content.imageUrl || !content.imageUrl.startsWith("http")) {
+          return NextResponse.json(
+            { error: "La pieza necesita una imagen generada (URL pública) para publicarse en Instagram." },
+            { status: 409 }
+          );
+        }
+        result = await publishToInstagram(connection.ig_user_id, pageToken, {
+          imageUrl: content.imageUrl,
+          caption,
+        });
+      } else {
+        result = await publishToFacebook(connection.account_id!, pageToken, {
+          message: caption,
+          imageUrl: content.imageUrl,
+        });
+      }
+    } else {
+      // Fallback: conexión de Instagram Login (negocios sin página de FB).
+      const igConnection = await getConnection(userId, businessId, "instagram");
+      if (!igConnection || igConnection.status !== "active") {
         return NextResponse.json(
-          { error: "Tu página no tiene una cuenta de Instagram Business vinculada." },
+          { error: "No hay una conexión activa. Conectá Facebook o Instagram en Configuración." },
+          { status: 409 }
+        );
+      }
+      if (!igConnection.account_id) {
+        return NextResponse.json(
+          { error: "La conexión de Instagram no tiene una cuenta asociada. Reconectá en Configuración." },
+          { status: 409 }
+        );
+      }
+      // Sin página de Facebook no se puede publicar en FB, solo en Instagram.
+      if (platform === "facebook" || content.channel === "Facebook") {
+        return NextResponse.json(
+          { error: "Esta cuenta está conectada solo con Instagram. Conectá una página de Facebook para publicar en Facebook." },
           { status: 409 }
         );
       }
@@ -77,14 +114,10 @@ export async function POST(req: NextRequest) {
           { status: 409 }
         );
       }
-      result = await publishToInstagram(connection.ig_user_id, pageToken, {
+      const igToken = decryptToken(igConnection.user_access_token_enc);
+      result = await publishToInstagramDirect(igConnection.account_id, igToken, {
         imageUrl: content.imageUrl,
         caption,
-      });
-    } else {
-      result = await publishToFacebook(connection.account_id!, pageToken, {
-        message: caption,
-        imageUrl: content.imageUrl,
       });
     }
 
