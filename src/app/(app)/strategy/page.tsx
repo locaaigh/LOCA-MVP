@@ -24,7 +24,8 @@ import { PendingFlow } from "@/components/pending-flow";
 import { missingCriticalLabels, pendingQuestions } from "@/lib/business-questions";
 import { suggestPending } from "@/lib/eva-suggest";
 import { track } from "@/lib/analytics";
-import type { Business } from "@/lib/types";
+import { CHANNELS } from "@/lib/constants";
+import type { Business, Channel } from "@/lib/types";
 import {
   Sparkles,
   Download,
@@ -46,6 +47,7 @@ export default function StrategyPage() {
   const business = useStore((s) => s.businesses.find((b) => b.id === s.activeBusinessId) || null);
   const user = useStore((s) => s.user);
   const strategy = useStore((s) => (business ? s.strategies[business.id] : undefined));
+  const setStrategy = useStore((s) => s.setStrategy);
   const setFlow = useStore((s) => s.setFlow);
   const upsertBusiness = useStore((s) => s.upsertBusiness);
   const flow = useFlow(business?.id);
@@ -210,8 +212,32 @@ export default function StrategyPage() {
       tags: values,
       hasCustomText: !!custom.trim(),
     });
-    const instruction = applyStrategySectionFeedback(section, values, custom);
+    let instruction = applyStrategySectionFeedback(section, values, custom);
+    // En "channels" los canales ya se fijaron de forma determinística con el
+    // selector; si Eva regenera por un cambio de CTA, debe conservarlos tal cual.
+    if (section === "channels" && strategy) {
+      instruction += ` Mantené EXACTAMENTE estos canales recomendados, sin agregar ni quitar ninguno: ${strategy.recommendedChannels.join(", ")}.`;
+    }
     tryGenerate(instruction);
+  }
+
+  // Activar/desactivar un canal de publicación de forma determinística: no pasa
+  // por Eva, se aplica al instante sobre recommendedChannels. Elegir/quitar un
+  // canal (ej: Facebook, clave para el App Review de Meta) es una decisión
+  // discreta que no debe depender de que un modelo la interprete. Nunca se deja
+  // la lista vacía.
+  function toggleChannel(channel: Channel) {
+    if (!business || !strategy) return;
+    const current = strategy.recommendedChannels;
+    const has = current.includes(channel);
+    if (has && current.length === 1) return; // al menos un canal
+    const next = has ? current.filter((c) => c !== channel) : [...current, channel];
+    setStrategy(business.id, { ...strategy, recommendedChannels: next });
+    track("strategy_section_feedback", {
+      section: "channels",
+      tags: [has ? `remove_${channel}` : `add_${channel}`],
+      hasCustomText: false,
+    });
   }
 
   const approved = flow.strategy === "approved";
@@ -413,6 +439,40 @@ export default function StrategyPage() {
             onApply={(values, custom) => applySectionFeedback(editSection, values, custom)}
             onCancel={() => setEditSection(null)}
             loading={loading}
+            prefix={
+              editSection === "channels" && strategy ? (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Canales de publicación
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {CHANNELS.map((c) => {
+                      const active = strategy.recommendedChannels.includes(c);
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => toggleChannel(c)}
+                          aria-pressed={active}
+                          className={
+                            "inline-flex items-center gap-2 rounded-full border py-1 pl-1 pr-3 text-sm font-medium transition " +
+                            (active
+                              ? "border-loca-400 bg-accent-subtle-bg text-accent-subtle-fg ring-2 ring-accent-subtle-ring"
+                              : "border-border bg-card text-foreground-muted opacity-70 hover:opacity-100 hover:border-border-strong")
+                          }
+                        >
+                          <PlatformLogo channel={c} size={22} />
+                          {c}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Tocá un canal para activarlo o desactivarlo. Se aplica al instante.
+                  </p>
+                </div>
+              ) : undefined
+            }
           />
         )}
       </Modal>

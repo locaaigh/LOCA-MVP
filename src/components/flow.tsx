@@ -184,12 +184,15 @@ export function FeedbackPanel({
   onApply,
   onCancel,
   loading,
+  prefix,
 }: {
   title?: string;
   options: FeedbackOption[];
   onApply: (selectedValues: string[], custom: string) => void;
   onCancel?: () => void;
   loading?: boolean;
+  /** Contenido determinístico opcional (ej: selector de canales) arriba de las opciones de Eva. */
+  prefix?: React.ReactNode;
 }) {
   const [selected, setSelected] = React.useState<string[]>([]);
   const [showCustom, setShowCustom] = React.useState(false);
@@ -208,6 +211,7 @@ export function FeedbackPanel({
           Elegí una o varias opciones. Eva aplica los cambios por vos.
         </p>
       </div>
+      {prefix}
       <div className="flex flex-wrap gap-2">
         {options.map((o) => (
           <button

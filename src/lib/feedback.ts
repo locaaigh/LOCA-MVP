@@ -80,13 +80,14 @@ export const STRATEGY_SECTION_FEEDBACK: Record<StrategySectionKey, FeedbackOptio
     { value: "menos_vendedor", label: "Menos vendedor", instruction: "Bajá el tono comercial; más conversacional y menos pushy." },
     { value: "mas_cercano_publico", label: "Más cercano al público", instruction: "Que el tono hable como habla realmente el cliente ideal." },
   ],
+  // Los canales se activan/desactivan de forma determinística en el selector
+  // (ver strategy/page.tsx). Acá quedan solo los ajustes de CTA, que sí son
+  // cualitativos y los aplica Eva.
   channels: [
-    { value: "mas_instagram", label: "Más Instagram", instruction: "Priorizá Instagram entre los canales recomendados." },
-    { value: "mas_tiktok", label: "Más TikTok", instruction: "Sumá o priorizá TikTok como canal." },
-    { value: "menos_canales", label: "Menos canales", instruction: "Reducí la cantidad de canales; enfocate en los esenciales." },
-    { value: "mas_whatsapp", label: "Más WhatsApp", instruction: "Incluí o priorizá WhatsApp como canal de conversión." },
     { value: "cambiar_cta", label: "Cambiar el CTA", instruction: "Proponé otro llamado a la acción principal." },
     { value: "cta_mas_directo", label: "CTA más directo", instruction: "Hacé el CTA más directo y orientado a la acción." },
+    { value: "cta_whatsapp", label: "CTA por WhatsApp", instruction: "Orientá el CTA a iniciar una conversación por WhatsApp." },
+    { value: "cta_venta", label: "CTA de venta directa", instruction: "Hacé el CTA orientado a comprar o reservar ahora." },
   ],
   contentPillars: [
     { value: "menos_pilares", label: "Menos pilares", instruction: "Reducí la cantidad de pilares y consolidá los temas." },
