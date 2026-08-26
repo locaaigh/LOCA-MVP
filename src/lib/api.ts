@@ -137,4 +137,24 @@ export const api = {
       "/api/integrations/meta/publish",
       { businessId, contentId, platform }
     ),
+
+  // Métricas reales de redes. Sin mediaId: insights de cuenta (IG + página FB).
+  // Con mediaId: insights de una publicación. Elige la conexión activa por
+  // proveedor (Meta o Instagram Login) del lado del servidor.
+  metaInsights: (businessId: string, mediaId?: string) => {
+    const qs = new URLSearchParams({ businessId });
+    if (mediaId) qs.set("mediaId", mediaId);
+    return fetch(`/api/integrations/meta/insights?${qs.toString()}`).then(async (r) => {
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        throw new Error(e.error || `Error ${r.status}`);
+      }
+      return r.json() as Promise<{
+        media?: Record<string, number>;
+        instagram?: Record<string, number> | null;
+        facebook?: Record<string, number> | null;
+        errors?: { instagram?: string; facebook?: string };
+      }>;
+    });
+  },
 };

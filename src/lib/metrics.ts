@@ -69,6 +69,53 @@ export function mockPerformance(business: Business, contents: ContentItem[]): Co
   });
 }
 
+/**
+ * Convierte los insights REALES de una publicación (respuesta de
+ * graph.instagram.com / graph.facebook.com) al shape ContentPerformance que
+ * consume el dashboard. Los nombres de métrica siguen los vigentes de Meta
+ * (post-deprecación): `views` reemplaza a impresiones, `saved` a guardados.
+ */
+export function performanceFromMedia(
+  content: {
+    id: string;
+    title?: string;
+    channel: string;
+    format: string;
+    publishedAt?: string;
+    publishedPlatform?: string;
+  },
+  media: Record<string, number>
+): ContentPerformance {
+  const reach = media.reach ?? 0;
+  const likes = media.likes ?? 0;
+  const comments = media.comments ?? 0;
+  const shares = media.shares ?? 0;
+  const saves = media.saved ?? 0;
+  const views = media.views ?? 0;
+  const interactions = likes + comments + shares + saves;
+  const impressions = views || reach;
+  const engagementRate = Math.min(1, interactions / Math.max(reach, 1));
+  return {
+    id: `perf_${content.id}`,
+    contentId: content.id,
+    title: content.title || "Publicación",
+    channel: content.publishedPlatform || content.channel,
+    format: content.format,
+    date: content.publishedAt || new Date().toISOString(),
+    reach,
+    impressions,
+    interactions,
+    likes,
+    comments,
+    shares,
+    saves,
+    clicks: 0,
+    ctr: 0,
+    videoViews: content.format === "reel" ? views || undefined : undefined,
+    engagementRate: Number(engagementRate.toFixed(3)),
+  };
+}
+
 export function analyzeContentPerformance(
   metrics: ContentPerformance[],
   isDemo = true
