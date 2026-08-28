@@ -23,6 +23,7 @@ export const calendarAgent: Agent<CalendarAgentInput, CalendarItem[]> = {
   async run({ business, strategy, count, feedback }): Promise<AgentResult<CalendarItem[]>> {
     const fallback = mockCalendar(business, strategy, count).map((c) => ({ ...c, format: gateFormat(c.format) }));
     return withTextAgent(
+      "calendar",
       () => fallback,
       async (chatJson) => {
         const j = (await chatJson(

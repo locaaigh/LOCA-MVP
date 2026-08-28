@@ -113,6 +113,47 @@ Devolvé EXACTAMENTE este JSON:
 }`;
 }
 
+/**
+ * Bloque estable del prompt (contexto del negocio + marca). Es idéntico entre
+ * las 12 piezas del mes, así que se pasa como cachePrefix para prompt caching.
+ */
+export function stableContext(b: Business): string {
+  return `${businessContext(b)}${brandContext(b)}`;
+}
+
+/** Parte variable del prompt de contenido (la pieza puntual). Va después del cachePrefix. */
+export function contentBriefPrompt(s: Strategy, item: CalendarItem): string {
+  return `
+ESTRATEGIA: tono = ${s.toneOfVoice}; CTA recomendado = ${s.recommendedCta}.
+PIEZA A GENERAR:
+Canal: ${item.channel} | Formato: ${item.format} | Pilar: ${item.contentPillar} | Objetivo: ${item.objective}
+Tema: ${item.topic}
+
+REGLAS DE ESCRITURA:
+- NO uses hashtags (no incluyas "#..." en ningún campo).
+- No repitas la misma idea: título, hook, caption, body y CTA deben aportar cosas distintas, sin decir tres veces lo mismo.
+- Caption fluido y natural, sin relleno.
+
+Generá la pieza completa. Devolvé EXACTAMENTE este JSON:
+{
+  "title": string,
+  "caption": string,
+  "hook": string,
+  "body": string,
+  "cta": string,
+  "visualConcept": string,
+  "imagePrompt": string,   // prompt en inglés o español para generar la imagen, SIN texto incrustado
+  "suggestedLayout": string,
+  "designTextOverlay": string,  // texto corto para poner sobre la imagen
+  "assetNotes": string,
+  ${
+    item.format === "reel"
+      ? `"videoScript": { "concept": string, "durationSeconds": number, "scenes": [{ "scene": string, "onScreenText": string, "voiceover": string }], "music": string, "cta": string },`
+      : `"photoBrief": { "idea": string, "shotList": string[], "props": string[], "composition": string },`
+  }
+}`;
+}
+
 export function contentPrompt(b: Business, s: Strategy, item: CalendarItem): string {
   return `${businessContext(b)}${brandContext(b)}
 

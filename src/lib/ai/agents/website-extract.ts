@@ -2,6 +2,7 @@ import type { Confidence, WebsiteAnalysis } from "@/lib/types";
 import { fetchWebsite, buildBasicAnalysis, type RawWebContent } from "../website";
 import { getTextProvider } from "../providers";
 import { estimateTextCostUsd } from "../pricing";
+import { getAgentConfig } from "../models";
 import type { TokenUsage } from "../providers/types";
 import { SYSTEM_EVA, websiteAnalysisPrompt } from "../prompts";
 import { asArray, asString } from "../shared/normalize";
@@ -17,6 +18,7 @@ async function analyzeWebsiteContentWithAI(
 ): Promise<Record<string, unknown>> {
   const provider = getTextProvider();
   if (!provider) throw new Error("sin proveedor de texto");
+  const cfg = getAgentConfig("website-extract");
   return (await provider.chatJson(
     SYSTEM_EVA,
     websiteAnalysisPrompt({
@@ -29,7 +31,7 @@ async function analyzeWebsiteContentWithAI(
       socials: raw.socialLinks.map((s) => s.platform),
       text: raw.text,
     }),
-    onUsage
+    { onUsage, model: cfg.model, temperature: cfg.temperature }
   )) as Record<string, unknown>;
 }
 

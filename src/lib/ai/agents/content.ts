@@ -1,6 +1,6 @@
 import type { Business, CalendarItem, ContentItem, Strategy } from "@/lib/types";
 import { mockContent } from "../mock";
-import { SYSTEM_EVA, contentPrompt } from "../prompts";
+import { SYSTEM_EVA, stableContext, contentBriefPrompt } from "../prompts";
 import { asString, normalizePhoto, normalizeVideo } from "../shared/normalize";
 import type { Agent, AgentResult } from "../shared/result";
 import { withTextAgent } from "./_shared";
@@ -24,11 +24,13 @@ export const contentAgent: Agent<ContentAgentInput, ContentItem> = {
   async run({ business, strategy, calendarItem }): Promise<AgentResult<ContentItem>> {
     const fb = mockContent(business, strategy, calendarItem);
     return withTextAgent(
+      "content",
       () => ({ ...fb, ...baseImage }),
       async (chatJson) => {
         const j = (await chatJson(
           SYSTEM_EVA,
-          contentPrompt(business, strategy, calendarItem)
+          contentBriefPrompt(strategy, calendarItem),
+          { cachePrefix: stableContext(business) }
         )) as Record<string, unknown>;
         return {
           ...fb,

@@ -18,17 +18,20 @@ export const openaiTextProvider: TextProvider = {
   id: "openai",
   model: OPENAI_TEXT_MODEL,
   isConfigured: hasOpenAIText,
-  async chatJson(system, user, onUsage) {
+  async chatJson(system, user, opts) {
+    // OpenAI cachea automáticamente el prefijo largo del prompt; con anteponer
+    // el bloque estable alcanza (no hay API de breakpoint como en Anthropic).
+    const userContent = opts?.cachePrefix ? `${opts.cachePrefix}\n${user}` : user;
     const res = await getClient().chat.completions.create({
-      model: OPENAI_TEXT_MODEL,
+      model: opts?.model || OPENAI_TEXT_MODEL,
       messages: [
         { role: "system", content: system },
-        { role: "user", content: user },
+        { role: "user", content: userContent },
       ],
-      temperature: 0.8,
+      temperature: opts?.temperature ?? 0.8,
       response_format: { type: "json_object" },
     });
-    onUsage?.({
+    opts?.onUsage?.({
       inputTokens: res.usage?.prompt_tokens ?? 0,
       outputTokens: res.usage?.completion_tokens ?? 0,
     });

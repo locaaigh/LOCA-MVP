@@ -39,6 +39,7 @@ export const productDescriptionAgent: Agent<
   async run({ business, draft }): Promise<AgentResult<ProductDescriptionSuggestion>> {
     const fb = mockProductDescription(business, draft);
     return withTextAgent(
+      "product-description",
       () => fb,
       async (chatJson) => {
         const j = (await chatJson(

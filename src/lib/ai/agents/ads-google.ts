@@ -11,6 +11,7 @@ export const googleAdsAgent: Agent<{ business: Business }, GoogleAdsStrategy> = 
   async run({ business }): Promise<AgentResult<GoogleAdsStrategy>> {
     const fb = mockGoogleAds(business);
     return withTextAgent(
+      "ads-google",
       () => fb,
       async (chatJson) => {
         const j = (await chatJson(SYSTEM_EVA, googleAdsPrompt(business))) as Record<string, unknown>;

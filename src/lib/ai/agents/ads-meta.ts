@@ -11,6 +11,7 @@ export const metaAdsAgent: Agent<{ business: Business }, MetaAdsStrategy> = {
   async run({ business }): Promise<AgentResult<MetaAdsStrategy>> {
     const fb = mockMetaAds(business);
     return withTextAgent(
+      "ads-meta",
       () => fb,
       async (chatJson) => {
         const j = (await chatJson(SYSTEM_EVA, metaAdsPrompt(business))) as Record<string, unknown>;
