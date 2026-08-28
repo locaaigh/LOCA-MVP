@@ -19,8 +19,8 @@ function isEmpty(v: unknown): boolean {
 
 /**
  * Índices de paso del onboarding (los pasos 0 "web", 3 "identidad visual"
- * y 7 "resumen" no validan campos requeridos).
- * 1 Negocio · 2 Marca · 4 Productos · 5 Audiencia · 6 Objetivos
+ * y 8 "resumen" no validan campos requeridos).
+ * 1 Negocio · 2 Marca · 4 Productos · 5 Audiencia · 6 Objetivos · 7 Dónde publicar
  */
 export function getMissingRequiredFields(step: number, b: Business): MissingField[] {
   const missing: MissingField[] = [];
@@ -95,6 +95,11 @@ export function getMissingRequiredFields(step: number, b: Business): MissingFiel
     need(isEmpty(g.successMetrics), "successMetrics", "Métricas de éxito");
     need(isEmpty(g.marketingObjectives), "marketingObjectives", "Objetivos de marketing");
     need(isEmpty(g.timeline), "timeline", "Plazo (timeline)");
+  }
+
+  // Paso 7: cuentas donde publicar. Al menos una.
+  if (step === 7) {
+    need(isEmpty(b.publishChannels), "publishChannels", "Al menos una cuenta donde publicar");
   }
 
   return missing;

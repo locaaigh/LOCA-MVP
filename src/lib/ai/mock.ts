@@ -57,12 +57,20 @@ function ctaForGoal(b: Business): string {
 const PUBLISH_CHANNELS: Channel[] = ["Instagram", "Facebook", "TikTok", "LinkedIn"];
 
 export function mockStrategy(b: Business): Strategy {
-  // marketingChannels puede tener canales ampliados (WhatsApp, X, etc.):
-  // para los canales recomendados de publicación nos quedamos con los válidos.
+  // Si el negocio eligió cuentas de publicación en el onboarding, esas mandan.
+  // Si no, caemos a marketingChannels (que puede traer canales ampliados como
+  // WhatsApp o X: nos quedamos solo con los publicables).
+  const chosen = (b.publishChannels || []).filter((c): c is Channel =>
+    PUBLISH_CHANNELS.includes(c as Channel)
+  );
   const fromBiz = b.marketingChannels.filter((c): c is Channel =>
     PUBLISH_CHANNELS.includes(c as Channel)
   );
-  const channels: Channel[] = fromBiz.length ? fromBiz : ["Instagram", "Facebook"];
+  const channels: Channel[] = chosen.length
+    ? chosen
+    : fromBiz.length
+      ? fromBiz
+      : ["Instagram", "Facebook"];
   const vals = b.values.length ? b.values : ["Calidad", "Atención al cliente"];
   const adv = b.competitiveAdvantages[0] || "atención personalizada";
 

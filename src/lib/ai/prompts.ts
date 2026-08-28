@@ -38,7 +38,11 @@ Descripción corta: ${b.shortDescription}
 Descripción: ${b.fullDescription}
 Valores: ${b.values.join(", ")}
 Ventajas competitivas: ${b.competitiveAdvantages.join(", ")}
-Canales: ${b.marketingChannels.join(", ")}
+Canales: ${b.marketingChannels.join(", ")}${
+    b.publishChannels?.length
+      ? `\nCuentas donde publicar (elegidas por el negocio): ${b.publishChannels.join(", ")}`
+      : ""
+  }
 Estacionalidad: ${b.seasonality}
 Fechas especiales: ${b.specialDates.join(", ")}
 Productos/Servicios:
@@ -64,7 +68,7 @@ Generá una estrategia de marketing/contenido completa. Devolvé EXACTAMENTE est
   "mainAngle": string,
   "contentPillars": [{ "name": string, "description": string }],  // 3 a 5
   "toneOfVoice": string,
-  "recommendedChannels": string[],  // de: Instagram, Facebook, TikTok, LinkedIn
+  "recommendedChannels": string[],  // usá EXACTAMENTE las "Cuentas donde publicar" si el negocio las eligió; si no, elegí entre: Instagram, Facebook, TikTok, LinkedIn
   "monthlyGoal": string,
   "recommendedCta": string,
   "offerIdeas": string[],

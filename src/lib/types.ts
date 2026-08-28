@@ -186,6 +186,10 @@ export interface Business {
   competitiveAdvantages: string[];
   // Canales en los que el negocio ya está presente (lista ampliada, no solo los 4 de publicación)
   marketingChannels: string[];
+  // Cuentas donde LOCA va a publicar los contenidos (elección manual del negocio
+  // al final del onboarding). Distinto de marketingChannels: acota a las redes
+  // publicables y define recommendedChannels de la estrategia.
+  publishChannels?: Channel[];
   marketingStrategy: string;
   // ¿Qué viene haciendo de marketing? (opciones seleccionables)
   marketingActivities: string[];
