@@ -16,6 +16,7 @@ export const strategyAgent: Agent<StrategyAgentInput, Strategy> = {
   async run({ business, feedback }): Promise<AgentResult<Strategy>> {
     const fallback = mockStrategy(business);
     return withTextAgent(
+      "strategy",
       () => fallback,
       async (chatJson) => {
         const j = (await chatJson(SYSTEM_EVA, strategyPrompt(business, feedback))) as Record<

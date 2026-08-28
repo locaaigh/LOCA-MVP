@@ -8,6 +8,21 @@ export interface TokenUsage {
   outputTokens: number;
 }
 
+export interface TextGenOptions {
+  onUsage?: (usage: TokenUsage) => void;
+  /** Override del modelo (modelo por agente, ver models.ts). */
+  model?: string;
+  /** 0..1. Si se omite, default del proveedor. */
+  temperature?: number;
+  /**
+   * Bloque estable del prompt (contexto del negocio) marcado como cacheable.
+   * Se antepone al user message. Con Anthropic activa prompt caching
+   * (cache_control ephemeral); con OpenAI simplemente se concatena y el
+   * caching automático del proveedor lo aprovecha.
+   */
+  cachePrefix?: string;
+}
+
 export interface TextProvider {
   id: TextProviderId;
   model: string;
@@ -15,7 +30,7 @@ export interface TextProvider {
   chatJson: (
     system: string,
     user: string,
-    onUsage?: (usage: TokenUsage) => void
+    opts?: TextGenOptions
   ) => Promise<unknown>;
 }
 

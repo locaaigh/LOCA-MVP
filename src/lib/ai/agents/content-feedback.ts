@@ -39,6 +39,7 @@ export const contentFeedbackAgent: Agent<ContentFeedbackAgentInput, ContentItem>
     });
 
     const result = await withTextAgent(
+      "content-feedback",
       mockResult,
       async (chatJson) => {
         const j = (await chatJson(

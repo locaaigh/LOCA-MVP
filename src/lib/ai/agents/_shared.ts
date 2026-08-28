@@ -1,12 +1,17 @@
 import type { AiMeta, AiProvider } from "@/lib/types";
 import { getTextProvider } from "../providers";
 import { estimateTextCostUsd } from "../pricing";
-import type { TokenUsage } from "../providers/types";
+import { getAgentConfig } from "../models";
+import type { TextGenOptions, TokenUsage } from "../providers/types";
+
+/** Opciones que un agente puede pasar a chatJson (ej: cachePrefix). */
+type AgentChatOptions = Pick<TextGenOptions, "cachePrefix">;
 
 export async function withTextAgent<T>(
+  agentId: string,
   fallback: () => T,
   run: (
-    chatJson: (system: string, user: string) => Promise<unknown>,
+    chatJson: (system: string, user: string, opts?: AgentChatOptions) => Promise<unknown>,
     providerId: AiProvider
   ) => Promise<T>,
   warningPrefix = "IA no disponible"
@@ -15,20 +20,30 @@ export async function withTextAgent<T>(
   if (!provider) {
     return { data: fallback(), meta: { provider: "mock" } };
   }
+  // Modelo y temperature por agente (models.ts). El modelo puede no estar
+  // definido → usa el default del provider.
+  const cfg = getAgentConfig(agentId);
+  const model = cfg.model || provider.model;
   let usage: TokenUsage | undefined;
   const startedAt = Date.now();
   try {
     const data = await run(
-      (system, user) => provider.chatJson(system, user, (u) => (usage = u)),
+      (system, user, opts) =>
+        provider.chatJson(system, user, {
+          onUsage: (u) => (usage = u),
+          model: cfg.model,
+          temperature: cfg.temperature,
+          cachePrefix: opts?.cachePrefix,
+        }),
       provider.id
     );
     return {
       data,
       meta: {
         provider: provider.id,
-        model: provider.model,
+        model,
         durationMs: Date.now() - startedAt,
-        usage: usage && { ...usage, costUsd: estimateTextCostUsd(provider.model, usage) },
+        usage: usage && { ...usage, costUsd: estimateTextCostUsd(model, usage) },
       },
     };
   } catch (e: unknown) {
