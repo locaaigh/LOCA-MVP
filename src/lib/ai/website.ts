@@ -37,6 +37,8 @@ export interface RawWebContent {
   images: string[];
   logoCandidates: string[];
   cssColors: string[];
+  // Colores con señal fuerte de marca (theme-color, variables --brand/--primary).
+  priorityColors: string[];
   fontFamilies: string[];
   googleFonts: string[];
   text: string; // texto plano agregado (limitado)
@@ -183,19 +185,103 @@ function metaContent(html: string, key: string, attr: "name" | "property"): stri
   return html.match(re2)?.[1] || "";
 }
 
+// ── Conversión de colores no-hex a hex ───────────────────────
+// Muchos sitios definen los colores como rgb()/hsl()/oklch() (Tailwind v4
+// usa oklch por defecto). Sin convertirlos, el color de marca real queda
+// invisible para la heurística.
+function toHex(r: number, g: number, b: number): string {
+  const h = (n: number) =>
+    Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
+
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  h = ((h % 360) + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  return [(r + m) * 255, (g + m) * 255, (b + m) * 255];
+}
+
+// OKLCH → sRGB (Björn Ottosson): oklch → oklab → LMS → sRGB lineal → gamma.
+function oklchToRgb(L: number, C: number, H: number): [number, number, number] {
+  const hr = (H * Math.PI) / 180;
+  const a = C * Math.cos(hr);
+  const b = C * Math.sin(hr);
+  const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = L - 0.0894841775 * a - 1.291485548 * b;
+  const l = l_ ** 3, m = m_ ** 3, s = s_ ** 3;
+  const lin = [
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+  ];
+  const gamma = (c: number) => {
+    const v = c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(Math.max(0, c), 1 / 2.4) - 0.055;
+    return v * 255;
+  };
+  return [gamma(lin[0]), gamma(lin[1]), gamma(lin[2])];
+}
+
+// Encuentra rgb()/hsl()/oklch() en un texto CSS y los devuelve como hex.
+function extractFunctionalColors(text: string): string[] {
+  const out: string[] = [];
+  const toks = (inner: string) => inner.replace(/\//g, " ").split(/[\s,]+/).filter(Boolean);
+  const n = (t: string) => parseFloat(t); // parseFloat ignora sufijos (%, deg)
+
+  for (const inner of matchAll(text, /rgba?\(([^)]+)\)/i)) {
+    const t = toks(inner);
+    if (t.length < 3) continue;
+    const conv = (tok: string) => (tok.includes("%") ? (n(tok) / 100) * 255 : n(tok));
+    out.push(toHex(conv(t[0]), conv(t[1]), conv(t[2])));
+  }
+  for (const inner of matchAll(text, /hsla?\(([^)]+)\)/i)) {
+    const t = toks(inner);
+    if (t.length < 3) continue;
+    out.push(toHex(...hslToRgb(n(t[0]), n(t[1]) / 100, n(t[2]) / 100)));
+  }
+  for (const inner of matchAll(text, /oklch\(([^)]+)\)/i)) {
+    const t = toks(inner);
+    if (t.length < 3) continue;
+    const L = t[0].includes("%") ? n(t[0]) / 100 : n(t[0]);
+    const C = t[1].includes("%") ? (n(t[1]) / 100) * 0.4 : n(t[1]);
+    out.push(toHex(...oklchToRgb(L, C, n(t[2]))));
+  }
+  return out.filter((c) => /^#[0-9a-f]{6}$/i.test(c));
+}
+
 // Reutilizable tanto para el HTML (colores/fuentes inline o en <style>)
 // como para el contenido de hojas de estilo externas ya fetcheadas.
+// priorityColors = señales fuertes de marca (variables --brand/--primary/--accent),
+// que pesan más que "el hex más saturado" a la hora de elegir el primario.
 function extractColorsAndFonts(text: string): {
   cssColors: string[];
+  priorityColors: string[];
   fontFamilies: string[];
   googleFonts: string[];
 } {
   const cssColors = uniq([
     ...matchAll(text, /#[0-9a-fA-F]{6}\b/),
     ...matchAll(text, /#[0-9a-fA-F]{3}\b/),
-    // variables CSS de marca: --brand-color, --primary-color, etc.
-    ...matchAll(text, /--[\w-]*(?:color|brand|primary|accent)[\w-]*\s*:\s*(#[0-9a-fA-F]{3,8})/i),
+    ...extractFunctionalColors(text),
   ]);
+  // Valores de variables CSS con nombre de marca/primario/acento.
+  const brandVarValues = matchAll(text, /--[\w-]*(?:brand|primary|accent)[\w-]*\s*:\s*([^;}\n]+)/i);
+  const priorityColors = uniq(
+    brandVarValues.flatMap((v) => [
+      ...matchAll(v, /#[0-9a-fA-F]{6}\b/),
+      ...matchAll(v, /#[0-9a-fA-F]{3}\b/),
+      ...extractFunctionalColors(v),
+    ])
+  );
   const fontFamilies = uniq(
     matchAll(text, /font-family\s*:\s*([^;}"']+)/i).map((f) =>
       f.split(",")[0].replace(/['"]/g, "").trim()
@@ -206,7 +292,7 @@ function extractColorsAndFonts(text: string): {
       decodeURIComponent(f).replace(/\+/g, " ")
     )
   );
-  return { cssColors, fontFamilies, googleFonts };
+  return { cssColors, priorityColors, fontFamilies, googleFonts };
 }
 
 function absolute(base: string, href: string): string {
@@ -253,9 +339,15 @@ function parsePage(html: string, baseUrl: string): Partial<RawWebContent> {
 
   // colores y fuentes (inline/<style> en el HTML; las hojas externas se
   // fetchean y escanean aparte en fetchWebsite)
-  const { cssColors: htmlColors, fontFamilies, googleFonts } = extractColorsAndFonts(html);
-  const themeColor = metaContent(html, "theme-color", "name");
-  const cssColors = uniq([...htmlColors, ...(themeColor ? [themeColor] : [])]);
+  const { cssColors: htmlColors, priorityColors: htmlPriority, fontFamilies, googleFonts } =
+    extractColorsAndFonts(html);
+  // theme-color / TileColor son señal fuerte del color de marca del sitio.
+  const metaColors = [
+    metaContent(html, "theme-color", "name"),
+    metaContent(html, "msapplication-TileColor", "name"),
+  ].filter((c) => /^#[0-9a-fA-F]{3,6}$/.test(c));
+  const cssColors = uniq([...htmlColors, ...metaColors]);
+  const priorityColors = uniq([...metaColors, ...htmlPriority]);
 
   // imágenes y logos
   const imgs = matchAll(html, /<img[^>]+src=["']([^"']+)["']/i).map((s) => absolute(baseUrl, s));
@@ -290,6 +382,7 @@ function parsePage(html: string, baseUrl: string): Partial<RawWebContent> {
     images: uniq(imgs).slice(0, 20),
     logoCandidates: uniq(logoCandidates).slice(0, 5),
     cssColors,
+    priorityColors,
     fontFamilies,
     googleFonts,
     text,
@@ -314,6 +407,7 @@ function mergeRaw(base: RawWebContent, add: Partial<RawWebContent>): void {
   base.images = uniq([...base.images, ...(add.images || [])]).slice(0, 40);
   base.logoCandidates = uniq([...base.logoCandidates, ...(add.logoCandidates || [])]).slice(0, 8);
   base.cssColors = uniq([...base.cssColors, ...(add.cssColors || [])]);
+  base.priorityColors = uniq([...base.priorityColors, ...(add.priorityColors || [])]);
   base.fontFamilies = uniq([...base.fontFamilies, ...(add.fontFamilies || [])]);
   base.googleFonts = uniq([...base.googleFonts, ...(add.googleFonts || [])]);
   base.text = (base.text + " " + (add.text || "")).slice(0, 12000);
@@ -354,6 +448,7 @@ export async function fetchWebsite(url: string): Promise<RawWebContent> {
     images: [],
     logoCandidates: [],
     cssColors: [],
+    priorityColors: [],
     fontFamilies: [],
     googleFonts: [],
     text: "",
@@ -384,8 +479,8 @@ export async function fetchWebsite(url: string): Promise<RawWebContent> {
   mergeRaw(base, home);
 
   // Colores/fuentes reales viven casi siempre en hojas de estilo externas,
-  // no inline en el HTML — fetchear hasta 2 y escanearlas igual.
-  const stylesheetUrls = extractStylesheetLinks(homeHtml, full).slice(0, 2);
+  // no inline en el HTML — fetchear hasta 6 (en paralelo) y escanearlas igual.
+  const stylesheetUrls = extractStylesheetLinks(homeHtml, full).slice(0, 6);
   if (stylesheetUrls.length) {
     const cssTexts = (await Promise.all(stylesheetUrls.map((u) => fetchCss(u)))).filter(
       (t): t is string => !!t
@@ -393,6 +488,7 @@ export async function fetchWebsite(url: string): Promise<RawWebContent> {
     if (cssTexts.length) {
       const fromCss = extractColorsAndFonts(cssTexts.join("\n"));
       base.cssColors = uniq([...base.cssColors, ...fromCss.cssColors]);
+      base.priorityColors = uniq([...base.priorityColors, ...fromCss.priorityColors]);
       base.fontFamilies = uniq([...base.fontFamilies, ...fromCss.fontFamilies]);
       base.googleFonts = uniq([...base.googleFonts, ...fromCss.googleFonts]);
     }
@@ -459,12 +555,21 @@ function saturation(hex: string): number {
 
 export function buildBrandKitFromRaw(raw: RawWebContent): BrandKit {
   const colors = uniq(raw.cssColors.map(norm6)).filter((c) => /^#[0-9a-f]{6}$/.test(c));
+  // Colores con señal fuerte de marca (theme-color / variables --brand/--primary).
+  const priority = uniq((raw.priorityColors || []).map(norm6)).filter((c) => /^#[0-9a-f]{6}$/.test(c));
+  // Un color "de marca" usable: ni casi blanco ni casi negro, con algo de color.
+  const isBrandy = (c: string) => saturation(c) > 0.15 && luminance(c) > 0.08 && luminance(c) < 0.92;
+
   // saturados (candidatos a primario/acento) ordenados por saturación
   const saturated = colors
     .filter((c) => saturation(c) > 0.25 && luminance(c) > 0.08 && luminance(c) < 0.95)
     .sort((a, b) => saturation(b) - saturation(a));
   const lights = colors.filter((c) => luminance(c) >= 0.9).sort((a, b) => luminance(b) - luminance(a));
   const darks = colors.filter((c) => luminance(c) <= 0.2).sort((a, b) => luminance(a) - luminance(b));
+
+  // El primario sale primero de las señales fuertes; si no hay, del más saturado.
+  const primary = priority.find(isBrandy) || saturated[0];
+  const rest = saturated.filter((c) => c !== primary);
 
   const palette: BrandColor[] = [];
   const add = (
@@ -477,9 +582,13 @@ export function buildBrandKitFromRaw(raw: RawWebContent): BrandKit {
     if (!hex || palette.some((p) => p.hex === hex)) return;
     palette.push({ hex, role, name, source, confidence });
   };
-  if (saturated[0]) add(saturated[0], "primary", "Color principal", "medium");
-  if (saturated[1]) add(saturated[1], "secondary", "Color secundario", "low");
-  if (saturated[2]) add(saturated[2], "accent", "Color de acento", "low");
+  // Si el primario vino de una señal fuerte, la confianza es alta.
+  if (primary) {
+    const fromSignal = priority.includes(primary);
+    add(primary, "primary", "Color principal", fromSignal ? "high" : "medium");
+  }
+  if (rest[0]) add(rest[0], "secondary", "Color secundario", "low");
+  if (rest[1]) add(rest[1], "accent", "Color de acento", "low");
   // Si no se detectó un color claro/oscuro real, el blanco/negro genérico
   // se marca "inferred" (no "detected") para no mentirle al usuario.
   add(lights[0] || "#ffffff", "background", "Fondo", lights[0] ? "medium" : "low", lights[0] ? "detected" : "inferred");

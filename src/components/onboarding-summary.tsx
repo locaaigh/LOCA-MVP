@@ -189,6 +189,22 @@ export function OnboardingSummary({
           ) : (
             "Sin canales detectados."
           )}
+          {!!b.publishChannels?.length && (
+            <div className="mt-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-faint">Publica en</p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                {b.publishChannels.map((c) => (
+                  <span
+                    key={c}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-accent-subtle-bg py-1 pl-1 pr-2.5 text-xs font-semibold text-accent-subtle-fg ring-1 ring-inset ring-accent-subtle-ring"
+                  >
+                    <PlatformLogo channel={c} size={18} />
+                    {c}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </SummaryCard>
 
         <SummaryCard icon={Phone} title="Datos comerciales" onEdit={() => onEditSection("comerciales")}>
