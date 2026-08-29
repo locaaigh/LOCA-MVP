@@ -79,16 +79,26 @@ export const api = {
     ),
 
   strategy: (businessId: string, feedback?: string) =>
-    aiPost<Strategy>("/api/strategy", { businessId, feedback }),
+    aiPost<Strategy>("/api/strategy", { businessId, feedback }, { businessId }),
 
   calendar: (businessId: string, count: number, feedback?: string) =>
-    aiPost<CalendarItem[]>("/api/calendar", { businessId, count, feedback }),
+    aiPost<CalendarItem[]>("/api/calendar", { businessId, count, feedback }, { businessId }),
 
-  content: (businessId: string, calendarItemId: string) =>
-    aiPost<ContentItem>("/api/content", { businessId, calendarItemId }),
+  // syncOpts override: en el batch mensual se sincroniza una vez al inicio y
+  // cada pieza va con skipSync (la ruta ya persiste la pieza en el servidor).
+  content: (
+    businessId: string,
+    calendarItemId: string,
+    syncOpts?: SyncOptions & { skipSync?: boolean }
+  ) =>
+    aiPost<ContentItem>(
+      "/api/content",
+      { businessId, calendarItemId },
+      syncOpts ?? { businessId }
+    ),
 
   feedback: (businessId: string, contentId: string, feedback: string) =>
-    aiPost<ContentItem>("/api/content/feedback", { businessId, contentId, feedback }),
+    aiPost<ContentItem>("/api/content/feedback", { businessId, contentId, feedback }, { businessId }),
 
   image: (
     businessId: string,

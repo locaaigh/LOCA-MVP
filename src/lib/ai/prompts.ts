@@ -32,12 +32,18 @@ function businessContext(b: Business): string {
   return `DATOS DEL NEGOCIO:
 Nombre: ${b.name}
 Industria: ${b.industry} / ${b.subcategory}
-Tipo: ${b.businessType} | Modelo: ${b.businessModel}
+Tipo: ${b.businessType} | Modelo: ${b.businessModel}${
+    b.businessStage ? ` | Organización: ${b.businessStage}` : ""
+  }
 Ubicación: ${b.city}, ${b.state}, ${b.country}
 Descripción corta: ${b.shortDescription}
 Descripción: ${b.fullDescription}
 Valores: ${b.values.join(", ")}
-Ventajas competitivas: ${b.competitiveAdvantages.join(", ")}
+Ventajas competitivas: ${b.competitiveAdvantages.join(", ")}${
+    b.visualStyles?.length
+      ? `\nEstilos visuales elegidos por el negocio: ${b.visualStyles.join(", ")}`
+      : ""
+  }
 Canales: ${b.marketingChannels.join(", ")}${
     b.publishChannels?.length
       ? `\nCuentas donde publicar (elegidas por el negocio): ${b.publishChannels.join(", ")}`
@@ -114,50 +120,31 @@ Devolvé EXACTAMENTE este JSON:
 }
 
 /**
- * Bloque estable del prompt (contexto del negocio + marca). Es idéntico entre
- * las 12 piezas del mes, así que se pasa como cachePrefix para prompt caching.
+ * Bloque estable del prompt (negocio + marca + guía de la estrategia). Es
+ * idéntico entre las 12 piezas del mes, así que se pasa como cachePrefix para
+ * prompt caching. Incluye la voz de marca y los do's/don'ts/mensajes clave de
+ * la estrategia, que antes el contenido ignoraba (F2.2).
  */
-export function stableContext(b: Business): string {
-  return `${businessContext(b)}${brandContext(b)}`;
+export function stableContext(b: Business, s?: Strategy): string {
+  return `${businessContext(b)}${brandContext(b)}${s ? strategyContext(s) : ""}`;
+}
+
+/** Guía de la estrategia que el contenido debe heredar (estable en el mes). */
+export function strategyContext(s: Strategy): string {
+  const parts = [
+    "\nGUÍA DE LA ESTRATEGIA (respetar en cada pieza):",
+    `Tono de voz: ${s.toneOfVoice}.`,
+    `CTA recomendado: ${s.recommendedCta}.`,
+  ];
+  if (s.keyMessages?.length) parts.push(`Mensajes clave a reforzar: ${s.keyMessages.join("; ")}.`);
+  if (s.dos?.length) parts.push(`HACER: ${s.dos.join("; ")}.`);
+  if (s.donts?.length) parts.push(`NO HACER: ${s.donts.join("; ")}.`);
+  return parts.join("\n");
 }
 
 /** Parte variable del prompt de contenido (la pieza puntual). Va después del cachePrefix. */
-export function contentBriefPrompt(s: Strategy, item: CalendarItem): string {
+export function contentBriefPrompt(item: CalendarItem): string {
   return `
-ESTRATEGIA: tono = ${s.toneOfVoice}; CTA recomendado = ${s.recommendedCta}.
-PIEZA A GENERAR:
-Canal: ${item.channel} | Formato: ${item.format} | Pilar: ${item.contentPillar} | Objetivo: ${item.objective}
-Tema: ${item.topic}
-
-REGLAS DE ESCRITURA:
-- NO uses hashtags (no incluyas "#..." en ningún campo).
-- No repitas la misma idea: título, hook, caption, body y CTA deben aportar cosas distintas, sin decir tres veces lo mismo.
-- Caption fluido y natural, sin relleno.
-
-Generá la pieza completa. Devolvé EXACTAMENTE este JSON:
-{
-  "title": string,
-  "caption": string,
-  "hook": string,
-  "body": string,
-  "cta": string,
-  "visualConcept": string,
-  "imagePrompt": string,   // prompt en inglés o español para generar la imagen, SIN texto incrustado
-  "suggestedLayout": string,
-  "designTextOverlay": string,  // texto corto para poner sobre la imagen
-  "assetNotes": string,
-  ${
-    item.format === "reel"
-      ? `"videoScript": { "concept": string, "durationSeconds": number, "scenes": [{ "scene": string, "onScreenText": string, "voiceover": string }], "music": string, "cta": string },`
-      : `"photoBrief": { "idea": string, "shotList": string[], "props": string[], "composition": string },`
-  }
-}`;
-}
-
-export function contentPrompt(b: Business, s: Strategy, item: CalendarItem): string {
-  return `${businessContext(b)}${brandContext(b)}
-
-ESTRATEGIA: tono = ${s.toneOfVoice}; CTA recomendado = ${s.recommendedCta}.
 PIEZA A GENERAR:
 Canal: ${item.channel} | Formato: ${item.format} | Pilar: ${item.contentPillar} | Objetivo: ${item.objective}
 Tema: ${item.topic}

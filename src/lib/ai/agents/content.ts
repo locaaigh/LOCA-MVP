@@ -29,8 +29,8 @@ export const contentAgent: Agent<ContentAgentInput, ContentItem> = {
       async (chatJson) => {
         const j = (await chatJson(
           SYSTEM_EVA,
-          contentBriefPrompt(strategy, calendarItem),
-          { cachePrefix: stableContext(business) }
+          contentBriefPrompt(calendarItem),
+          { cachePrefix: stableContext(business, strategy) }
         )) as Record<string, unknown>;
         return {
           ...fb,
