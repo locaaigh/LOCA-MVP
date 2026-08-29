@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { api } from "./api";
+import { syncRepositoryToServer } from "./repository/client-sync";
 import { useStore } from "./store";
 import { mockStrategy, mockCalendar, mockContent } from "./ai/mock";
 import { brandedPlaceholder } from "./placeholder";
@@ -94,7 +95,11 @@ export function useGenerators() {
   }
 
   /** Genera solo el texto de la pieza (rápido) y la deja con imagen pendiente. */
-  async function generateContentOnly(business: Business, item: CalendarItem) {
+  async function generateContentOnly(
+    business: Business,
+    item: CalendarItem,
+    opts?: { skipSync?: boolean }
+  ) {
     if (business.isDemo) {
       const strategy = store.strategies[business.id] || mockStrategy(business);
       const base = mockContent(business, strategy, item);
@@ -107,7 +112,13 @@ export function useGenerators() {
       await demoDelay(120);
       return content;
     }
-    const res = await api.content(business.id, item.id);
+    // En el batch se sincroniza una sola vez al inicio; cada pieza va con
+    // skipSync (la ruta /api/content ya persiste la pieza en el servidor).
+    const res = await api.content(
+      business.id,
+      item.id,
+      opts?.skipSync ? { skipSync: true } : { businessId: business.id }
+    );
     const content = withCrosspost(res.data, business);
     store.upsertContent(content);
     store.updateCalendarItem({ ...item, status: "generado" });
@@ -200,6 +211,15 @@ export function useGenerators() {
     const pending = cal.filter((it) => !existing.has(it.id));
     await generateBatch(business, pending, onProgress);
     st().setFlow(business.id, { content: "pending_review" });
+    // Flush final: un solo sync para dejar estados de calendario + flow en el
+    // servidor (durante el batch cada pieza fue con skipSync).
+    if (!business.isDemo) {
+      try {
+        await syncRepositoryToServer({ businessId: business.id });
+      } catch {
+        /* no bloquear: los contenidos ya están persistidos server-side */
+      }
+    }
     return pending.length;
     } finally {
       markContentGen(business.id, false);
@@ -217,6 +237,13 @@ export function useGenerators() {
     );
     const pending = items.filter((it) => !existingItemIds.has(it.id));
     await generateBatch(business, pending, onProgress);
+    if (!business.isDemo) {
+      try {
+        await syncRepositoryToServer({ businessId: business.id });
+      } catch {
+        /* no bloquear: los contenidos ya están persistidos server-side */
+      }
+    }
     return pending.length;
   }
 
@@ -235,10 +262,21 @@ export function useGenerators() {
     const imageTasks: Promise<void>[] = [];
     let imagesDone = 0;
 
+    // Un solo sync (acotado al negocio) antes del batch: deja negocio +
+    // estrategia + calendario en el servidor. Después cada pieza usa skipSync,
+    // evitando reenviar toda la cuenta 12 veces (era O(n²)).
+    if (!business.isDemo) {
+      try {
+        await syncRepositoryToServer({ businessId: business.id, includeBusiness: business });
+      } catch {
+        /* si falla el sync inicial, cada pieza igual persiste server-side */
+      }
+    }
+
     for (let i = 0; i < pending.length; i++) {
       onProgress?.(i + 1, pending.length, "contenido");
       try {
-        const content = await generateContentOnly(business, pending[i]);
+        const content = await generateContentOnly(business, pending[i], { skipSync: true });
         imageTasks.push(
           limiter(async () => {
             try {

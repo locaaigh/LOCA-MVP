@@ -10,6 +10,12 @@ export type SyncOptions = {
   includeBusiness?: Business;
   /** Garantiza que una pieza recién creada esté en el snapshot antes de /api/image */
   includeContent?: ContentItem;
+  /**
+   * Acota el sync a UN negocio: solo se envían ese negocio y sus estrategia /
+   * calendario / contenidos. Los demás negocios del usuario son datos
+   * independientes y no tienen por qué viajar en cada llamada de IA.
+   */
+  businessId?: string;
 };
 
 /** Sincroniza el estado local con el repositorio del servidor antes de llamadas de IA. */
@@ -21,6 +27,9 @@ export async function syncRepositoryToServer(opts?: SyncOptions): Promise<void> 
     return;
   }
 
+  // Scope opcional a un solo negocio (el que se está trabajando).
+  const scopeId = opts?.businessId ?? opts?.includeBusiness?.id;
+
   let businesses = s.businesses;
   if (opts?.includeBusiness) {
     const b = opts.includeBusiness;
@@ -28,6 +37,7 @@ export async function syncRepositoryToServer(opts?: SyncOptions): Promise<void> 
     businesses =
       idx >= 0 ? businesses.map((x, i) => (i === idx ? b : x)) : [...businesses, b];
   }
+  if (scopeId) businesses = businesses.filter((b) => b.id === scopeId);
 
   // strategyJob lo escribe solo el servidor (/api/strategy/start); no pisarlo en sync.
   businesses = businesses.map((b) => {
@@ -43,12 +53,19 @@ export async function syncRepositoryToServer(opts?: SyncOptions): Promise<void> 
     contents =
       idx >= 0 ? contents.map((x, i) => (i === idx ? c : x)) : [...contents, c];
   }
+  if (scopeId) contents = contents.filter((c) => c.businessId === scopeId);
 
   // Las imágenes base64 (~2MB c/u) no viajan en el sync: inflan el payload y
   // pueden superar el límite del servidor. La URL real vive en Supabase Storage.
   contents = contents.map((c) =>
     c.imageUrl?.startsWith("data:") ? { ...c, imageUrl: undefined } : c
   );
+
+  // Estrategias/calendarios: solo los del negocio en scope (o todos si no hay).
+  const pick = <T>(rec: Record<string, T>): Record<string, T> => {
+    if (!scopeId) return rec;
+    return rec[scopeId] !== undefined ? { [scopeId]: rec[scopeId] } : {};
+  };
 
   const userId =
     s.user?.id || opts?.includeBusiness?.userId || businesses[0]?.userId || "anon";
@@ -61,8 +78,8 @@ export async function syncRepositoryToServer(opts?: SyncOptions): Promise<void> 
     },
     body: JSON.stringify({
       businesses,
-      strategies: s.strategies,
-      calendars: s.calendars,
+      strategies: pick(s.strategies),
+      calendars: pick(s.calendars),
       contents,
     }),
   });
