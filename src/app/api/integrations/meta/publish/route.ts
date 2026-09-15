@@ -5,6 +5,7 @@ import { getConnection } from "@/lib/connections/repository";
 import { decryptToken } from "@/lib/connections/crypto";
 import { publishToInstagram, publishToFacebook } from "@/lib/meta/publish";
 import { publishToInstagram as publishToInstagramDirect } from "@/lib/instagram/publish";
+import { publishToLinkedIn } from "@/lib/linkedin/publish";
 import { logEvent } from "@/lib/events";
 
 export const runtime = "nodejs";
@@ -56,7 +57,27 @@ export async function POST(req: NextRequest) {
     const caption = content.caption;
 
     let result;
-    if (usingFacebook) {
+    if (content.channel === "LinkedIn") {
+      // LinkedIn: se publica en la página de empresa con su propia conexión.
+      const li = await getConnection(userId, businessId, "linkedin");
+      if (!li || li.status !== "active" || !li.account_id) {
+        return NextResponse.json(
+          { error: "No hay una conexión de LinkedIn activa con una página. Conectá LinkedIn en Configuración." },
+          { status: 409 }
+        );
+      }
+      if (!content.imageUrl || !content.imageUrl.startsWith("http")) {
+        return NextResponse.json(
+          { error: "La pieza necesita una imagen generada (URL pública) para publicarse en LinkedIn." },
+          { status: 409 }
+        );
+      }
+      const liToken = decryptToken(li.user_access_token_enc);
+      result = await publishToLinkedIn(`urn:li:organization:${li.account_id}`, liToken, {
+        imageUrl: content.imageUrl,
+        caption,
+      });
+    } else if (usingFacebook) {
       const connection = fbConnection!;
       const pageToken = decryptToken(connection.page_access_token_enc!);
 
@@ -123,7 +144,12 @@ export async function POST(req: NextRequest) {
 
     // Persistir el resultado REAL de la publicación (permalink incluido) — item 11 / A7.
     const nowIso = new Date().toISOString();
-    const channel: "Instagram" | "Facebook" = result.platform === "facebook" ? "Facebook" : "Instagram";
+    const channel: "Instagram" | "Facebook" | "LinkedIn" =
+      result.platform === "facebook"
+        ? "Facebook"
+        : result.platform === "linkedin"
+          ? "LinkedIn"
+          : "Instagram";
     await ctx.repo.upsertContent(ctx.userId, {
       ...content,
       status: "published",

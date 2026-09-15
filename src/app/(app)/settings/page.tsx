@@ -12,6 +12,7 @@ import { Badge, Button, Card, Field, Input, Modal, PageHeader, useToast } from "
 import { PendingFlow } from "@/components/pending-flow";
 import { MetaConnectionCard } from "@/components/meta-connection-card";
 import { InstagramConnectionCard } from "@/components/instagram-connection-card";
+import { LinkedInConnectionCard } from "@/components/linkedin-connection-card";
 import { SearchableCountrySelect } from "@/components/inputs";
 import { BrandKitEditor } from "@/components/brand-kit";
 import { SocialLinksEditor } from "@/components/social-links-editor";
@@ -282,6 +283,11 @@ export default function SettingsPage() {
       {/* ── Conexión solo Instagram (para negocios sin página de Facebook) ── */}
       {business && (
         <InstagramConnectionCard businessId={business.id} isDemo={!!user?.isDemo || !!business.isDemo} />
+      )}
+
+      {/* ── Conexión LinkedIn (páginas de empresa) ── */}
+      {business && (
+        <LinkedInConnectionCard businessId={business.id} isDemo={!!user?.isDemo || !!business.isDemo} />
       )}
 
       <Card className="space-y-3">

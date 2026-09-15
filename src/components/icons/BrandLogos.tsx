@@ -28,6 +28,21 @@ export function InstagramLogo({ className }: { className?: string }) {
   );
 }
 
+/** Logo de LinkedIn: cuadrado azul de marca con el "in" blanco. */
+export function LinkedInLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} role="img" aria-label="LinkedIn">
+      <rect x="1" y="1" width="22" height="22" rx="4" fill="#0A66C2" />
+      <circle cx="6.6" cy="6.7" r="1.6" fill="#fff" />
+      <rect x="5.2" y="9.6" width="2.8" height="9.2" fill="#fff" />
+      <path
+        d="M10.2 9.6h2.68v1.26h.04c.37-.66 1.28-1.36 2.64-1.36 2.82 0 3.34 1.76 3.34 4.05v4.99h-2.79v-4.42c0-1.05-.02-2.4-1.5-2.4-1.5 0-1.73 1.14-1.73 2.32v4.5H10.2z"
+        fill="#fff"
+      />
+    </svg>
+  );
+}
+
 /** Logo de Facebook: roundel azul de marca con la "f" blanca. */
 export function FacebookLogo({ className }: { className?: string }) {
   return (
