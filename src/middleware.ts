@@ -141,8 +141,19 @@ async function refreshSession(request: NextRequest): Promise<NextResponse> {
     },
   });
 
-  // getUser() refresca el token si expiró y actualiza las cookies.
-  await supabase.auth.getUser();
+  // getUser() hace una llamada de red a Supabase. SIN timeout, si Supabase
+  // está lento o caído (ej: proyecto free pausado por inactividad), el
+  // middleware se cuelga y Vercel devuelve 504 (MIDDLEWARE_INVOCATION_TIMEOUT)
+  // en TODO el sitio. Con timeout + fail-open, la página carga igual y la
+  // sesión se revalida en la próxima request.
+  try {
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("supabase auth timeout")), 3000)
+    );
+    await Promise.race([supabase.auth.getUser(), timeout]);
+  } catch {
+    // fail-open: no bloquear la request por un problema transitorio de Supabase.
+  }
 
   return response;
 }
