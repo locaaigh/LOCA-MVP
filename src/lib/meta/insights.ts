@@ -95,40 +95,44 @@ export async function fetchPageInsights(
 }
 
 /**
- * Métricas de una publicación de una PÁGINA de Facebook.
- * El engagement (reacciones/comentarios/compartidos) se lee del propio objeto
- * del post con `.summary(true)` — es confiable y no sufre la deprecación de
- * métricas de Insights. El alcance/impresiones se pide aparte a /insights
- * (`post_media_view`, reemplazo de `post_impressions`), en best-effort: si esa
- * métrica no está disponible para la cuenta/post, igual devolvemos el engagement.
+ * Métricas de una publicación de una PÁGINA de Facebook, leyendo el post propio
+ * por ID (el post_id que guardamos al publicar). Se lee TODO desde
+ * /{post-id}/insights, que funciona con `pages_read_engagement`.
+ *
+ * IMPORTANTE: no leer likes/comentarios del objeto del post con `.summary(true)`
+ * ni listar el feed/posts de la página: eso cuenta contenido de usuarios y exige
+ * `pages_read_user_content` (error #10), permiso que la app no pide ni va a pedir.
+ *
+ * `post_impressions` está deprecado → `post_media_view` (alcance/impresiones).
+ * Las reacciones van en una llamada aparte, best-effort: si ese nombre de
+ * métrica no está disponible, igual devolvemos el alcance sin romper todo.
+ * Comentarios y compartidos quedan en 0 (no son accesibles sin el permiso de
+ * contenido de usuarios).
  */
 export async function fetchFbPostInsights(
   postId: string,
   pageAccessToken: string
 ): Promise<Record<string, number>> {
-  const obj = await graphGet<{
-    likes?: { summary?: { total_count?: number } };
-    comments?: { summary?: { total_count?: number } };
-    reactions?: { summary?: { total_count?: number } };
-    shares?: { count?: number };
-  }>(`/${postId}`, pageAccessToken, {
-    fields: "shares,comments.summary(true),likes.summary(true),reactions.summary(true)",
+  const impr = await graphGet<InsightsResponse>(`/${postId}/insights`, pageAccessToken, {
+    metric: "post_media_view",
   });
+  const reach = flatten(impr.data).post_media_view ?? 0;
 
-  let views = 0;
+  let likes = 0;
   try {
-    const ins = await graphGet<InsightsResponse>(`/${postId}/insights`, pageAccessToken, {
-      metric: "post_media_view",
+    const react = await graphGet<InsightsResponse>(`/${postId}/insights`, pageAccessToken, {
+      metric: "post_reactions_by_type_total",
     });
-    views = flatten(ins.data).post_media_view ?? 0;
+    for (const m of react.data) {
+      const v = m.total_value?.value ?? m.values?.[m.values.length - 1]?.value;
+      if (v && typeof v === "object") {
+        likes = Object.values(v).reduce((a, b) => a + (typeof b === "number" ? b : 0), 0);
+      }
+    }
   } catch {
-    /* algunas cuentas/posts no exponen insights a nivel post: seguimos con engagement */
+    /* la métrica de reacciones puede cambiar de nombre: seguimos con el alcance */
   }
 
-  const likes = obj.reactions?.summary?.total_count ?? obj.likes?.summary?.total_count ?? 0;
-  const comments = obj.comments?.summary?.total_count ?? 0;
-  const shares = obj.shares?.count ?? 0;
-
   // Shape alineado con performanceFromMedia (reach/views/likes/comments/shares/saved).
-  return { reach: views, views, likes, comments, shares, saved: 0 };
+  return { reach, views: reach, likes, comments: 0, shares: 0, saved: 0 };
 }
