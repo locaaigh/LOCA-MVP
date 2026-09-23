@@ -131,16 +131,27 @@ export default function ContentStudioPage() {
     show("Publicando…");
     try {
       const res = await api.publishMeta(business.id, c.id);
+      const nowIso = new Date().toISOString();
       updateContent(c.id, {
         status: "published",
-        publishedAt: new Date().toISOString(),
-        publishAttemptedAt: new Date().toISOString(),
+        publishedAt: nowIso,
+        publishAttemptedAt: nowIso,
         publishedUrl: res.permalink,
         publishedMediaId: res.mediaId,
-        publishedPlatform: res.platform === "facebook" ? "Facebook" : "Instagram",
-        publishError: undefined,
+        publishedPlatform: res.platform as ContentItem["publishedPlatform"],
+        publishResults: res.results,
+        publishError:
+          res.failed.length > 0
+            ? res.failed.map((f) => `${f.platform}: ${f.error}`).join(" · ")
+            : undefined,
       });
-      show(res.permalink ? "Publicado 🎉" : "Publicado 🎉 (sin link disponible)");
+      // Resumen de crosspost: en qué redes se publicó y cuáles fallaron.
+      const okList = res.published.join(" y ");
+      if (res.failed.length > 0) {
+        show(`Publicado en ${okList}. No se pudo en ${res.failed.map((f) => f.platform).join(", ")}.`);
+      } else {
+        show(`Publicado en ${okList} 🎉`);
+      }
       setTab("publicados");
     } catch (e: any) {
       updateContent(c.id, {

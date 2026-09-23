@@ -141,12 +141,20 @@ export const api = {
       business ? { includeBusiness: business } : undefined
     ),
 
-  // Publicación real en Meta (Instagram/Facebook). Ver PLAN-v2 item 11 / A.
+  // Publicación real en redes (crosspost). Sin `platform`, publica en TODAS las
+  // plataformas destino de la pieza y devuelve el resultado por plataforma.
+  // Ver PLAN-v2 item 11 / A.
   publishMeta: (businessId: string, contentId: string, platform?: "instagram" | "facebook") =>
-    post<{ ok: boolean; mediaId: string; platform: string; permalink?: string }>(
-      "/api/integrations/meta/publish",
-      { businessId, contentId, platform }
-    ),
+    post<{
+      ok: boolean;
+      results: import("./types").ContentPublishRecord[];
+      published: string[];
+      failed: { platform: string; error?: string }[];
+      // Compatibilidad: plataforma principal (primera exitosa).
+      platform: string;
+      mediaId: string;
+      permalink?: string;
+    }>("/api/integrations/meta/publish", { businessId, contentId, platform }),
 
   // Métricas reales de redes. Sin mediaId: insights de cuenta (IG + página FB).
   // Con mediaId: insights de una publicación. `platform` (canal donde se

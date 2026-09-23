@@ -10,14 +10,42 @@ import type { ContentItem, ContentPerformance, MetricsSnapshot } from "@/lib/typ
 import { BarChart3, Link2, AlertTriangle } from "lucide-react";
 
 type ConnState = "checking" | "none" | "connected";
+type MetaPlatform = "facebook" | "instagram";
+// Un media publicado a consultar: pieza + su id de media en UNA red.
+type MediaTarget = { content: ContentItem; mediaId: string; platform: MetaPlatform };
 
-// Canal de Meta de una pieza publicada (define si el mediaId es post de FB o
-// media de IG). LinkedIn/TikTok no se consultan por este endpoint.
-function metaPlatform(c: ContentItem): "facebook" | "instagram" | null {
-  const p = c.publishedPlatform || c.channel;
-  if (p === "Facebook") return "facebook";
-  if (p === "Instagram") return "instagram";
-  return null;
+function toMetaPlatform(channel?: string): MetaPlatform | null {
+  if (channel === "Facebook") return "facebook";
+  if (channel === "Instagram") return "instagram";
+  return null; // LinkedIn/TikTok no se consultan por este endpoint
+}
+
+const CHANNEL_LABEL: Record<MetaPlatform, "Facebook" | "Instagram"> = {
+  facebook: "Facebook",
+  instagram: "Instagram",
+};
+
+/**
+ * Media a consultar por cada pieza publicada. Con crosspost, una pieza tiene un
+ * media por plataforma (publishResults); si no hay ese detalle (piezas viejas),
+ * cae a los campos "singular" de la plataforma principal.
+ */
+function mediaTargetsFor(contents: ContentItem[], businessId: string): MediaTarget[] {
+  const out: MediaTarget[] = [];
+  for (const c of contents) {
+    if (c.businessId !== businessId || c.status !== "published") continue;
+    if (c.publishResults?.length) {
+      for (const r of c.publishResults) {
+        if (r.status !== "published" || !r.mediaId) continue;
+        const p = toMetaPlatform(r.platform);
+        if (p) out.push({ content: c, mediaId: r.mediaId, platform: p });
+      }
+    } else if (c.publishedMediaId) {
+      const p = toMetaPlatform(c.publishedPlatform || c.channel);
+      if (p) out.push({ content: c, mediaId: c.publishedMediaId, platform: p });
+    }
+  }
+  return out;
 }
 
 export default function MetricsPage() {
@@ -62,27 +90,21 @@ export default function MetricsPage() {
         return;
       }
 
-      // 2. Piezas realmente publicadas en una red de Meta (IG/FB), con id de
-      // media para consultar sus insights.
-      const published = contents.filter(
-        (c) =>
-          c.businessId === business.id &&
-          c.status === "published" &&
-          c.publishedMediaId &&
-          metaPlatform(c) !== null
-      );
+      // 2. Media publicados en Meta (IG/FB). Con crosspost, una pieza aporta un
+      // media por red; así una pieza en IG y FB muestra las métricas de ambas.
+      const targets = mediaTargetsFor(contents, business.id);
 
-      if (published.length === 0) {
+      if (targets.length === 0) {
         if (!cancelled) setLoading(false);
         return;
       }
 
-      // 3. Un insight por publicación, ruteando FB vs IG según el canal.
+      // 3. Un insight por media, ruteando FB vs IG según su plataforma.
       const results = await Promise.allSettled(
-        published.map((c) =>
+        targets.map((t) =>
           api
-            .metaInsights(business.id, c.publishedMediaId!, metaPlatform(c)!)
-            .then((r) => ({ content: c, media: r.media }))
+            .metaInsights(business.id, t.mediaId, t.platform)
+            .then((r) => ({ target: t, media: r.media }))
         )
       );
 
@@ -90,7 +112,14 @@ export default function MetricsPage() {
       const errs = new Set<string>();
       for (const r of results) {
         if (r.status === "fulfilled" && r.value.media) {
-          perfs.push(performanceFromMedia(r.value.content, r.value.media));
+          const { content, platform } = r.value.target;
+          // El canal de esta métrica es la red concreta del media (no la principal).
+          const perf = performanceFromMedia(
+            { ...content, publishedPlatform: CHANNEL_LABEL[platform] },
+            r.value.media
+          );
+          perf.id = `perf_${content.id}_${platform}`;
+          perfs.push(perf);
         } else if (r.status === "rejected") {
           errs.add(String(r.reason?.message || r.reason));
         }

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUserId } from "@/lib/supabase/server";
 import { resolveContent, jsonError } from "@/lib/repository/resolve";
-import { getConnection } from "@/lib/connections/repository";
+import { getConnection, type ConnectionRow } from "@/lib/connections/repository";
 import { decryptToken } from "@/lib/connections/crypto";
 import { publishToInstagram, publishToFacebook } from "@/lib/meta/publish";
 import { publishToInstagram as publishToInstagramDirect } from "@/lib/instagram/publish";
 import { publishToLinkedIn } from "@/lib/linkedin/publish";
 import { logEvent } from "@/lib/events";
+import type { Business, Channel, ContentItem, ContentPublishRecord } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,17 +16,102 @@ export const maxDuration = 60;
 type PublishBody = {
   businessId: string;
   contentId: string;
-  /** Si no se pasa, se infiere del canal del contenido. */
+  /** Si se pasa, publica SOLO en esa plataforma (reintento puntual). Si no, se
+   *  publica en todas las plataformas destino de la pieza (crosspost). */
   platform?: "instagram" | "facebook";
 };
 
-/** Publica una pieza de contenido en Instagram o Facebook con la conexión Meta del negocio. */
+/**
+ * Plataformas destino de una pieza (crosspost): el canal principal + las
+ * distributionPlatforms. Si no hay explícitas, infiere Instagram → +Facebook
+ * cuando el negocio también usa Facebook. Espeja contentPlatforms() del cliente
+ * para que "lo que se ve" sea "lo que se publica".
+ */
+function targetPlatforms(content: ContentItem, business: Business): Channel[] {
+  const out: Channel[] = [content.channel];
+  const add = (p: Channel) => {
+    if (!out.includes(p)) out.push(p);
+  };
+  (content.distributionPlatforms || []).forEach(add);
+  if (!content.distributionPlatforms?.length) {
+    const usesFacebook = (business.marketingChannels || []).some((c) => /face/i.test(c));
+    if (/insta/i.test(content.channel) && usesFacebook) add("Facebook");
+  }
+  return out;
+}
+
+function requireImage(content: ContentItem, red: string): string {
+  if (!content.imageUrl || !content.imageUrl.startsWith("http")) {
+    throw new Error(`La pieza necesita una imagen generada (URL pública) para publicarse en ${red}.`);
+  }
+  return content.imageUrl;
+}
+
+type OneResult = { mediaId: string; permalink?: string };
+
+/** Publica la pieza en UNA plataforma. Lanza Error si no se puede. */
+async function publishOnePlatform(
+  platform: Channel,
+  content: ContentItem,
+  caption: string,
+  conns: { fb: ConnectionRow | null; ig: ConnectionRow | null; li: ConnectionRow | null }
+): Promise<OneResult> {
+  const usingFacebook = !!(conns.fb && conns.fb.status === "active" && conns.fb.page_access_token_enc);
+
+  if (platform === "Instagram") {
+    // Preferimos la cuenta de IG vinculada a la página (conexión de Meta).
+    if (usingFacebook && conns.fb!.ig_user_id) {
+      const pageToken = decryptToken(conns.fb!.page_access_token_enc!);
+      return publishToInstagram(conns.fb!.ig_user_id, pageToken, {
+        imageUrl: requireImage(content, "Instagram"),
+        caption,
+      });
+    }
+    // Fallback: conexión de Instagram Login (negocios sin página de FB).
+    if (conns.ig && conns.ig.status === "active" && conns.ig.account_id) {
+      const igToken = decryptToken(conns.ig.user_access_token_enc);
+      return publishToInstagramDirect(conns.ig.account_id, igToken, {
+        imageUrl: requireImage(content, "Instagram"),
+        caption,
+      });
+    }
+    throw new Error("No hay una cuenta de Instagram conectada. Conectala en Configuración.");
+  }
+
+  if (platform === "Facebook") {
+    if (!usingFacebook || !conns.fb!.account_id) {
+      throw new Error("No hay una página de Facebook conectada. Conectá Facebook en Configuración.");
+    }
+    const pageToken = decryptToken(conns.fb!.page_access_token_enc!);
+    return publishToFacebook(conns.fb!.account_id, pageToken, {
+      message: caption,
+      imageUrl: content.imageUrl,
+    });
+  }
+
+  if (platform === "LinkedIn") {
+    if (!conns.li || conns.li.status !== "active" || !conns.li.account_id) {
+      throw new Error("No hay una conexión de LinkedIn activa con una página. Conectá LinkedIn en Configuración.");
+    }
+    const liToken = decryptToken(conns.li.user_access_token_enc);
+    return publishToLinkedIn(`urn:li:organization:${conns.li.account_id}`, liToken, {
+      imageUrl: requireImage(content, "LinkedIn"),
+      caption,
+    });
+  }
+
+  // TikTok u otras: sin integración de publicación todavía.
+  throw new Error(`La publicación automática en ${platform} todavía no está disponible.`);
+}
+
+/**
+ * Publica una pieza en TODAS sus plataformas destino (crosspost) y registra el
+ * resultado de cada una. Ver PLAN-v2 item 11 / A.
+ */
 export async function POST(req: NextRequest) {
-  // Hoisted para poder registrar el error en la pieza dentro del catch.
   let businessId = "";
   let contentId = "";
   try {
-    // Publicar requiere cuenta real (los tokens se guardan por usuario de Supabase)
     const userId = await getSessionUserId();
     if (!userId) {
       return NextResponse.json({ error: "Necesitás una cuenta para publicar" }, { status: 401 });
@@ -34,150 +120,95 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as PublishBody;
     businessId = body.businessId;
     contentId = body.contentId;
-    const platform = body.platform;
     if (!businessId || !contentId) {
       return NextResponse.json({ error: "Faltan businessId o contentId" }, { status: 400 });
     }
 
     const resolved = await resolveContent(req, businessId, contentId);
     if ("error" in resolved) return jsonError(resolved);
-    const { ctx, content } = resolved;
+    const { ctx, business, content } = resolved;
 
-    // Preferimos la conexión de Meta (Facebook): cubre FB + IG con un solo
-    // login. Si el negocio no tiene página de Facebook, cae a la conexión de
-    // Instagram Login (solo IG). El proveedor elegido decide el cliente.
-    const fbConnection = await getConnection(userId, businessId, "facebook");
-    const usingFacebook = !!(
-      fbConnection &&
-      fbConnection.status === "active" &&
-      fbConnection.page_access_token_enc
-    );
-
-    // Caption final: solo el caption (sin hashtags — item 19)
+    // Caption final: solo el caption (sin hashtags — item 19).
     const caption = content.caption;
 
-    let result;
-    if (content.channel === "LinkedIn") {
-      // LinkedIn: se publica en la página de empresa con su propia conexión.
-      const li = await getConnection(userId, businessId, "linkedin");
-      if (!li || li.status !== "active" || !li.account_id) {
-        return NextResponse.json(
-          { error: "No hay una conexión de LinkedIn activa con una página. Conectá LinkedIn en Configuración." },
-          { status: 409 }
-        );
-      }
-      if (!content.imageUrl || !content.imageUrl.startsWith("http")) {
-        return NextResponse.json(
-          { error: "La pieza necesita una imagen generada (URL pública) para publicarse en LinkedIn." },
-          { status: 409 }
-        );
-      }
-      const liToken = decryptToken(li.user_access_token_enc);
-      result = await publishToLinkedIn(`urn:li:organization:${li.account_id}`, liToken, {
-        imageUrl: content.imageUrl,
-        caption,
-      });
-    } else if (usingFacebook) {
-      const connection = fbConnection!;
-      const pageToken = decryptToken(connection.page_access_token_enc!);
+    // Conexiones del negocio (una lectura por proveedor).
+    const [fb, ig, li] = await Promise.all([
+      getConnection(userId, businessId, "facebook"),
+      getConnection(userId, businessId, "instagram"),
+      getConnection(userId, businessId, "linkedin"),
+    ]);
+    const conns = { fb, ig, li };
 
-      // Plataforma destino: explícita o inferida del canal de la pieza
-      const target = platform ?? (content.channel === "Facebook" ? "facebook" : "instagram");
+    // Plataformas a publicar: la explícita del body (reintento puntual) o todas
+    // las de la pieza (crosspost).
+    const targets: Channel[] = body.platform
+      ? [body.platform === "facebook" ? "Facebook" : "Instagram"]
+      : targetPlatforms(content, business);
 
-      if (target === "instagram") {
-        if (!connection.ig_user_id) {
-          return NextResponse.json(
-            { error: "Tu página no tiene una cuenta de Instagram Business vinculada." },
-            { status: 409 }
-          );
-        }
-        if (!content.imageUrl || !content.imageUrl.startsWith("http")) {
-          return NextResponse.json(
-            { error: "La pieza necesita una imagen generada (URL pública) para publicarse en Instagram." },
-            { status: 409 }
-          );
-        }
-        result = await publishToInstagram(connection.ig_user_id, pageToken, {
-          imageUrl: content.imageUrl,
-          caption,
+    // Publicar en cada plataforma, sin que un fallo corte a las demás.
+    const nowIso = new Date().toISOString();
+    const results: ContentPublishRecord[] = [];
+    for (const platform of targets) {
+      try {
+        const r = await publishOnePlatform(platform, content, caption, conns);
+        results.push({ platform, status: "published", mediaId: r.mediaId, url: r.permalink, at: nowIso });
+        await logEvent({
+          userId,
+          businessId,
+          name: "content_published",
+          props: { contentId, platform, mediaId: r.mediaId },
         });
-      } else {
-        result = await publishToFacebook(connection.account_id!, pageToken, {
-          message: caption,
-          imageUrl: content.imageUrl,
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Error publicando";
+        results.push({ platform, status: "error", error: msg, at: nowIso });
+        await logEvent({
+          userId,
+          businessId,
+          name: "content_publish_failed",
+          props: { contentId, platform, error: msg },
         });
       }
-    } else {
-      // Fallback: conexión de Instagram Login (negocios sin página de FB).
-      const igConnection = await getConnection(userId, businessId, "instagram");
-      if (!igConnection || igConnection.status !== "active") {
-        return NextResponse.json(
-          { error: "No hay una conexión activa. Conectá Facebook o Instagram en Configuración." },
-          { status: 409 }
-        );
-      }
-      if (!igConnection.account_id) {
-        return NextResponse.json(
-          { error: "La conexión de Instagram no tiene una cuenta asociada. Reconectá en Configuración." },
-          { status: 409 }
-        );
-      }
-      // Sin página de Facebook no se puede publicar en FB, solo en Instagram.
-      if (platform === "facebook" || content.channel === "Facebook") {
-        return NextResponse.json(
-          { error: "Esta cuenta está conectada solo con Instagram. Conectá una página de Facebook para publicar en Facebook." },
-          { status: 409 }
-        );
-      }
-      if (!content.imageUrl || !content.imageUrl.startsWith("http")) {
-        return NextResponse.json(
-          { error: "La pieza necesita una imagen generada (URL pública) para publicarse en Instagram." },
-          { status: 409 }
-        );
-      }
-      const igToken = decryptToken(igConnection.user_access_token_enc);
-      result = await publishToInstagramDirect(igConnection.account_id, igToken, {
-        imageUrl: content.imageUrl,
-        caption,
-      });
     }
 
-    // Persistir el resultado REAL de la publicación (permalink incluido) — item 11 / A7.
-    const nowIso = new Date().toISOString();
-    const channel: "Instagram" | "Facebook" | "LinkedIn" =
-      result.platform === "facebook"
-        ? "Facebook"
-        : result.platform === "linkedin"
-          ? "LinkedIn"
-          : "Instagram";
+    const ok = results.filter((r) => r.status === "published");
+    const failed = results.filter((r) => r.status === "error");
+    const primary = ok[0]; // plataforma principal = primera exitosa
+
+    // Persistir el resultado en la pieza: detalle por plataforma + campos
+    // "singular" de la principal para compatibilidad con lo existente.
     await ctx.repo.upsertContent(ctx.userId, {
       ...content,
-      status: "published",
-      publishedAt: nowIso,
+      status: ok.length > 0 ? "published" : content.status,
+      publishedAt: primary ? nowIso : content.publishedAt,
       publishAttemptedAt: nowIso,
-      publishedPlatform: channel,
-      publishedMediaId: result.mediaId,
-      publishedUrl: result.permalink,
-      publishError: undefined, // limpiar cualquier error previo
+      publishedPlatform: primary ? primary.platform : content.publishedPlatform,
+      publishedMediaId: primary ? primary.mediaId : content.publishedMediaId,
+      publishedUrl: primary ? primary.url : content.publishedUrl,
+      publishError: failed.length > 0 ? failed.map((f) => `${f.platform}: ${f.error}`).join(" · ") : undefined,
+      publishResults: results,
       updatedAt: nowIso,
     });
 
-    // North star: pieza publicada de verdad en la red del cliente.
-    await logEvent({
-      userId: ctx.userId,
-      businessId,
-      name: "content_published",
-      props: { contentId, platform: result.platform, mediaId: result.mediaId },
-    });
+    // Si NO se pudo publicar en ninguna plataforma, es un error.
+    if (ok.length === 0) {
+      return NextResponse.json(
+        { error: failed.map((f) => `${f.platform}: ${f.error}`).join(" · ") || "No se pudo publicar", results },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       ok: true,
-      mediaId: result.mediaId,
-      platform: result.platform,
-      permalink: result.permalink,
+      results,
+      published: ok.map((r) => r.platform),
+      failed: failed.map((f) => ({ platform: f.platform, error: f.error })),
+      // Compatibilidad con el shape previo (plataforma principal).
+      platform: primary.platform,
+      mediaId: primary.mediaId,
+      permalink: primary.url,
     });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "Error publicando en Meta";
+    const msg = e instanceof Error ? e.message : "Error publicando";
     console.error("[meta/publish]", msg);
     await logEvent({
       userId: await getSessionUserId(),
@@ -185,7 +216,6 @@ export async function POST(req: NextRequest) {
       name: "content_publish_failed",
       props: { contentId: contentId || null, error: msg },
     });
-    // Registrar el error en la pieza para mostrar alerta + reintentar (item 11).
     try {
       if (businessId && contentId) {
         const resolved = await resolveContent(req, businessId, contentId);

@@ -315,6 +315,17 @@ export interface FeedbackEntry {
   at: string;
 }
 
+// Resultado de publicar una pieza en UNA plataforma (crosspost). Se guarda un
+// registro por cada red donde se intentó publicar.
+export interface ContentPublishRecord {
+  platform: Channel;
+  status: "published" | "error";
+  mediaId?: string; // id del media/post en la red (si se publicó)
+  url?: string; // permalink público (si se publicó)
+  error?: string; // motivo del fallo (si status === "error")
+  at: string; // ISO — cuándo se intentó
+}
+
 export interface ContentItem {
   id: ID;
   businessId: ID;
@@ -353,12 +364,17 @@ export interface ContentItem {
   publishStatus: PublishStatus;
   // ── Resultado de la publicación real en redes (auto-publicación) ──
   // Ver PLAN-v2 A7 + item 11. Permite "ver contenido" (permalink) y detectar fallos.
+  // Los campos "singular" reflejan la plataforma PRINCIPAL (la primera exitosa);
+  // el detalle por plataforma (crosspost) vive en publishResults.
   publishedAt?: string; // ISO — cuándo se publicó de verdad
-  publishedPlatform?: Channel; // dónde se publicó
-  publishedUrl?: string; // permalink del post publicado (para redirigir a IG/FB/LinkedIn)
-  publishedMediaId?: string; // id del media/post en la red
+  publishedPlatform?: Channel; // dónde se publicó (principal)
+  publishedUrl?: string; // permalink del post publicado (principal)
+  publishedMediaId?: string; // id del media/post en la red (principal)
   publishError?: string; // último error de publicación (→ alerta + reintentar)
   publishAttemptedAt?: string; // ISO — último intento (exitoso o no)
+  // Resultado por cada plataforma donde se intentó publicar (crosspost real).
+  // Registra en qué redes se publicó efectivamente y cuáles fallaron.
+  publishResults?: ContentPublishRecord[];
   feedbackHistory: FeedbackEntry[];
   // Edición manual (sin IA)
   lastManualEditAt?: string;
