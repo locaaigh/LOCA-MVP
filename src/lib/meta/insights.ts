@@ -37,15 +37,43 @@ export async function fetchIgAccountInsights(
   return flatten(json.data);
 }
 
-/** GET /{media-id}/insights — métricas de una publicación de Instagram. */
+/**
+ * Métricas de una publicación de Instagram.
+ * Likes y comentarios se leen del objeto del media (`like_count`,
+ * `comments_count`) porque son confiables para cualquier tipo de media. El
+ * resto (alcance, guardados, compartidos, reproducciones) va a /insights en
+ * best-effort: las métricas válidas cambian según el tipo de media (imagen,
+ * carrusel, reel), y si una no aplica Meta devuelve error #100 y tira abajo
+ * TODA la llamada. Así, si insights falla, igual devolvemos likes/comentarios.
+ */
 export async function fetchIgMediaInsights(
   mediaId: string,
   pageAccessToken: string
 ): Promise<Record<string, number>> {
-  const json = await graphGet<InsightsResponse>(`/${mediaId}/insights`, pageAccessToken, {
-    metric: "reach,likes,comments,saved,shares,views",
-  });
-  return flatten(json.data);
+  const obj = await graphGet<{ like_count?: number; comments_count?: number }>(
+    `/${mediaId}`,
+    pageAccessToken,
+    { fields: "like_count,comments_count" }
+  );
+
+  let ins: Record<string, number> = {};
+  try {
+    const json = await graphGet<InsightsResponse>(`/${mediaId}/insights`, pageAccessToken, {
+      metric: "reach,saved,shares,views",
+    });
+    ins = flatten(json.data);
+  } catch {
+    /* las métricas de insights varían por tipo de media: seguimos con los conteos del objeto */
+  }
+
+  return {
+    reach: ins.reach ?? 0,
+    views: ins.views ?? 0,
+    saved: ins.saved ?? 0,
+    shares: ins.shares ?? 0,
+    likes: obj.like_count ?? 0,
+    comments: obj.comments_count ?? 0,
+  };
 }
 
 /**

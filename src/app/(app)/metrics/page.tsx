@@ -1,33 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
-import { PageHeader } from "@/components/ui";
+import { Button, Card, PageHeader } from "@/components/ui";
 import { MetricsDashboard } from "@/components/metrics-dashboard";
 import { api } from "@/lib/api";
-import { mockPerformance, analyzeContentPerformance, performanceFromMedia } from "@/lib/metrics";
-import type { ContentPerformance, MetricsSnapshot } from "@/lib/types";
+import { analyzeContentPerformance, performanceFromMedia } from "@/lib/metrics";
+import type { ContentItem, ContentPerformance, MetricsSnapshot } from "@/lib/types";
+import { BarChart3, Link2, AlertTriangle } from "lucide-react";
+
+type ConnState = "checking" | "none" | "connected";
+
+// Canal de Meta de una pieza publicada (define si el mediaId es post de FB o
+// media de IG). LinkedIn/TikTok no se consultan por este endpoint.
+function metaPlatform(c: ContentItem): "facebook" | "instagram" | null {
+  const p = c.publishedPlatform || c.channel;
+  if (p === "Facebook") return "facebook";
+  if (p === "Instagram") return "instagram";
+  return null;
+}
 
 export default function MetricsPage() {
   const business = useStore((s) => s.businesses.find((b) => b.id === s.activeBusinessId) || null);
   const contents = useStore((s) => s.contents);
-  const user = useStore((s) => s.user);
 
-  const isDemo = !!user?.isDemo || !!business?.isDemo;
-
-  // Fallback demo estable (mismo comportamiento previo): se usa mientras cargan
-  // los datos reales, cuando no hay piezas publicadas con métricas, o cuando
-  // no hay una conexión de redes activa.
-  const demoSnapshot = useMemo<MetricsSnapshot | null>(() => {
-    if (!business) return null;
-    const bizContents = contents.filter((c) => c.businessId === business.id);
-    return analyzeContentPerformance(mockPerformance(business, bizContents), true);
-  }, [business, contents]);
-
+  const [connState, setConnState] = useState<ConnState>("checking");
   const [snapshot, setSnapshot] = useState<MetricsSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
-  // Aviso no bloqueante cuando alguna pieza no pudo traer sus métricas (permiso,
-  // métrica deprecada, etc.). Antes se descartaba en silencio.
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,36 +36,48 @@ export default function MetricsPage() {
       if (!business) return;
       setLoading(true);
       setLoadError(null);
+      setSnapshot(null);
 
-      // Piezas realmente publicadas en una red de Meta (IG/FB), con id de media
-      // para consultar sus insights. En modo demo no consultamos la API real.
-      // El canal define si el mediaId es un post de FB o un media de IG.
-      const metaPlatform = (c: (typeof contents)[number]): "facebook" | "instagram" | null => {
-        const p = c.publishedPlatform || c.channel;
-        if (p === "Facebook") return "facebook";
-        if (p === "Instagram") return "instagram";
-        return null; // LinkedIn / TikTok: no se consultan por este endpoint
-      };
-      const published = isDemo
-        ? []
-        : contents.filter(
-            (c) =>
-              c.businessId === business.id &&
-              c.status === "published" &&
-              c.publishedMediaId &&
-              metaPlatform(c) !== null
-          );
-
-      if (published.length === 0) {
-        if (!cancelled) {
-          setSnapshot(demoSnapshot);
-          setLoading(false);
-        }
+      // 1. ¿El negocio tiene una conexión de Meta o Instagram activa? Sin
+      // conexión no hay métricas reales que mostrar (no usamos datos demo).
+      let connected = false;
+      try {
+        const [meta, ig] = await Promise.all([
+          fetch(`/api/integrations/meta/connection?businessId=${encodeURIComponent(business.id)}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null),
+          fetch(`/api/integrations/instagram/connection?businessId=${encodeURIComponent(business.id)}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null),
+        ]);
+        connected =
+          meta?.connection?.status === "active" || ig?.connection?.status === "active";
+      } catch {
+        connected = false;
+      }
+      if (cancelled) return;
+      setConnState(connected ? "connected" : "none");
+      if (!connected) {
+        setLoading(false);
         return;
       }
 
-      // Un insight por publicación, ruteando FB vs IG según el canal. Los que
-      // fallen se cuentan para avisar al usuario, sin romper el resto.
+      // 2. Piezas realmente publicadas en una red de Meta (IG/FB), con id de
+      // media para consultar sus insights.
+      const published = contents.filter(
+        (c) =>
+          c.businessId === business.id &&
+          c.status === "published" &&
+          c.publishedMediaId &&
+          metaPlatform(c) !== null
+      );
+
+      if (published.length === 0) {
+        if (!cancelled) setLoading(false);
+        return;
+      }
+
+      // 3. Un insight por publicación, ruteando FB vs IG según el canal.
       const results = await Promise.allSettled(
         published.map((c) =>
           api
@@ -76,37 +87,32 @@ export default function MetricsPage() {
       );
 
       const perfs: ContentPerformance[] = [];
-      let failed = 0;
+      const errs = new Set<string>();
       for (const r of results) {
         if (r.status === "fulfilled" && r.value.media) {
           perfs.push(performanceFromMedia(r.value.content, r.value.media));
-        } else {
-          failed++;
+        } else if (r.status === "rejected") {
+          errs.add(String(r.reason?.message || r.reason));
         }
       }
 
-      if (!cancelled) {
-        // Con al menos una métrica real mostramos datos reales; si no, demo.
-        setSnapshot(perfs.length ? analyzeContentPerformance(perfs, false) : demoSnapshot);
-        if (failed > 0) {
-          setLoadError(
-            `No pudimos traer las métricas de ${failed} ${failed === 1 ? "publicación" : "publicaciones"}. ` +
-              "Puede ser un permiso pendiente en la conexión (reconectá tus redes en Configuración) o que la red aún no tenga datos."
-          );
-        }
-        setLoading(false);
+      if (cancelled) return;
+      setSnapshot(perfs.length ? analyzeContentPerformance(perfs, false) : null);
+      if (errs.size > 0) {
+        // Log técnico para diagnóstico + mensaje visible al usuario.
+        console.error("[metrics] fallos al traer insights:", [...errs]);
+        setLoadError([...errs].join(" · "));
       }
+      setLoading(false);
     }
 
     load();
     return () => {
       cancelled = true;
     };
-  }, [business, contents, isDemo, demoSnapshot]);
+  }, [business, contents]);
 
   if (!business) return null;
-  const shown = snapshot ?? demoSnapshot;
-  if (!shown) return null;
 
   return (
     <div className="space-y-8">
@@ -114,16 +120,95 @@ export default function MetricsPage() {
         title="Métricas"
         subtitle="Cómo vienen funcionando tus contenidos y qué conviene hacer en el próximo calendario."
       />
-      {loadError && !loading && (
-        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/70 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
-          {loadError}
-        </div>
-      )}
+
       {loading ? (
         <p className="text-sm text-faint">Cargando métricas…</p>
+      ) : connState === "none" ? (
+        <ConnectFirst />
+      ) : !snapshot && loadError ? (
+        <MetricsError detail={loadError} />
+      ) : !snapshot ? (
+        <NoPublishedYet />
       ) : (
-        <MetricsDashboard snapshot={shown} />
+        <>
+          {loadError && (
+            <div className="flex items-start gap-2.5 rounded-2xl border border-amber-200/80 bg-amber-50/70 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                Algunas publicaciones no trajeron métricas. Puede ser un permiso
+                pendiente (reconectá tus redes) o que aún no tengan datos.
+              </span>
+            </div>
+          )}
+          <MetricsDashboard snapshot={snapshot} />
+        </>
       )}
     </div>
+  );
+}
+
+// ── Estados vacíos ────────────────────────────────────────────
+
+function ConnectFirst() {
+  return (
+    <Card className="flex flex-col items-center gap-4 py-14 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-subtle-bg text-accent">
+        <Link2 className="h-7 w-7" />
+      </div>
+      <div className="space-y-1">
+        <h2 className="text-lg font-bold tracking-tight text-foreground">
+          Conectá tus redes sociales
+        </h2>
+        <p className="mx-auto max-w-md text-sm text-muted-foreground">
+          Para ver las métricas reales de tus publicaciones en Facebook e
+          Instagram, primero conectá tus cuentas desde Configuración.
+        </p>
+      </div>
+      <Button size="lg" onClick={() => (window.location.href = "/settings")}>
+        <Link2 className="h-4 w-4" /> Conectar mis redes
+      </Button>
+    </Card>
+  );
+}
+
+function NoPublishedYet() {
+  return (
+    <Card className="flex flex-col items-center gap-4 py-14 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-muted text-muted-foreground">
+        <BarChart3 className="h-7 w-7" />
+      </div>
+      <div className="space-y-1">
+        <h2 className="text-lg font-bold tracking-tight text-foreground">
+          Todavía no hay métricas
+        </h2>
+        <p className="mx-auto max-w-md text-sm text-muted-foreground">
+          Cuando publiques contenido en tus redes desde LOCA, acá vas a ver el
+          alcance, las interacciones y el engagement de cada publicación.
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+function MetricsError({ detail }: { detail: string }) {
+  return (
+    <Card className="flex flex-col items-center gap-4 py-14 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300">
+        <AlertTriangle className="h-7 w-7" />
+      </div>
+      <div className="space-y-1">
+        <h2 className="text-lg font-bold tracking-tight text-foreground">
+          No pudimos traer tus métricas
+        </h2>
+        <p className="mx-auto max-w-md text-sm text-muted-foreground">
+          Suele ser un permiso pendiente en la conexión. Probá reconectar tus
+          redes desde Configuración; si sigue igual, avisanos.
+        </p>
+        <p className="mx-auto max-w-md pt-1 text-xs text-faint break-words">{detail}</p>
+      </div>
+      <Button size="lg" variant="outline" onClick={() => (window.location.href = "/settings")}>
+        <Link2 className="h-4 w-4" /> Ir a Configuración
+      </Button>
+    </Card>
   );
 }

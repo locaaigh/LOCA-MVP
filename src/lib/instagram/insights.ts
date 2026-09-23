@@ -38,13 +38,38 @@ export async function fetchIgAccountInsights(
   return flatten(json.data);
 }
 
-/** GET /{media-id}/insights — métricas de una publicación de Instagram. */
+/**
+ * Métricas de una publicación de Instagram (Instagram Login).
+ * Likes y comentarios se leen del objeto del media (confiables para cualquier
+ * tipo); el resto va a /insights en best-effort, porque las métricas válidas
+ * dependen del tipo de media y una inválida tira abajo toda la llamada (#100).
+ */
 export async function fetchIgMediaInsights(
   mediaId: string,
   accessToken: string
 ): Promise<Record<string, number>> {
-  const json = await igGet<InsightsResponse>(`/${mediaId}/insights`, accessToken, {
-    metric: "reach,likes,comments,saved,shares,views",
-  });
-  return flatten(json.data);
+  const obj = await igGet<{ like_count?: number; comments_count?: number }>(
+    `/${mediaId}`,
+    accessToken,
+    { fields: "like_count,comments_count" }
+  );
+
+  let ins: Record<string, number> = {};
+  try {
+    const json = await igGet<InsightsResponse>(`/${mediaId}/insights`, accessToken, {
+      metric: "reach,saved,shares,views",
+    });
+    ins = flatten(json.data);
+  } catch {
+    /* métricas de insights variables por tipo de media: seguimos con conteos del objeto */
+  }
+
+  return {
+    reach: ins.reach ?? 0,
+    views: ins.views ?? 0,
+    saved: ins.saved ?? 0,
+    shares: ins.shares ?? 0,
+    likes: obj.like_count ?? 0,
+    comments: obj.comments_count ?? 0,
+  };
 }
