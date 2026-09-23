@@ -149,11 +149,14 @@ export const api = {
     ),
 
   // Métricas reales de redes. Sin mediaId: insights de cuenta (IG + página FB).
-  // Con mediaId: insights de una publicación. Elige la conexión activa por
-  // proveedor (Meta o Instagram Login) del lado del servidor.
-  metaInsights: (businessId: string, mediaId?: string) => {
+  // Con mediaId: insights de una publicación. `platform` (canal donde se
+  // publicó la pieza) define si el mediaId es un post de FB o un media de IG.
+  // Elige la conexión activa por proveedor (Meta o Instagram Login) del lado
+  // del servidor.
+  metaInsights: (businessId: string, mediaId?: string, platform?: "facebook" | "instagram") => {
     const qs = new URLSearchParams({ businessId });
     if (mediaId) qs.set("mediaId", mediaId);
+    if (platform) qs.set("platform", platform);
     return fetch(`/api/integrations/meta/insights?${qs.toString()}`).then(async (r) => {
       if (!r.ok) {
         const e = await r.json().catch(() => ({}));
