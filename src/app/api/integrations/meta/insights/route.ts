@@ -5,6 +5,7 @@ import { decryptToken } from "@/lib/connections/crypto";
 import {
   fetchIgAccountInsights,
   fetchIgMediaInsights,
+  fetchFbPostInsights,
   fetchPageInsights,
 } from "@/lib/meta/insights";
 import {
@@ -18,8 +19,9 @@ export const maxDuration = 30;
 
 /**
  * Métricas reales de Meta para el negocio.
- * - ?businessId=...            → insights de cuenta IG + página FB
- * - ?businessId=...&mediaId=.. → insights de una publicación de IG
+ * - ?businessId=...                        → insights de cuenta IG + página FB
+ * - ?businessId=...&mediaId=..             → insights de una publicación de IG
+ * - ?businessId=...&mediaId=..&platform=facebook → insights de un post de FB
  */
 export async function GET(req: NextRequest) {
   try {
@@ -28,6 +30,9 @@ export async function GET(req: NextRequest) {
 
     const businessId = req.nextUrl.searchParams.get("businessId");
     const mediaId = req.nextUrl.searchParams.get("mediaId");
+    // Plataforma de la pieza publicada: define si el mediaId es un post de FB o
+    // un media de IG. Sin este dato asumimos Instagram (comportamiento previo).
+    const platform = req.nextUrl.searchParams.get("platform");
     if (!businessId) return NextResponse.json({ error: "Falta businessId" }, { status: 400 });
 
     // Preferimos la conexión de Meta (FB + IG). Si el negocio conectó solo
@@ -37,7 +42,10 @@ export async function GET(req: NextRequest) {
       const pageToken = decryptToken(fbConnection.page_access_token_enc);
 
       if (mediaId) {
-        const media = await fetchIgMediaInsights(mediaId, pageToken);
+        const media =
+          platform === "facebook"
+            ? await fetchFbPostInsights(mediaId, pageToken)
+            : await fetchIgMediaInsights(mediaId, pageToken);
         return NextResponse.json({ media });
       }
 
