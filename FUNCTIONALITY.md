@@ -85,8 +85,12 @@ Paso 0 "Empecemos fácil", 1 Negocio, 2 Marca, 3 Identidad visual (Brand Kit), 4
 - **Estado vacío:** "Todavía no hay contenidos aprobados" + CTA a `/content`.
 
 #### `/metrics` (`src/app/(app)/metrics/page.tsx`)
-- **Qué hace:** dashboard de métricas **mock/demo** (`mockPerformance` + `analyzeContentPerformance`). Badge "Datos demo". Totales (alcance/impresiones/interacciones/engagement), mejores (canal/formato/día/contenido), insights didácticos, por canal, top contenidos.
-- ⚠️ Siempre demo (no hay API de redes). Datos derivados de los contenidos del negocio (o genéricos si no hay).
+- **Qué hace:** métricas **reales** multi-plataforma del negocio. Consume `GET /api/metrics?businessId=&period=7d|30d`, que orquesta un adapter por red (`src/lib/metrics/adapters/{instagram,facebook,linkedin}.ts`) en paralelo y devuelve `{ platforms: PlatformMetrics[], summary }` (tipos en `src/lib/metrics/types.ts`).
+- **UI:** selector de período (7/30 días), **tabs por plataforma** (solo las conectadas; LinkedIn aparece como "Próximamente"), sección por plataforma con KPIs de cuenta (seguidores, vistas, alcance, interacciones, visitas al perfil, publicaciones) + lista de posts del período (con permalink y badge "LOCA" en los publicados desde acá), y un bloque **"Resumen general"** destacado que suma solo métricas comparables (seguidores, vistas, interacciones, publicaciones) — el alcance NO se suma entre redes.
+- **Estados por sección:** `ok` (datos, incluso ceros reales) / `not_connected` (no se muestra) / `permission_error` (CTA "Ir a Configuración"; ej. `read_insights` de FB pendiente de aprobación) / `error` (detalle técnico colapsable) / `coming_soon` (LinkedIn). Si no hay ninguna red conectada → pantalla "Conectá tus redes".
+- **Sin datos demo:** se eliminó el mock de esta pantalla. 0 es un dato real y se muestra como 0.
+- **Restricciones Meta respetadas:** nunca se lista `/feed` `/posts` `/published_posts` de la página de FB (evita error #10 / `pages_read_user_content`); métricas de página con `page_media_view/page_follows/page_post_engagements`; posts de FB solo los publicados desde LOCA, leídos por ID; IG usa `views` (no `impressions`). Métricas de IG andan para todos (permiso aprobado); las de FB dependen de `read_insights` (pendiente) → para usuarios sin rol se ven como `permission_error` hasta la aprobación.
+- Nota: el endpoint `/api/integrations/meta/insights` sigue existiendo para la publicación/otros usos, pero `/metrics` ya no lo consume.
 
 #### `/ads` (`src/app/(app)/ads/page.tsx`)
 - **Qué hace:** genera y muestra estrategia de **Meta Ads** y **Google Ads** (`generateAds`). Botón por plataforma "Generar"/"Modificar" + loading. Muestra objetivo, funnel, audiencias, intereses, ángulos, copies (copiables), headlines, CTAs, presupuesto, etc.

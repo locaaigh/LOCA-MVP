@@ -156,6 +156,22 @@ export const api = {
       permalink?: string;
     }>("/api/integrations/meta/publish", { businessId, contentId, platform }),
 
+  // Métricas multi-plataforma del negocio (IG / FB / LinkedIn) para /metrics.
+  // Orquesta los adapters server-side y devuelve el detalle por plataforma + el
+  // resumen general. Tolera fallas por plataforma (status por sección).
+  metrics: (businessId: string, period: "7d" | "30d" = "30d") => {
+    const qs = new URLSearchParams({ businessId, period });
+    return fetch(`/api/metrics?${qs.toString()}`, { headers: locaUserHeaders() }).then(
+      async (r) => {
+        if (!r.ok) {
+          const e = await r.json().catch(() => ({}));
+          throw new Error(e.error || `Error ${r.status}`);
+        }
+        return r.json() as Promise<import("./metrics/types").MetricsResponse>;
+      }
+    );
+  },
+
   // Métricas reales de redes. Sin mediaId: insights de cuenta (IG + página FB).
   // Con mediaId: insights de una publicación. `platform` (canal donde se
   // publicó la pieza) define si el mediaId es un post de FB o un media de IG.
