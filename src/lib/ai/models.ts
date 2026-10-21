@@ -33,7 +33,10 @@ export const AGENT_MODELS: Record<AgentId, AgentModelConfig> = {
   calendar: { temperature: 0.7 }, // consistencia
   content: { temperature: 0.9 }, // variedad entre piezas
   "content-feedback": { temperature: 0.8 },
-  "website-extract": { temperature: 0.2 }, // es un parser, no queremos creatividad
+  // Analista de negocio (no un parser): necesita razonar industria/B2B/producto-vs-servicio
+  // con criterio, por eso 0.4 (suficiente para razonar, bajo para no inventar). Si se quiere
+  // "más power", acá se puede fijar un `model` más potente sin tocar el resto del pipeline.
+  "website-extract": { temperature: 0.4 },
   "product-description": { temperature: 0.3 },
   "ads-meta": { temperature: 0.8 },
   "ads-google": { temperature: 0.8 },

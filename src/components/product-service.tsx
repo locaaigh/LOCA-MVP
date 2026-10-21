@@ -16,10 +16,13 @@ export function ProductServiceCard({
   ps,
   onEdit,
   onRemove,
+  onConfirm,
 }: {
   ps: ProductService;
   onEdit: () => void;
   onRemove: () => void;
+  /** Confirmación rápida de un ítem sugerido por Eva (solo si shouldReview). */
+  onConfirm?: () => void;
 }) {
   const price =
     ps.priceMin != null
@@ -55,6 +58,14 @@ export function ProductServiceCard({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        {onConfirm && (
+          <button
+            onClick={onConfirm}
+            className="flex items-center gap-1 rounded-xl bg-accent-subtle-bg px-2.5 py-1.5 text-xs font-semibold text-accent-subtle-fg ring-1 ring-inset ring-accent-subtle-ring transition hover:brightness-95"
+          >
+            <Check className="h-3.5 w-3.5" /> Confirmar
+          </button>
+        )}
         <button onClick={onEdit} className="rounded-xl p-2 text-faint transition hover:bg-surface-muted hover:text-foreground-muted">
           <Pencil className="h-4 w-4" />
         </button>

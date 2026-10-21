@@ -216,11 +216,14 @@ export function Modal({
   onClose,
   title,
   children,
+  footer,
 }: {
   open: boolean;
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
+  /** Barra de acciones fija al pie del modal (no scrollea con el contenido). */
+  footer?: React.ReactNode;
 }) {
   const titleId = React.useId();
   const dialogRef = React.useRef<HTMLDivElement>(null);
@@ -259,6 +262,9 @@ export function Modal({
           </button>
         </div>
         <div className="overflow-y-auto p-6">{children}</div>
+        {footer && (
+          <div className="border-t border-border-subtle bg-card px-6 py-4">{footer}</div>
+        )}
       </div>
     </div>
   );

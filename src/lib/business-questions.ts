@@ -19,6 +19,7 @@ import {
   specialDatesOptionsFor,
 } from "./constants";
 import { emptyBrandKit } from "./store";
+import { isCriticalField } from "./onboarding/field-requirements";
 
 export type QSection =
   | "basicos"
@@ -337,6 +338,17 @@ export const QUESTIONS: BusinessQuestion[] = [
     isMissing: (b) => empty(b.communicationNeeds),
   },
 ];
+
+// Unificación (fuente única): el flag `critical` es autoritativo en
+// field-requirements.ts. Lo re-derivamos por id para que NUNCA pueda divergir
+// de la validación por paso. Dos ids tienen otro nombre en el registro.
+const CRITICAL_ID_MAP: Record<string, string> = {
+  audience: "ageRanges",
+  toneTags: "bk_tone",
+};
+for (const q of QUESTIONS) {
+  q.critical = isCriticalField(CRITICAL_ID_MAP[q.id] ?? q.id);
+}
 
 export const CRITICAL_QUESTIONS = QUESTIONS.filter((q) => q.critical);
 

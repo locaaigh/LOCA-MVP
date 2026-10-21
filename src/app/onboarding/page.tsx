@@ -33,6 +33,7 @@ import {
   OptionCards,
   YesNoChoice,
   EvaSuggestionButton,
+  EvaOptionsChooser,
 } from "@/components/inputs";
 import { ChannelSelector } from "@/components/channel-selector";
 import {
@@ -50,6 +51,7 @@ import { Logo } from "@/components/brand";
 import { EvaChatBubble } from "@/components/eva-chat";
 import { getFieldExample } from "@/lib/examples";
 import { getMissingRequiredFields } from "@/lib/onboarding-validation";
+import { missingRequired, firstIncompleteStep } from "@/lib/onboarding/field-requirements";
 import { emptyBrandKit } from "@/lib/store";
 import { api } from "@/lib/api";
 import { uid, copyToClipboard, nowIso, downloadFile } from "@/lib/utils";
@@ -418,20 +420,41 @@ function OnboardingPageInner() {
   }
 
   function finish() {
-    // Gate (item 1): no se puede crear estrategia con obligatorios sin responder.
-    // Cubre el hueco de web/IA/pendientes que saltaban al resumen sin revalidar.
-    if (missingCritical(b).length > 0) {
-      show("Faltan datos obligatorios para que Eva genere tu estrategia.");
-      setCriticalOpen(true);
-      return;
-    }
-
     // Modo edición (item 25): solo guardar los cambios, sin regenerar estrategia.
+    // Gate indulgente (solo críticos), como antes: editar no exige completar todo.
     if (editMode) {
+      if (missingCritical(b).length > 0) {
+        show("Faltan datos obligatorios para que Eva genere tu estrategia.");
+        setCriticalOpen(true);
+        return;
+      }
       const finalBiz = prepareFinalBusiness(b, user?.id || activeBusiness?.userId || "anon");
       useStore.getState().upsertBusiness(finalBiz);
       show("Cambios guardados ✓");
       router.push("/settings");
+      return;
+    }
+
+    // Gate de estrategia (items 1, 11 y 19): no se puede generar con NINGÚN
+    // obligatorio sin resolver — faltante o en estado "Revisar". Fuente única:
+    // field-requirements.ts. Cubre el hueco de web/IA/pendientes que saltaban al
+    // resumen sin revalidar. Rutea al primer paso del wizard con faltantes.
+    const pending = missingRequired(b);
+    if (pending.length > 0) {
+      const target = firstIncompleteStep(b);
+      if (target != null) {
+        setPhase("wizard");
+        setStep(target);
+        setMissing(new Set(pending.filter((f) => f.step === target).map((f) => f.id)));
+        const first = pending.find((f) => f.step === target);
+        if (first) goToMissingField(first.id, first.label);
+      }
+      track("onboarding_validation_failed", {
+        step: target ?? -1,
+        label: "strategy_gate",
+        field: pending[0].id,
+        missingCount: pending.length,
+      });
       return;
     }
 
@@ -628,17 +651,25 @@ function OnboardingPageInner() {
         />
       </Modal>
 
-      {/* Edición enfocada de una sección (resumen y pendientes) */}
-      <Modal open={!!editSection} onClose={cancelSection} title={sectionTitle(editSection)}>
+      {/* Edición enfocada de una sección (resumen y pendientes).
+          Botones en el footer sticky: siempre visibles aunque la ficha scrollee
+          (feedback formulario, ítem 18). */}
+      <Modal
+        open={!!editSection}
+        onClose={cancelSection}
+        title={sectionTitle(editSection)}
+        footer={
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button variant="success" size="lg" className="flex-1" onClick={saveSection}>
+              Guardar cambios
+            </Button>
+            <Button variant="ghost" size="lg" className="flex-1" onClick={cancelSection}>
+              Cancelar
+            </Button>
+          </div>
+        }
+      >
         <SectionEditor section={editSection} b={b} set={set} subcats={subcats} show={show} />
-        <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-          <Button variant="success" size="lg" className="flex-1" onClick={saveSection}>
-            Guardar cambios
-          </Button>
-          <Button variant="ghost" size="lg" className="flex-1" onClick={cancelSection}>
-            Cancelar
-          </Button>
-        </div>
       </Modal>
 
       {hasSupabaseClientConfig() && pendingBusiness && (
@@ -1336,6 +1367,11 @@ function StepBasic({
               <option key={i} value={i}>{i}</option>
             ))}
           </Select>
+          <EvaOptionsChooser
+            options={b.fieldStatuses?.industry?.options}
+            value={b.industry}
+            onPick={(v) => set({ industry: v, subcategory: "" })}
+          />
         </HelpField>
         <HelpField label="Subcategoría" required error={missing.has("subcategory")} id="subcategory" help="Elegí la opción más parecida. No tiene que ser perfecta." status={statusOf("subcategory")}>
           {subcats.length ? (
@@ -1348,6 +1384,11 @@ function StepBasic({
           ) : (
             <Input value={b.subcategory} onChange={(e) => set({ subcategory: e.target.value })} placeholder="Ej: Café" />
           )}
+          <EvaOptionsChooser
+            options={b.fieldStatuses?.subcategory?.options}
+            value={b.subcategory}
+            onPick={(v) => set({ subcategory: v })}
+          />
         </HelpField>
       </div>
 
@@ -1360,12 +1401,21 @@ function StepBasic({
             ))}
           </Select>
         </HelpField>
-        <HelpField label="Modelo de negocio">
+        <HelpField
+          label="A quién le vendés (modelo de negocio)"
+          id="businessModel"
+          status={statusOf("businessModel")}
+        >
           <Select value={b.businessModel} onChange={(e) => set({ businessModel: e.target.value as any })}>
             <option value="B2C">Le vendo a personas (B2C)</option>
             <option value="B2B">Le vendo a empresas (B2B)</option>
             <option value="Ambos">A ambos</option>
           </Select>
+          <EvaOptionsChooser
+            options={b.fieldStatuses?.businessModel?.options}
+            value={b.businessModel}
+            onPick={(v) => set({ businessModel: v as Business["businessModel"] })}
+          />
         </HelpField>
       </div>
 
@@ -1652,9 +1702,15 @@ function StepProducts({
     setEditingId(ps.id);
   };
   const save = (id: string) => {
-    update(id, { saved: true });
+    // Guardar = confirmar: limpia shouldReview (el usuario lo revisó).
+    update(id, { saved: true, shouldReview: false });
     setEditingId(null);
     show("Guardado ✓");
+  };
+  // Confirmación rápida de un sugerido por Eva, sin abrir el editor completo.
+  const confirmReview = (id: string) => {
+    update(id, { shouldReview: false });
+    show("Confirmado ✓");
   };
   const addMany = (list: ProductService[]) => set({ productsServices: [...items, ...list] });
 
@@ -1682,16 +1738,21 @@ function StepProducts({
   };
 
   const detected = items.some((x) => x.importSource && x.importSource !== "manual");
+  // El cartel de fotos de producto solo aplica si el negocio vende productos.
+  // Lo ocultamos si ya cargó ítems y son todos servicios (feedback form, ítem 12).
+  const sellsOnlyServices = items.length > 0 && items.every((x) => x.type === "servicio");
 
   return (
     <div id="products" className="scroll-mt-24 space-y-4">
-      {/* Cartel destacado (item 18) */}
-      <div className="flex items-start gap-3 rounded-2xl border-2 border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4">
-        <span className="text-2xl leading-none">📸</span>
-        <p className="text-sm font-bold uppercase leading-snug tracking-wide text-amber-900">
-          Si vendés productos, es fundamental que subas fotos bien nombradas para crear contenido de mayor valor.
-        </p>
-      </div>
+      {/* Cartel de fotos de producto (feedback form, ítem 12: contraste + condicional) */}
+      {!sellsOnlyServices && (
+        <div className="flex items-start gap-3 rounded-2xl border-2 border-amber-400 dark:border-amber-600 bg-amber-100 dark:bg-amber-950/60 p-4">
+          <span className="text-2xl leading-none">📸</span>
+          <p className="text-sm font-semibold leading-snug text-amber-950 dark:text-amber-50">
+            Si vendés productos, es fundamental que subas fotos bien nombradas para crear contenido de mayor valor.
+          </p>
+        </div>
+      )}
 
       <p className="rounded-lg bg-surface-subtle p-3 text-sm text-muted-foreground">
         {detected
@@ -1731,6 +1792,7 @@ function StepProducts({
             ps={ps}
             onEdit={() => setEditingId(ps.id)}
             onRemove={() => remove(ps.id)}
+            onConfirm={ps.shouldReview ? () => confirmReview(ps.id) : undefined}
           />
         ) : (
           <ProductServiceForm

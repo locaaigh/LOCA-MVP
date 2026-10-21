@@ -520,6 +520,9 @@ export interface FieldStatus {
   status: FieldStatusKind;
   confidence?: Confidence;
   source?: string;
+  // Alternativas sugeridas por Eva cuando no está segura (3-5): la UI las ofrece
+  // para que el usuario elija en vez de aceptar una adivinanza.
+  options?: string[];
 }
 
 // ── Brand Kit (identidad visual) ─────────────────────────────

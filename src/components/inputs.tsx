@@ -323,6 +323,46 @@ export function YesNoChoice({
   );
 }
 
+// ── Opciones alternativas de Eva (cuando no está segura) ──────
+// Eva no adivina un valor único: ofrece 3-5 alternativas razonables para que
+// el usuario elija (o escriba la suya). Se muestra solo si hay options.
+export function EvaOptionsChooser({
+  options,
+  value,
+  onPick,
+}: {
+  options?: string[];
+  value?: string;
+  onPick: (v: string) => void;
+}) {
+  if (!options || options.length === 0) return null;
+  return (
+    <div className="mt-2 rounded-xl bg-accent-subtle-bg px-3 py-2 ring-1 ring-inset ring-accent-subtle-ring">
+      <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-accent-subtle-fg">
+        <Sparkles className="h-3.5 w-3.5" />
+        Eva no está 100% segura. ¿Cuál encaja mejor?
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((o) => (
+          <button
+            key={o}
+            type="button"
+            onClick={() => onPick(o)}
+            className={cn(
+              "rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset transition",
+              value === o
+                ? "bg-accent text-white ring-accent"
+                : "bg-card text-foreground-muted ring-border hover:border-border-strong hover:bg-surface-subtle"
+            )}
+          >
+            {o}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Botón "Que Eva lo sugiera" / "Generar con IA" ────────────
 export function EvaSuggestionButton({
   onClick,

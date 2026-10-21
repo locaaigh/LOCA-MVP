@@ -30,6 +30,19 @@ const AVOID_OPTIONS = [
 ];
 const FONT_SUGGESTIONS = ["Inter", "Poppins", "Montserrat", "Open Sans", "Roboto", "Lora", "Playfair Display"];
 
+// Variantes de logo que el usuario puede subir (para que Eva use la correcta
+// según el fondo/formato). Feedback formulario, ítem 16.
+const LOGO_VARIANTS: { value: BrandLogo["type"]; label: string }[] = [
+  { value: "other", label: "Sin clasificar" },
+  { value: "primary", label: "Principal" },
+  { value: "light", label: "Para fondo claro" },
+  { value: "dark", label: "Para fondo oscuro" },
+  { value: "horizontal", label: "Horizontal" },
+  { value: "vertical", label: "Vertical" },
+  { value: "icon", label: "Ícono / Isotipo" },
+  { value: "favicon", label: "Favicon" },
+];
+
 const ROLE_LABELS: Record<BrandColor["role"], string> = {
   primary: "Principal",
   secondary: "Secundario",
@@ -94,6 +107,8 @@ export function BrandKitEditor({
   const setLogos = (logos: BrandLogo[]) => onChange({ logos });
   const selectLogo = (id: string) => setLogos(bk.logos.map((l) => ({ ...l, selected: l.id === id })));
   const removeLogo = (id: string) => setLogos(bk.logos.filter((l) => l.id !== id));
+  const setLogoType = (id: string, type: BrandLogo["type"]) =>
+    setLogos(bk.logos.map((l) => (l.id === id ? { ...l, type } : l)));
   const uploadRef = React.useRef<HTMLInputElement>(null);
 
   function onUpload(files: FileList | null) {
@@ -105,7 +120,7 @@ export function BrandKitEditor({
           r.onload = () =>
             resolve({
               id: uid("logo"),
-              type: "primary",
+              type: "other",
               dataUrl: String(r.result),
               source: "uploaded",
               selected: false,
@@ -249,29 +264,40 @@ export function BrandKitEditor({
 
       {/* Logos */}
       <Card className="space-y-4 rounded-3xl">
-        <SectionTitle icon={ImageIcon} title="Logos y assets" hint="Si tenés más de una versión, subilas para que Eva use la correcta." />
+        <SectionTitle icon={ImageIcon} title="Logos y assets" hint="Subí todas las versiones que tengas (fondo claro/oscuro, ícono…) y marcá cuál es la principal para que Eva use la correcta." />
         {bk.logos.length > 0 && (
           <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
             {bk.logos.map((l) => (
-              <div
-                key={l.id}
-                className={`relative flex aspect-square items-center justify-center rounded-2xl border bg-card p-2.5 transition ${
-                  l.selected ? "border-loca-500 ring-2 ring-accent-subtle-ring shadow-sm" : "border-border/70 hover:border-border-strong"
-                }`}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={l.dataUrl || l.url} alt="logo" className="max-h-full max-w-full object-contain" />
-                <button onClick={() => removeLogo(l.id)} aria-label="Eliminar logo" className="absolute right-1 top-1 rounded-full bg-card/90 p-2 text-muted-foreground hover:text-red-500 dark:hover:text-red-400">
-                  <Trash2 className="h-3 w-3" />
-                </button>
-                <button
-                  onClick={() => selectLogo(l.id)}
-                  className={`absolute bottom-1 left-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                    l.selected ? "bg-loca-600 text-white" : "bg-card/90 text-muted-foreground"
+              <div key={l.id} className="space-y-1.5">
+                <div
+                  className={`relative flex aspect-square items-center justify-center rounded-2xl border bg-card p-2.5 transition ${
+                    l.selected ? "border-loca-500 ring-2 ring-accent-subtle-ring shadow-sm" : "border-border/70 hover:border-border-strong"
                   }`}
                 >
-                  {l.selected ? "Principal" : "Usar"}
-                </button>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={l.dataUrl || l.url} alt="logo" className="max-h-full max-w-full object-contain" />
+                  <button onClick={() => removeLogo(l.id)} aria-label="Eliminar logo" className="absolute right-1 top-1 rounded-full bg-card/90 p-2 text-muted-foreground hover:text-red-500 dark:hover:text-red-400">
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                  <button
+                    onClick={() => selectLogo(l.id)}
+                    className={`absolute bottom-1 left-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                      l.selected ? "bg-loca-600 text-white" : "bg-card/90 text-muted-foreground"
+                    }`}
+                  >
+                    {l.selected ? "Principal" : "Usar"}
+                  </button>
+                </div>
+                <select
+                  value={l.type}
+                  onChange={(e) => setLogoType(l.id, e.target.value as BrandLogo["type"])}
+                  aria-label="Variante del logo"
+                  className="w-full rounded-lg border border-border bg-card px-1.5 py-1 text-[11px] text-muted-foreground outline-none focus:border-border-strong"
+                >
+                  {LOGO_VARIANTS.map((v) => (
+                    <option key={v.value} value={v.value}>{v.label}</option>
+                  ))}
+                </select>
               </div>
             ))}
           </div>

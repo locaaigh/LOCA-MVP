@@ -2,104 +2,39 @@
 // Validación amable del onboarding por paso.
 // Devuelve los campos faltantes (con label + id para scrollear/marcar),
 // nunca errores técnicos.
+//
+// Los campos obligatorios se declaran una sola vez en field-requirements.ts
+// (fuente única de verdad). Acá solo derivamos la vista "por paso" y sumamos
+// el detalle dinámico (nombre de cada producto cargado), que no es estático.
 // ─────────────────────────────────────────────────────────────
 import type { Business } from "./types";
+import { requirementsForStep } from "./onboarding/field-requirements";
 
 export interface MissingField {
   id: string; // id del campo para hacer scroll/foco
   label: string; // texto humano
 }
 
-function isEmpty(v: unknown): boolean {
-  if (v == null) return true;
-  if (typeof v === "string") return v.trim() === "";
-  if (Array.isArray(v)) return v.length === 0;
-  return false;
-}
-
 /**
- * Índices de paso del onboarding (los pasos 0 "web", 3 "identidad visual"
- * y 8 "resumen" no validan campos requeridos).
- * 1 Negocio · 2 Marca · 4 Productos · 5 Audiencia · 6 Objetivos · 7 Dónde publicar
+ * Índices de paso del onboarding (los pasos 0 "web" y 8 "resumen" no validan).
+ * 1 Negocio · 2 Marca · 3 Identidad visual · 4 Productos · 5 Audiencia ·
+ * 6 Objetivos · 7 Dónde publicar
  */
 export function getMissingRequiredFields(step: number, b: Business): MissingField[] {
-  const missing: MissingField[] = [];
-  const need = (cond: boolean, id: string, label: string) => {
-    if (cond) missing.push({ id, label });
-  };
+  const missing: MissingField[] = requirementsForStep(step)
+    .filter((f) => f.isMissing(b))
+    .map((f) => ({ id: f.id, label: f.label }));
 
-  if (step === 1) {
-    need(isEmpty(b.name), "name", "Nombre de la empresa");
-    need(isEmpty(b.industry), "industry", "Industria");
-    need(isEmpty(b.subcategory), "subcategory", "Subcategoría");
-    need(isEmpty(b.businessType), "businessType", "Tipo de negocio");
-    need(isEmpty(b.businessStage), "businessStage", "Tipo de organización");
-    need(isEmpty(b.yearFounded), "yearFounded", "Año de fundación");
-    need(isEmpty(b.employees), "employees", "Cantidad de empleados");
-    need(isEmpty(b.country), "country", "País");
-    need(isEmpty(b.state), "state", "Provincia / Estado");
-    need(isEmpty(b.city), "city", "Ciudad");
-  }
-
-  if (step === 2) {
-    need(isEmpty(b.shortDescription), "shortDescription", "Descripción corta");
-    need(isEmpty(b.fullDescription), "fullDescription", "Descripción completa");
-    need(isEmpty(b.values), "values", "Valores de marca");
-    need(isEmpty(b.competitiveAdvantages), "competitiveAdvantages", "Ventaja competitiva");
-    need(isEmpty(b.marketingChannels), "marketingChannels", "Canales actuales");
-    need(isEmpty(b.marketingActivities), "marketingActivities", "Qué venís haciendo de marketing");
-    need(b.hasSeasonality === undefined, "hasSeasonality", "¿Tenés temporadas fuertes?");
-    need(!!b.hasSeasonality && isEmpty(b.seasonalityTags), "hasSeasonality", "Elegí tus temporadas fuertes");
-    need(b.hasSpecialDates === undefined, "hasSpecialDates", "¿Hay fechas especiales?");
-    need(!!b.hasSpecialDates && isEmpty(b.specialDates), "hasSpecialDates", "Elegí tus fechas especiales");
-  }
-
-  // Paso 3: Identidad visual (Brand Kit). Validación intuitiva: alcanza con
-  // tener algún color, alguna tipografía y algún tono/estilo (no exige marcar
-  // "principal" ni un campo puntual).
-  if (step === 3) {
-    const bk = b.brandKit;
-    const hasColor = !!bk?.colors?.primary || (bk?.colors?.palette?.length ?? 0) > 0;
-    const hasFont = !!bk?.typography?.heading?.family || !!bk?.typography?.body?.family;
-    const hasToneOrStyle = !isEmpty(bk?.voiceTone?.toneTags) || !isEmpty(bk?.visualStyle?.mood);
-    need(!hasColor, "bk_color", "Un color de marca");
-    need(!hasFont, "bk_font", "Una tipografía (títulos o texto)");
-    need(!hasToneOrStyle, "bk_tone", "Tono o estilo de marca");
-    // Profesional independiente / marca personal: al menos una foto propia (item 20)
-    const isProfessional = b.businessStage === "profesional_independiente" || b.businessType === "Marca personal";
-    need(isProfessional && isEmpty(b.personPhotos), "personPhotos", "Al menos una foto tuya");
-  }
-
+  // Detalle dinámico del paso 4: nombre de cada ítem y confirmación de los
+  // sugeridos por Eva (shouldReview) — para que "Revisar" no sea invisible.
   if (step === 4) {
-    const saved = b.productsServices.filter((p) => p.saved && p.name.trim());
-    need(saved.length === 0, "products", "Al menos un producto o servicio guardado");
     b.productsServices.forEach((p, i) => {
-      need(isEmpty(p.name), `product_${i}`, `Nombre del ${p.type} #${i + 1}`);
+      if (!p.name || p.name.trim() === "") {
+        missing.push({ id: `product_${i}`, label: `Nombre del ${p.type} #${i + 1}` });
+      } else if (p.saved && p.shouldReview) {
+        missing.push({ id: "products", label: `Revisá "${p.name}" (sugerido por Eva)` });
+      }
     });
-  }
-
-  if (step === 5) {
-    const a = b.audience;
-    need(isEmpty(a.ageRanges), "ageRanges", "Rango de edad");
-    need(isEmpty(a.locations), "locations", "Ubicaciones objetivo");
-    need(isEmpty(a.painPoints), "painPoints", "Qué problema le resolvés");
-    need(isEmpty(a.behavior), "behavior", "Comportamiento del cliente");
-    need(isEmpty(a.segments), "segments", "Segmentos de audiencia");
-  }
-
-  if (step === 6) {
-    const g = b.goals;
-    need(isEmpty(g.primaryContentGoal), "primaryContentGoal", "Objetivo principal");
-    need(g.primaryContentGoal === "ventas" && isEmpty(g.salesGoalType), "primaryContentGoal", "Tipo de venta");
-    need(isEmpty(g.businessObjectives), "businessObjectives", "Objetivos de negocio");
-    need(isEmpty(g.successMetrics), "successMetrics", "Métricas de éxito");
-    need(isEmpty(g.marketingObjectives), "marketingObjectives", "Objetivos de marketing");
-    need(isEmpty(g.timeline), "timeline", "Plazo (timeline)");
-  }
-
-  // Paso 7: cuentas donde publicar. Al menos una.
-  if (step === 7) {
-    need(isEmpty(b.publishChannels), "publishChannels", "Al menos una cuenta donde publicar");
   }
 
   return missing;

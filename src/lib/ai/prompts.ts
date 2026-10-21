@@ -244,7 +244,8 @@ export function websiteAnalysisPrompt(input: {
   socials: string[];
   text: string;
 }): string {
-  return `Analizá la web de un negocio y devolvé info ESTRUCTURADA para prellenar un formulario de marketing.
+  return `Sos una analista de negocios senior. NO sos un parser que copia texto: tu trabajo es RAZONAR sobre el negocio real detrás de esta web y completar un formulario de marketing con criterio.
+
 URL: ${input.url}
 TÍTULO: ${input.title}
 DESCRIPCIÓN: ${input.description}
@@ -257,10 +258,21 @@ TEXTO (parcial):
 ${input.text.slice(0, 5000)}
 """
 
-Reglas:
+CÓMO PENSAR (clave):
+- Razoná el negocio REAL: qué vende, a quién, cómo gana plata. No copies literal un titular de marketing.
+- "A quién le vende" (businessModel): pensá quién PAGA. Si el texto dice que ayuda a "empresas", "pymes", "comercios", "equipos" o "profesionales", es B2B — aunque también mencione consumidores. No pongas B2C por default.
+- Producto vs servicio: un SERVICIO es trabajo/tiempo/asesoría/atención recurrente (consultoría, mantenimiento, diseño, clases, instalación). Un PRODUCTO es un bien tangible o digital que se compra una vez. Si la web habla de "soluciones", "acompañamiento", "gestión", "implementación" → probablemente SERVICIOS, no productos. No clasifiques todo como producto.
+- Industria y subcategoría: inferí la categoría real del negocio. Si es evidente, poné tu mejor opción con confianza alta.
+
+REGLA DE CONFIANZA (muy importante — evita inventar):
+- Para CADA campo, estimá tu confianza en "confidence": "high" | "medium" | "low".
+- Si NO estás seguro de industry, subcategory o businessModel, NO adivines uno solo: poné tu mejor opción en el campo, marcá confidence "low" o "medium", y ofrecé 3 a 5 alternativas razonables en "options".
+- Si no hay ninguna señal en la web para un campo, dejalo "" o [] con confidence "low". Preferí vacío honesto antes que un genérico inventado.
+- NO inventes colores ni tipografías (eso se detecta aparte). Acá solo describís mood/estilo si la web lo sugiere.
+
+Reglas de forma:
 - En español rioplatense (vos).
-- NO inventes datos como seguros. Si inferís algo, está bien, pero debe ser razonable según la web.
-- Dejá "" o [] lo que no puedas inferir.
+- Respondé SOLO el JSON.
 
 Devolvé EXACTAMENTE este JSON:
 {
@@ -276,6 +288,9 @@ Devolvé EXACTAMENTE este JSON:
   "values": string[],
   "competitiveAdvantages": string[],
   "marketingActivities": string[],
+  "seasonalityTags": string[],       // temporadas fuertes reales según la web (ej: "verano", "vuelta al cole"). [] si no hay señal clara.
+  "specialDates": string[],          // fechas/eventos propios del negocio (ej: aniversario, lanzamientos). NO metas fechas comerciales genéricas (hot sale, cyber monday) salvo que la web las mencione explícitamente. [] si no hay.
+  "avoidList": string[],             // SOLO cosas que la marca evita comunicar según SU web (ej: "no hablan de precio", "evitan lenguaje técnico"). NUNCA pongas acá fechas, temporadas ni promociones. [] si no hay señal.
   "products": [{ "name": string, "type": "producto" | "servicio", "category": string, "shortDescription": string, "price": number, "currency": string, "isTopSeller": boolean }],
   "audience": { "ageRanges": string[], "gender": string, "socioeconomicLevel": string, "segments": string[], "painPoints": string[], "behavior": string },
   "toneTags": string[],              // ej: cercana, premium, divertida, profesional…
@@ -288,7 +303,20 @@ Devolvé EXACTAMENTE este JSON:
   "recommendedGoal": string,
   "recommendedGoalReason": string,
   "brandKeywords": string[],
-  "whatEvaUnderstood": string        // 1-2 frases: qué entendió Eva del negocio
+  "whatEvaUnderstood": string,       // 1-2 frases: qué entendió Eva del negocio
+  "confidence": {                    // confianza POR campo. Omití los que no apliquen.
+    "industry": "high" | "medium" | "low",
+    "subcategory": "high" | "medium" | "low",
+    "businessModel": "high" | "medium" | "low",
+    "businessType": "high" | "medium" | "low",
+    "shortDescription": "high" | "medium" | "low",
+    "products": "high" | "medium" | "low"
+  },
+  "options": {                       // 3 a 5 alternativas cuando no estés seguro. [] o ausente si tenés confianza alta.
+    "industry": string[],
+    "subcategory": string[],
+    "businessModel": string[]
+  }
 }`;
 }
 
