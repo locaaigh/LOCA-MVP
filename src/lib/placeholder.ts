@@ -4,6 +4,7 @@ export const IMAGE_DIMENSIONS: Record<ImageFormat, { w: number; h: number }> = {
   "1:1": { w: 1024, h: 1024 },
   "4:5": { w: 1024, h: 1280 },
   "9:16": { w: 1024, h: 1792 },
+  "1.91:1": { w: 1200, h: 628 }, // ← NUEVO-v2: horizontal LinkedIn
 };
 
 // Para OpenAI gpt-image-1 los tamaños válidos son 1024x1024, 1024x1536, 1536x1024.
@@ -15,6 +16,8 @@ export function openAiSize(format: ImageFormat): string {
       return "1024x1536";
     case "9:16":
       return "1024x1536";
+    case "1.91:1":
+      return "1536x1024";
     default:
       return "1024x1024";
   }
