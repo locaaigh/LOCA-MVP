@@ -9,7 +9,6 @@ const ASPECT: Record<string, string> = {
   "1:1": "aspect-square",
   "4:5": "aspect-[4/5]",
   "9:16": "aspect-[9/16]",
-  "1.91:1": "aspect-[1.91/1]", // ← NUEVO-v2
 };
 
 // Preview de la pieza: muestra la imagen REAL limpia, sin texto/CTA encima

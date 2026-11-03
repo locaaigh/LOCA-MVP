@@ -13,43 +13,6 @@ import type { TokenUsage } from "../providers/types";
 import { SYSTEM_EVA, websiteAnalysisPrompt } from "../prompts";
 import { asArray, asString } from "../shared/normalize";
 import type { Agent, AgentResult } from "../shared/result";
-import { isScreenshotConfigured } from "../website-screenshot";
-import { websiteVisionAgent } from "./website-vision";
-
-/** ¿El análisis por HTML alcanzó? Si no, vale la pena mirar la web con capturas. */
-export function shouldUseVision(raw: RawWebContent, analysis: WebsiteAnalysis): boolean {
-  if (!raw.reachable) return true;
-  if ((raw.text || "").length < 500) return true;
-  const fs = analysis.fieldStatuses;
-  const weak = (k: string) => !fs[k] || fs[k].status === "missing" || fs[k].confidence === "low";
-  if (weak("industry") || weak("shortDescription")) return true;
-  if (!analysis.foundFields.productsServices?.length) return true;
-  return false;
-}
-
-async function runVisionFallback(
-  url: string,
-  raw: RawWebContent,
-  htmlResult: AgentResult<WebsiteAnalysis>
-): Promise<AgentResult<WebsiteAnalysis>> {
-  const vision = await websiteVisionAgent.run({ url, raw, analysis: htmlResult.data });
-  if (vision.meta.provider === "mock") {
-    // La visión no corrió (sin capturas o error): devolvemos lo del HTML con el aviso.
-    return { data: htmlResult.data, meta: { ...htmlResult.meta, warning: [htmlResult.meta.warning, vision.meta.warning].filter(Boolean).join(" | ") || undefined } };
-  }
-  const usage =
-    htmlResult.meta.usage || vision.meta.usage
-      ? {
-          inputTokens: (htmlResult.meta.usage?.inputTokens ?? 0) + (vision.meta.usage?.inputTokens ?? 0),
-          outputTokens: (htmlResult.meta.usage?.outputTokens ?? 0) + (vision.meta.usage?.outputTokens ?? 0),
-          costUsd: (htmlResult.meta.usage?.costUsd ?? 0) + (vision.meta.usage?.costUsd ?? 0),
-        }
-      : undefined;
-  return {
-    data: vision.data,
-    meta: { provider: vision.meta.provider, model: `${vision.meta.model ?? ""}+vision`, usage, warning: vision.meta.warning },
-  };
-}
 
 export interface WebsiteExtractAgentInput {
   url: string;
@@ -74,7 +37,7 @@ async function analyzeWebsiteContentWithAI(
       socials: raw.socialLinks.map((s) => s.platform),
       text: raw.text,
     }),
-    { onUsage, model: cfg.model, temperature: cfg.temperature, maxTokens: cfg.maxTokens }
+    { onUsage, model: cfg.model, temperature: cfg.temperature }
   )) as Record<string, unknown>;
 }
 
@@ -121,16 +84,7 @@ function readOptions(j: Record<string, unknown>, key: string): string[] {
   return asArray((j.options as Record<string, unknown> | undefined)?.[key]);
 }
 
-/**
- * Mezcla la salida del modelo en el análisis básico respetando lo detectado
- * determinísticamente ("found"). Con `fillOnly` (plan B visual) solo completa
- * campos vacíos o con confianza baja: no pisa sugerencias ya razonables.
- */
-export function mergeAiIntoAnalysis(
-  basic: WebsiteAnalysis,
-  j: Record<string, unknown>,
-  opts?: { fillOnly?: boolean }
-): WebsiteAnalysis {
+function mergeAiIntoAnalysis(basic: WebsiteAnalysis, j: Record<string, unknown>): WebsiteAnalysis {
   const ff = basic.foundFields;
   const fs = basic.fieldStatuses;
   const suggest = (
@@ -141,7 +95,6 @@ export function mergeAiIntoAnalysis(
   ) => {
     if (val == null || (Array.isArray(val) && !val.length) || val === "") return;
     if (fs[key]?.status === "found") return;
-    if (opts?.fillOnly && fs[key]?.status === "suggested" && fs[key]?.confidence !== "low") return;
     (ff as Record<string, unknown>)[key] = val;
     fs[key] = {
       status: "suggested",
@@ -179,7 +132,7 @@ export function mergeAiIntoAnalysis(
   suggest("seasonalityTags", asArray(j.seasonalityTags));
   suggest("specialDates", asArray(j.specialDates));
 
-  if (Array.isArray(j.products) && j.products.length && !(opts?.fillOnly && ff.productsServices?.length)) {
+  if (Array.isArray(j.products) && j.products.length) {
     const productsConf = readConfidence(j, "products") ?? "medium";
     ff.productsServices = (j.products as unknown[])
       .map((p) => {
@@ -203,7 +156,7 @@ export function mergeAiIntoAnalysis(
   }
 
   const aud = j.audience as Record<string, unknown> | undefined;
-  if (aud && typeof aud === "object" && !(opts?.fillOnly && ff.audience)) {
+  if (aud && typeof aud === "object") {
     ff.audience = {
       ageRanges: asArray(aud.ageRanges),
       gender: (asString(aud.gender) || "todos") as "todos",
@@ -294,7 +247,7 @@ export const websiteExtractAgent: Agent<WebsiteExtractAgentInput, WebsiteAnalysi
     const basic = buildBasicAnalysis(raw, url);
 
     if (!raw.reachable) {
-      const fallback: AgentResult<WebsiteAnalysis> = {
+      return {
         data: basic,
         meta: {
           provider: "mock",
@@ -302,9 +255,6 @@ export const websiteExtractAgent: Agent<WebsiteExtractAgentInput, WebsiteAnalysi
             "Eva no pudo leer la web. Podés completar el formulario manualmente o probar con otra URL.",
         },
       };
-      // Plan B visual: la web existe pero no se dejó leer por HTML (JS, bloqueo, etc.).
-      if (getTextProvider() && (await isScreenshotConfigured())) return runVisionFallback(url, raw, fallback);
-      return fallback;
     }
 
     const textProvider = getTextProvider();
@@ -320,23 +270,15 @@ export const websiteExtractAgent: Agent<WebsiteExtractAgentInput, WebsiteAnalysi
 
     try {
       let usage: TokenUsage | undefined;
-      const cfg = getAgentConfig("website-extract");
       const ai = await analyzeWebsiteContentWithAI(raw, (u) => (usage = u));
-      const merged = mergeAiIntoAnalysis(basic, ai);
-      const result: AgentResult<WebsiteAnalysis> = {
-        data: merged,
+      return {
+        data: mergeAiIntoAnalysis(basic, ai),
         meta: {
           provider: textProvider.id,
-          model: cfg.model,
-          usage: usage && { ...usage, costUsd: estimateTextCostUsd(cfg.model, usage) },
+          model: textProvider.model,
+          usage: usage && { ...usage, costUsd: estimateTextCostUsd(textProvider.model, usage) },
         },
       };
-      // Plan B: si el HTML no alcanzó (sitio renderizado con JS, texto pobre,
-      // industria insegura o sin productos), se lee la web con capturas + visión.
-      if (shouldUseVision(raw, merged) && (await isScreenshotConfigured())) {
-        return runVisionFallback(url, raw, result);
-      }
-      return result;
     } catch (e: unknown) {
       const detail = e instanceof Error ? e.message : String(e);
       if (process.env.NODE_ENV === "development") {

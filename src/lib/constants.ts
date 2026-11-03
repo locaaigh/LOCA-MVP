@@ -421,7 +421,6 @@ export const IMAGE_FORMAT_LABELS: Record<string, string> = {
   "1:1": "1:1 — Post",
   "4:5": "4:5 — Feed",
   "9:16": "9:16 — Story / Reel",
-  "1.91:1": "1.91:1 — LinkedIn horizontal", // ← NUEVO-v2
 };
 
 export const CURRENCIES = ["ARS", "USD", "EUR", "MXN", "CLP", "COP", "BRL"];

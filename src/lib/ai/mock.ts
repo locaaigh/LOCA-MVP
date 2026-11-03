@@ -15,14 +15,6 @@ import type {
   ImageFormat,
 } from "../types";
 import { spreadDates, uid, nowIso } from "../utils";
-import { imageFormatFor } from "./image/formats";
-import type { PiecePurpose } from "./types";
-
-// Propósitos rotados en el mock (mismo mix sugerido que el prompt del calendario).
-const PURPOSE_ROTATION: PiecePurpose[] = [
-  "venta", "educativo", "producto", "promo", "marca", "educativo", "testimonio", "detras_de_escena", "venta", "fecha_especial",
-];
-const OVERLAY_PURPOSES: PiecePurpose[] = ["educativo", "promo", "testimonio", "fecha_especial"];
 
 function pick<T>(arr: T[], i: number): T {
   return arr[i % arr.length];
@@ -200,7 +192,7 @@ export function mockCalendar(
     `Detrás de escena en ${b.name}`,
     "Testimonio de un cliente feliz",
     `Por qué elegir ${b.name}: ${b.competitiveAdvantages[0] || "nuestra diferencia"}`,
-    "Pregunta a la comunidad: respondé por mensaje",
+    "Pregunta a la comunidad / encuesta",
     "Novedad de la semana",
     "Mini guía paso a paso",
     `Promo especial: ${strategy.offerIdeas[0] || "beneficio del mes"}`,
@@ -231,11 +223,6 @@ export function mockCalendar(
       objective:
         i % 3 === 0 ? "Conversión" : i % 3 === 1 ? "Alcance" : "Engagement",
       topic: pick(topics, i),
-      purpose: pick(PURPOSE_ROTATION, i),
-      angle: `Enfoque ${i + 1}: ${pick(topics, i)} desde ${pillar.name}`,
-      hookIdea: hookFor({ topic: pick(topics, i), date } as CalendarItem, b),
-      visualConcept: visualConceptFor({ format: pick(FORMAT_ROTATION, i) } as CalendarItem, b),
-      needsTextOverlay: OVERLAY_PURPOSES.includes(pick(PURPOSE_ROTATION, i)),
       status: "generado",
       createdAt: nowIso(),
       updatedAt: nowIso(),
@@ -268,8 +255,7 @@ export function mockContent(
     hashtags: [], // sin hashtags (item 19)
     visualConcept: visualConceptFor(item, b),
     imagePrompt: imagePromptFor(item, b),
-    imageFormat: imageFormatFor(item.channel, item.format),
-    purpose: item.purpose,
+    imageFormat: (item.format === "story" || item.format === "reel" ? "9:16" : "4:5") as ImageFormat,
     suggestedLayout:
       item.format === "carrusel"
         ? "Carrusel de 5 slides: portada con hook, 3 slides de valor, slide final con CTA."
@@ -356,10 +342,9 @@ function hookFor(item: CalendarItem, b: Business): string {
 
 
 function visualConceptFor(item: CalendarItem, b: Business): string {
-  // Concepto en inglés, sin texto: es lo que recibe el imagePromptBuilder como capa 1.
-  const subject = topSeller(b);
-  const scene = item.format === "story" ? "tall vertical close-up" : "clean, well-lit composition";
-  return `A ${scene} featuring ${subject} from ${b.name}, a ${b.subcategory || b.industry} business in ${b.city || "the city"}, natural light, brand-consistent colors, calm negative space, no text.`;
+  return `${item.format === "reel" ? "Video vertical" : "Imagen"} con estética de ${b.name}: foco en ${topSeller(
+    b
+  )}, paleta de marca, iluminación cuidada y composición limpia que deje espacio para el texto.`;
 }
 
 export function imagePromptFor(item: CalendarItem, b: Business): string {

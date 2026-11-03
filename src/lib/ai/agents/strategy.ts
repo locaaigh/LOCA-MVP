@@ -2,8 +2,6 @@ import type { Business, Strategy } from "@/lib/types";
 import { mockStrategy } from "../mock";
 import { SYSTEM_EVA, strategyPrompt } from "../prompts";
 import { asArray, asChannel, asString } from "../shared/normalize";
-import { strategyOutputSchema } from "../shared/schemas";
-import { stripReelsFromMix } from "../shared/validators";
 import type { Agent, AgentResult } from "../shared/result";
 import { withTextAgent } from "./_shared";
 
@@ -21,12 +19,24 @@ export const strategyAgent: Agent<StrategyAgentInput, Strategy> = {
       "strategy",
       () => fallback,
       async (chatJson) => {
-        const j = await chatJson(SYSTEM_EVA, strategyPrompt(business, feedback), { schema: strategyOutputSchema });
-        const pillars = j.contentPillars.map((p) => ({ name: asString(p.name), description: asString(p.description) })).filter((p) => p.name);
-        // Reels/video fuera del mix (B4): si el modelo los mete igual, se sacan y se renormaliza.
-        const { mix: contentMix } = stripReelsFromMix(
-          j.contentMix.map((m) => ({ type: asString(m.type), percentage: Number(m.percentage) || 0 })).filter((m) => m.type)
-        );
+        const j = (await chatJson(SYSTEM_EVA, strategyPrompt(business, feedback))) as Record<
+          string,
+          unknown
+        >;
+        const pillarsRaw = Array.isArray(j.contentPillars) ? j.contentPillars : [];
+        const pillars = pillarsRaw
+          .map((p: unknown) => {
+            const o = p as Record<string, unknown>;
+            return { name: asString(o.name), description: asString(o.description) };
+          })
+          .filter((p) => p.name);
+        const mixRaw = Array.isArray(j.contentMix) ? j.contentMix : [];
+        const contentMix = mixRaw
+          .map((m: unknown) => {
+            const o = m as Record<string, unknown>;
+            return { type: asString(o.type), percentage: Number(o.percentage) || 0 };
+          })
+          .filter((m) => m.type);
         const channels = asArray(j.recommendedChannels)
           .map((c) => asChannel(c, "Instagram"))
           .filter((c, i, arr) => arr.indexOf(c) === i);

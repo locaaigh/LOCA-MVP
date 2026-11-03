@@ -3,17 +3,6 @@
 // Todo en un solo lugar para que sea fácil de extender / migrar a DB.
 // ─────────────────────────────────────────────────────────────
 
-// NUEVO-v2: tipos propios de la capa de IA (familia de estilo, overlay, QA, versiones…).
-import type {
-  BrandStyleConfig,
-  CarouselSlideRole,
-  ContentVersion,
-  GenerationMeta,
-  ImageConsent,
-  OverlaySpec,
-  PiecePurpose,
-} from "./ai/types";
-
 export type ID = string;
 
 export type BusinessModel = "B2B" | "B2C" | "Ambos";
@@ -37,8 +26,7 @@ export type ContentFormat =
   | "ad"
   | "email";
 
-// "1.91:1" = post horizontal solo para LinkedIn (1200x628). Ver src/lib/ai/image/formats.ts.
-export type ImageFormat = "1:1" | "4:5" | "9:16" | "1.91:1";
+export type ImageFormat = "1:1" | "4:5" | "9:16";
 
 export type ContentStatus =
   | "borrador"
@@ -222,8 +210,6 @@ export interface Business {
   visualStyles?: string[];
   // Fotos de la persona (marca personal / profesional independiente). Ver PLAN-v2 item 20.
   personPhotos?: UploadedPhoto[];
-  // Consentimiento sobre el uso de la foto de la persona (NUEVO-v2, sección F).
-  imageConsent?: ImageConsent;
   productsServices: ProductService[];
   audience: Audience;
   goals: Goals;
@@ -283,12 +269,6 @@ export interface CalendarItem {
   contentPillar: string;
   objective: string;
   topic: string;
-  // Brief por pieza (NUEVO-v2, sección I): mes coherente sin repetir ángulos ni hooks.
-  purpose?: PiecePurpose;
-  angle?: string;
-  hookIdea?: string;
-  visualConcept?: string;
-  needsTextOverlay?: boolean;
   status: CalendarStatus;
   createdAt: string;
   updatedAt: string;
@@ -327,10 +307,6 @@ export interface CarouselSlide {
   imageProvider?: AiProvider;
   imageStatus: ImageStatus;
   imageError?: string;
-  // NUEVO-v2 (carruseles): rol de la slide, texto por overlay y metadatos de generación.
-  role?: CarouselSlideRole;
-  overlay?: OverlaySpec;
-  generation?: GenerationMeta;
 }
 
 export interface FeedbackEntry {
@@ -408,17 +384,6 @@ export interface ContentItem {
   // prompt/concepto: solo elige tags. Esto alimenta internamente a Eva.
   selectedVisualFeedbackTags?: string[];
   customVisualFeedback?: string;
-  // ── NUEVO-v2 ──
-  // Propósito de la pieza (viene del brief del calendario).
-  purpose?: PiecePurpose;
-  // Texto compuesto por código sobre la imagen (si la pieza lleva texto).
-  overlay?: OverlaySpec;
-  // Prompt final, modelo que la produjo, QA, costo e intentos.
-  generation?: GenerationMeta;
-  // Versiones anteriores (V1, V2…) al aplicar feedback o regenerar.
-  versions?: ContentVersion[];
-  // true si el copy salió del mock (IA no disponible o salida inválida tras reintento).
-  isMock?: boolean;
   visualChangeRequestedAt?: string;
   visualChangeCount?: number;
   createdAt: string;
@@ -524,8 +489,6 @@ export interface AiMeta {
   usage?: { inputTokens: number; outputTokens: number; costUsd: number };
   /** Latencia de la llamada al proveedor (para ai_usage_log). */
   durationMs?: number;
-  // NUEVO-v2: la salida no validó y se reparó en un 2º intento.
-  repaired?: boolean;
 }
 
 // ── Extracción de info desde la web del negocio ──────────────
@@ -575,8 +538,6 @@ export interface BrandColor {
 
 export interface BrandFont {
   family: string;
-  // NUEVO-v2: URL de un archivo TTF/OTF propio (opcional). Si no está, se busca la familia en Google Fonts.
-  fileUrl?: string;
   source: "detected" | "inferred" | "user";
   confidence: Confidence;
 }
@@ -620,8 +581,6 @@ export interface BrandKit {
   };
   brandKeywords?: string[];
   avoidList?: string[];
-  // Familia de imagen, variante, sistema tipográfico y sabor local (NUEVO-v2, sección D).
-  style?: BrandStyleConfig;
 }
 
 // ── Business Intelligence Snapshot ───────────────────────────
