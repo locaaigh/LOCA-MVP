@@ -21,7 +21,6 @@ import {
   Pencil,
   ArrowRight,
   Check,
-  ChevronDown,
 } from "lucide-react";
 
 export type SummarySectionKey =
@@ -276,32 +275,20 @@ function SummaryCard({
   danger?: boolean;
   children: React.ReactNode;
 }) {
-  // Las secciones ya completas arrancan minimizadas (solo header + flechita) para que
-  // "lo ya hecho" no alargue ni confunda. Las que faltan (danger) quedan siempre abiertas.
-  const canCollapse = !danger;
-  const [collapsed, setCollapsed] = React.useState(canCollapse);
-  const expanded = !canCollapse || !collapsed;
-  const toggle = () => canCollapse && setCollapsed((c) => !c);
   return (
     <Card
-      className={`space-y-2.5 transition-all duration-200 hover:shadow-pop ${
+      className={`space-y-2.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-pop ${
         danger ? "border-red-200 dark:border-red-900/60 bg-red-50/40 dark:bg-red-950/40 ring-1 ring-red-100 dark:ring-red-900" : ""
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={toggle}
-          disabled={!canCollapse}
-          aria-expanded={expanded}
-          className={`flex min-w-0 items-center gap-2 text-left ${danger ? "text-red-500 dark:text-red-400" : "text-loca-500"} ${canCollapse ? "cursor-pointer" : "cursor-default"}`}
-        >
-          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl ${danger ? "bg-red-100 dark:bg-red-900/50" : "bg-accent-subtle-bg"}`}>
+        <div className={`flex items-center gap-2 ${danger ? "text-red-500 dark:text-red-400" : "text-loca-500"}`}>
+          <span className={`flex h-7 w-7 items-center justify-center rounded-xl ${danger ? "bg-red-100 dark:bg-red-900/50" : "bg-accent-subtle-bg"}`}>
             <Icon className="h-4 w-4" />
           </span>
           <SectionLabel>{title}</SectionLabel>
-        </button>
-        <div className="flex shrink-0 items-center gap-1.5">
+        </div>
+        <div className="flex items-center gap-1.5">
           {danger ? (
             <span className="rounded-full bg-red-100 dark:bg-red-900/50 px-2.5 py-1 text-[11px] font-bold text-red-600 dark:text-red-300">
               Falta completar
@@ -320,31 +307,20 @@ function SummaryCard({
               <Pencil className="h-4 w-4" />
             </button>
           )}
-          {canCollapse && (
-            <button
-              type="button"
-              onClick={toggle}
-              aria-label={expanded ? `Minimizar ${title}` : `Desplegar ${title}`}
-              className="rounded-lg p-1.5 text-faint transition hover:bg-surface-muted/80 hover:text-foreground"
-            >
-              <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
-            </button>
-          )}
         </div>
       </div>
-      {expanded &&
-        (danger ? (
-          <div className="space-y-2">
-            <p className="text-sm text-red-600 dark:text-red-300">Necesitamos este dato para generar una estrategia correcta.</p>
-            {(onFix || onEdit) && (
-              <Button variant="danger" size="sm" onClick={onFix || onEdit}>
-                <ArrowRight className="h-3.5 w-3.5" /> Completar este dato
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="text-sm leading-relaxed text-foreground-muted">{children}</div>
-        ))}
+      {danger ? (
+        <div className="space-y-2">
+          <p className="text-sm text-red-600 dark:text-red-300">Necesitamos este dato para generar una estrategia correcta.</p>
+          {(onFix || onEdit) && (
+            <Button variant="danger" size="sm" onClick={onFix || onEdit}>
+              <ArrowRight className="h-3.5 w-3.5" /> Completar este dato
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="text-sm leading-relaxed text-foreground-muted">{children}</div>
+      )}
     </Card>
   );
 }
