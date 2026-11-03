@@ -18,7 +18,7 @@ import { FORMAT_LABELS, CONTENT_STATUS_LABELS } from "@/lib/constants";
 import { bucketOf, hasPublishError } from "@/lib/content-status";
 import { copyToClipboard, formatDate } from "@/lib/utils";
 import { track } from "@/lib/analytics";
-import { CheckCheck, Copy, Eye, FileText, Library, Lock, Play, Sparkles, Unlock, CheckCircle2, Send, AlertTriangle, ExternalLink, Download } from "lucide-react";
+import { CheckCheck, Copy, Eye, FileText, Library, Lock, Play, Sparkles, Unlock, CheckCircle2, Send, AlertTriangle, ExternalLink, Download, CalendarClock, CalendarCheck } from "lucide-react";
 import type { Business, ContentItem } from "@/lib/types";
 
 const STATUS_TONE: Record<string, any> = {
@@ -335,6 +335,7 @@ export default function ContentStudioPage() {
               renderActions={(c) => (
                 <ApprovedActions
                   c={c}
+                  scheduledAt={dateOf(c)}
                   onToast={show}
                   onReopen={() => setReopenId(c.id)}
                   onPublish={() => publishOne(c)}
@@ -497,13 +498,28 @@ function Gallery({
   );
 }
 
+// Fecha + hora legible para las cards (día/mes/año · HH:MM hs).
+function whenLabel(dateIso?: string, time?: string): string {
+  if (!dateIso) return "";
+  let datePart = dateIso;
+  try {
+    datePart = new Date(dateIso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+  } catch {
+    /* noop */
+  }
+  return time ? `${datePart} · ${time} hs` : datePart;
+}
+
 function ApprovedActions({
   c,
+  scheduledAt,
   onToast,
   onReopen,
   onPublish,
 }: {
   c: ContentItem;
+  /** Fecha resuelta de publicación (scheduledDate → calendario → createdAt). */
+  scheduledAt?: string;
   onToast: (m: string) => void;
   onReopen: () => void;
   onPublish: () => void;
@@ -519,8 +535,16 @@ function ApprovedActions({
       setPublishing(false);
     }
   };
+  const whenText = whenLabel(scheduledAt, c.scheduledTime);
   return (
     <div className="grid grid-cols-2 gap-1.5">
+      {/* Cuándo se va a publicar (visible desde afuera, sin abrir la pieza) */}
+      {whenText && (
+        <div className="col-span-2 inline-flex items-center gap-1.5 rounded-xl bg-surface-muted/70 px-2.5 py-1.5 text-xs font-medium text-muted-foreground">
+          <CalendarClock className="h-3.5 w-3.5 shrink-0 text-faint" />
+          <span>Se publicará el {whenText}</span>
+        </div>
+      )}
       {/* Alerta si la última publicación falló (item 11) */}
       {failed && (
         <div className="col-span-2 flex items-start gap-2 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-2.5 text-xs text-amber-800 dark:text-amber-200">
@@ -559,8 +583,19 @@ function ApprovedActions({
 
 function PublishedActions({ c, onToast }: { c: ContentItem; onToast: (m: string) => void }) {
   const router = useRouter();
+  const publishedText = whenLabel(
+    c.publishedAt ? c.publishedAt.slice(0, 10) : undefined,
+    c.publishedAt ? new Date(c.publishedAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : undefined
+  );
   return (
     <div className="grid grid-cols-2 gap-1.5">
+      {/* Cuándo se publicó realmente (visible desde afuera) */}
+      {publishedText && (
+        <div className="col-span-2 inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+          <CalendarCheck className="h-3.5 w-3.5 shrink-0" />
+          <span>Publicado el {publishedText}</span>
+        </div>
+      )}
       {/* Ver contenido → link real del post publicado (item A7) */}
       {c.publishedUrl ? (
         <a
