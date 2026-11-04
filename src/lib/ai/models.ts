@@ -1,47 +1,74 @@
 // ─────────────────────────────────────────────────────────────
-// Configuración de modelo y temperature POR AGENTE. Un solo lugar para
-// que A2 (costo vs calidad) cambie el modelo de cada agente sin tocar el
-// resto del código.
+// Modelo y nivel de esfuerzo POR AGENTE (texto). Un solo lugar para cambiar
+// el modelo de cada agente sin tocar el resto del código.
 //
-// F1 (arranque): `model` va sin definir → cada agente usa el modelo default
-// del provider activo (hoy claude-sonnet-4-6). Cuando A2 decida el modelo por
-// agente, se completa `model` acá y nada más cambia.
+// NUEVO-v2 (oct-2026): se sube a la familia Claude 5.5 y se reemplaza
+// `temperature` por `effort`. Verificado el 25-10-2026: los modelos 5.5
+// responden 400 "`temperature` is deprecated for this model".
 //
-// La `temperature` sí se fija ya, según la naturaleza de cada tarea
-// (A3/B1 F1.3): baja para parsers (precisión), alta para contenido (variedad).
+// Override por entorno (sin deploy de código):
+//   AI_MODEL_STRATEGY=claude-sonnet-5-5   AI_EFFORT_STRATEGY=medium
+//   (el id del agente en mayúsculas, con "-" → "_")
 // ─────────────────────────────────────────────────────────────
+import type { Effort } from "./providers/types";
 
 export type AgentId =
   | "strategy"
   | "calendar"
   | "content"
+  | "carousel"
   | "content-feedback"
   | "website-extract"
+  | "website-vision"
   | "product-description"
   | "ads-meta"
-  | "ads-google";
+  | "ads-google"
+  | "image-qa";
 
 export interface AgentModelConfig {
-  /** Modelo específico. Si se omite, usa el default del provider activo. */
-  model?: string;
-  /** 0..1. Si se omite, usa el default del proveedor. */
-  temperature?: number;
+  /** Modelo de texto (Anthropic). Si se usa OpenAI como provider, se ignora salvo que sea un id de OpenAI. */
+  model: string;
+  /** Profundidad de razonamiento: low | medium | high. Reemplaza a temperature. */
+  effort: Effort;
+  /** Tope de tokens de salida. */
+  maxTokens?: number;
 }
 
+export const CLAUDE = {
+  opus: "claude-opus-5-5",
+  sonnet: "claude-sonnet-5-5",
+  haiku: "claude-haiku-5-5",
+} as const;
+
 export const AGENT_MODELS: Record<AgentId, AgentModelConfig> = {
-  strategy: { temperature: 0.7 }, // consistencia
-  calendar: { temperature: 0.7 }, // consistencia
-  content: { temperature: 0.9 }, // variedad entre piezas
-  "content-feedback": { temperature: 0.8 },
-  // Analista de negocio (no un parser): necesita razonar industria/B2B/producto-vs-servicio
-  // con criterio, por eso 0.4 (suficiente para razonar, bajo para no inventar). Si se quiere
-  // "más power", acá se puede fijar un `model` más potente sin tocar el resto del pipeline.
-  "website-extract": { temperature: 0.4 },
-  "product-description": { temperature: 0.3 },
-  "ads-meta": { temperature: 0.8 },
-  "ads-google": { temperature: 0.8 },
+  // Analista de negocio: industria, B2B, producto vs servicio. Corre una vez. "Una IA mucho más power".
+  "website-extract": { model: CLAUDE.opus, effort: "high", maxTokens: 8192 },
+  // Lectura visual de la web (capturas) como plan B. También razonamiento de negocio.
+  "website-vision": { model: CLAUDE.opus, effort: "high", maxTokens: 8192 },
+  // Define todo lo demás. Una llamada por negocio.
+  strategy: { model: CLAUDE.opus, effort: "high", maxTokens: 8192 },
+  // Estructura el mes con brief por pieza. Una llamada.
+  calendar: { model: CLAUDE.sonnet, effort: "medium", maxTokens: 12000 },
+  // 12 a 20 llamadas por mes, con caching del contexto estable.
+  content: { model: CLAUDE.sonnet, effort: "medium", maxTokens: 6000 },
+  carousel: { model: CLAUDE.sonnet, effort: "medium", maxTokens: 8192 },
+  // Edición puntual sobre una pieza existente.
+  "content-feedback": { model: CLAUDE.haiku, effort: "medium", maxTokens: 6000 },
+  "product-description": { model: CLAUDE.haiku, effort: "low", maxTokens: 2048 },
+  "ads-meta": { model: CLAUDE.sonnet, effort: "medium", maxTokens: 6000 },
+  "ads-google": { model: CLAUDE.sonnet, effort: "medium", maxTokens: 6000 },
+  // Veredicto estructurado por imagen (visión). 1 a 2 segundos, centavos.
+  "image-qa": { model: CLAUDE.haiku, effort: "low", maxTokens: 1024 },
 };
 
+function envKey(agentId: string): string {
+  return agentId.toUpperCase().replace(/-/g, "_");
+}
+
 export function getAgentConfig(agentId: string): AgentModelConfig {
-  return AGENT_MODELS[agentId as AgentId] || {};
+  const base = AGENT_MODELS[agentId as AgentId] || { model: CLAUDE.sonnet, effort: "medium" as Effort };
+  const model = process.env[`AI_MODEL_${envKey(agentId)}`]?.trim() || base.model;
+  const effortRaw = process.env[`AI_EFFORT_${envKey(agentId)}`]?.trim().toLowerCase();
+  const effort: Effort = effortRaw === "low" || effortRaw === "medium" || effortRaw === "high" ? effortRaw : base.effort;
+  return { ...base, model, effort };
 }

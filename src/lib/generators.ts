@@ -306,7 +306,7 @@ export function useGenerators() {
   async function generateImage(
     content: ContentItem,
     business: Business,
-    opts?: { skipSync?: boolean }
+    opts?: { skipSync?: boolean; concept?: string }
   ) {
     store.updateContent(content.id, { imageStatus: "generando" });
     if (business.isDemo) {
@@ -328,7 +328,8 @@ export function useGenerators() {
       const res = await api.image(
         business.id,
         content.id,
-        opts?.skipSync ? { skipSync: true } : { includeBusiness: business, includeContent: content }
+        opts?.skipSync ? { skipSync: true } : { includeBusiness: business, includeContent: content },
+        opts?.concept
       );
       const patch = {
         imageUrl: res.data.imageUrl,

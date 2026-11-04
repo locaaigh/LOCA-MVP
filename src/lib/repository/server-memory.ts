@@ -128,6 +128,16 @@ export const serverMemoryRepository: DataRepository = {
     store.set(userId, { ...snap, contents });
   },
 
+  // NUEVO-v2 fix 4: escribe solo los metadatos de generación.
+  async setContentGeneration(userId, contentId, generation) {
+    const snap = store.get(userId);
+    if (!snap) return;
+    const contents = snap.contents.map((c) =>
+      c.id === contentId ? ({ ...c, generation } as typeof c) : c
+    );
+    store.set(userId, { ...snap, contents });
+  },
+
   async getSnapshot(userId) {
     const snap = store.get(userId);
     return {

@@ -9,6 +9,7 @@ import { ContentPreview } from "@/components/content-preview";
 import { PlatformLogo, PlatformLogos, contentPlatforms } from "@/components/platform-logo";
 import { FORMAT_LABELS } from "@/lib/constants";
 import { bucketOf } from "@/lib/content-status";
+import { visualFeedbackConcept } from "@/lib/feedback";
 import { nowIso } from "@/lib/utils";
 import { track } from "@/lib/analytics";
 import type { Business, ContentItem } from "@/lib/types";
@@ -187,16 +188,18 @@ export function ContentVisualEditModal({
       { businessId: content.businessId }
     );
 
-    // Ajustar el prompt de imagen con el feedback del cliente (el cliente no lo ve).
-    const feedbackBits = [...tags.filter((t) => t !== "Otro"), customFeedback].filter(Boolean);
-    const adjustedPrompt = feedbackBits.length
-      ? `${content.imagePrompt}\n\nAJUSTES PEDIDOS POR EL CLIENTE (corregí esto en la imagen): ${feedbackBits.join("; ")}.`
-      : content.imagePrompt;
+    // NUEVO-v2 fix 3: el feedback visual NO se pega al prompt ni toca la capa de
+    // texto. Se traduce a una instrucción de CONCEPTO en inglés y se envía como
+    // `concept` a la pipeline, que la encuadra sola. `imagePrompt` queda intacto.
+    const conceptAdjust = visualFeedbackConcept(
+      content.visualConcept || content.imagePrompt,
+      tags.filter((t) => t !== "Otro"),
+      customFeedback
+    );
 
     // Estado "generando" + SIN imagen anterior → se ve "Eva trabajando", no la vieja.
     const updated: ContentItem = {
       ...content,
-      imagePrompt: adjustedPrompt,
       imageUrl: undefined,
       imageStatus: "generando",
       imageError: undefined,
@@ -207,7 +210,6 @@ export function ContentVisualEditModal({
       status: "needs_changes",
     };
     updateContent(content.id, {
-      imagePrompt: adjustedPrompt,
       imageUrl: undefined,
       imageStatus: "generando",
       imageError: undefined,
@@ -220,9 +222,9 @@ export function ContentVisualEditModal({
     onToast("Eva está preparando la nueva imagen… ✨");
     onClose();
 
-    // Regenerar de verdad (setea generando, sincroniza el prompt nuevo y crea la imagen).
+    // Regenerar de verdad, pasando el concepto ajustado (no el prompt pisado).
     try {
-      await gen.generateImage(updated, business);
+      await gen.generateImage(updated, business, { concept: conceptAdjust });
       onToast("Nueva imagen lista 🎨");
     } catch (e: any) {
       onToast(e?.message || "No se pudo generar la nueva imagen. Reintentá.");

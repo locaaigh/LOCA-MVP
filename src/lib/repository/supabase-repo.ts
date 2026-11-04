@@ -12,12 +12,17 @@ type ContentRow = {
   image_url: string | null;
   image_status: string | null;
   image_error: string | null;
+  // NUEVO-v2 fix 4: metadatos de generación en columna propia (server-only).
+  generation: Record<string, unknown> | null;
 };
 
+/** Columnas que se leen de `contents` (jsonb + columnas server-only). */
+const CONTENT_SELECT = "id, business_id, data, image_url, image_status, image_error, generation";
+
 /**
- * Une el JSONB del contenido con las columnas de imagen.
- * Las columnas las escribe solo el servidor al generar la imagen,
- * así que ganan sobre un `data` viejo sin imageUrl.
+ * Une el JSONB del contenido con las columnas de imagen y generación.
+ * Esas columnas las escribe solo el servidor al generar la imagen,
+ * así que ganan sobre un `data` viejo (un sync del cliente no las pisa).
  */
 function mergeContentRow(row: ContentRow): ContentItem {
   const data = row.data as unknown as ContentItem;
@@ -26,6 +31,8 @@ function mergeContentRow(row: ContentRow): ContentItem {
     imageUrl: data.imageUrl || row.image_url || undefined,
     imageStatus: (row.image_status as ContentItem["imageStatus"]) || data.imageStatus,
     imageError: row.image_error || data.imageError,
+    // La columna gana; si no hay, cae a lo que viniera en el jsonb (compat).
+    generation: (row.generation as unknown as ContentItem["generation"]) ?? data.generation,
   };
 }
 
@@ -247,7 +254,7 @@ export const supabaseRepository: DataRepository = {
   async getContent(userId, businessId, contentId) {
     const { data } = await db()
       .from("contents")
-      .select("id, business_id, data, image_url, image_status, image_error")
+      .select(CONTENT_SELECT)
       .eq("user_id", userId)
       .eq("business_id", businessId)
       .eq("id", contentId)
@@ -306,6 +313,17 @@ export const supabaseRepository: DataRepository = {
     if (error) throw new Error(`Guardar imagen: ${error.message}`);
   },
 
+  // NUEVO-v2 fix 4: escribe SOLO la columna `generation` (server-only), para que
+  // el sync del cliente (que reemplaza `data`) no la pueda borrar.
+  async setContentGeneration(userId, contentId, generation) {
+    const { error } = await db()
+      .from("contents")
+      .update({ generation: generation ?? null, updated_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .eq("id", contentId);
+    if (error) throw new Error(`Guardar generación: ${error.message}`);
+  },
+
   async getSnapshot(userId) {
     const client = db();
     const [biz, strat, cal, cont] = await Promise.all([
@@ -314,7 +332,7 @@ export const supabaseRepository: DataRepository = {
       client.from("calendar_items").select("business_id, data").eq("user_id", userId),
       client
         .from("contents")
-        .select("id, business_id, data, image_url, image_status, image_error")
+        .select(CONTENT_SELECT)
         .eq("user_id", userId),
     ]);
 

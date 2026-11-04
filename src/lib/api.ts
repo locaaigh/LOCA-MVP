@@ -103,7 +103,9 @@ export const api = {
   image: (
     businessId: string,
     contentId: string,
-    syncOpts?: SyncOptions & { skipSync?: boolean }
+    syncOpts?: SyncOptions & { skipSync?: boolean },
+    // NUEVO-v2 fix 3: concepto nuevo (feedback visual) — va por acá, no pegado al prompt.
+    concept?: string
   ) =>
     aiPost<{
       imageUrl: string;
@@ -111,7 +113,7 @@ export const api = {
       provider: "openai" | "gemini" | "mock";
       status: "generada" | "error";
       error?: string;
-    }>("/api/image", { businessId, contentId }, syncOpts),
+    }>("/api/image", { businessId, contentId, ...(concept ? { concept } : {}) }, syncOpts),
 
   metaAds: (businessId: string) =>
     aiPost<MetaAdsStrategy>("/api/ads", { businessId, platform: "meta" }),

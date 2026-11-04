@@ -22,6 +22,12 @@ export interface DataRepository {
     contentId: string,
     image: { imageUrl?: string; imageStatus?: string; imageError?: string }
   ): Promise<void>;
+  /** NUEVO-v2 fix 4: escribe SOLO los metadatos de generación (columna server-only). */
+  setContentGeneration(
+    userId: string,
+    contentId: string,
+    generation: ContentItem["generation"]
+  ): Promise<void>;
   /** Snapshot completo del usuario (para hidratar el cliente al loguear). */
   getSnapshot(userId: string): Promise<{
     businesses: Business[];

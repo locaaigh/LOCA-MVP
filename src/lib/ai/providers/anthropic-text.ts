@@ -2,8 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { parseJsonLoose } from "../shared/normalize";
 import type { TextProvider } from "./types";
 
-export const ANTHROPIC_MODEL =
-  process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+// Default del provider cuando un agente no define modelo (models.ts siempre lo define).
+export const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
 
 let client: Anthropic | null = null;
 
@@ -24,34 +24,43 @@ export const anthropicTextProvider: TextProvider = {
   model: ANTHROPIC_MODEL,
   isConfigured: hasAnthropicText,
   async chatJson(system, user, opts) {
-    // El bloque estable (cachePrefix) va como su propio content block con
-    // cache_control ephemeral → Anthropic lo cachea entre llamadas (las 12
-    // piezas del mes comparten el contexto del negocio).
-    const content: Anthropic.TextBlockParam[] = opts?.cachePrefix
-      ? [
-          { type: "text", text: opts.cachePrefix, cache_control: { type: "ephemeral" } },
-          { type: "text", text: user },
-        ]
-      : [{ type: "text", text: user }];
+    // Orden del contenido: imágenes (visión) → bloque estable cacheado → pedido puntual.
+    const content: Anthropic.ContentBlockParam[] = [];
+    for (const img of opts?.images ?? []) {
+      content.push({
+        type: "image",
+        source: { type: "base64", media_type: img.mediaType, data: img.data },
+      });
+    }
+    if (opts?.cachePrefix) {
+      // Bloque estable con cache_control → Anthropic lo cachea entre llamadas
+      // (las 12 piezas del mes comparten el contexto del negocio).
+      content.push({ type: "text", text: opts.cachePrefix, cache_control: { type: "ephemeral" } });
+    }
+    content.push({ type: "text", text: user });
 
+    const model = opts?.model || ANTHROPIC_MODEL;
     const res = await getClient().messages.create({
-      model: opts?.model || ANTHROPIC_MODEL,
-      max_tokens: 8192,
-      ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),
+      model,
+      max_tokens: opts?.maxTokens ?? 8192,
+      // Claude 5.5: `temperature` responde 400. La variedad/consistencia se maneja
+      // con `effort` y con el prompt.
+      ...(opts?.effort ? { output_config: { effort: opts.effort } } : {}),
       system: system + JSON_INSTRUCTION,
       messages: [{ role: "user", content }],
     });
-    // Reportamos SOLo input_tokens (el input NO servido desde caché, facturado
-    // a tarifa plena). Cuando el cachePrefix pega en caché, este número cae
-    // fuerte → el ahorro de F1.2 se ve directo en ai_usage_log.inputTokens.
-    // (Los cache_read se facturan a ~0.1x; omitirlos subestima levemente el
-    // costo, aceptable para una estimación interna no billing-grade.)
+    if (res.stop_reason === "refusal") {
+      throw new Error("El modelo rechazó la solicitud (refusal).");
+    }
     opts?.onUsage?.({
       inputTokens: res.usage.input_tokens,
       outputTokens: res.usage.output_tokens,
+      cacheReadTokens: res.usage.cache_read_input_tokens ?? 0,
     });
-    const block = res.content.find((b) => b.type === "text");
-    const txt = block?.type === "text" ? block.text : "{}";
-    return parseJsonLoose(txt);
+    const txt = res.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join("");
+    return parseJsonLoose(txt || "{}");
   },
 };
