@@ -83,7 +83,15 @@ function normalizeUrl(url: string): string {
   return url.startsWith("http") ? url : `https://${url}`;
 }
 
-async function fetchHtml(url: string, timeoutMs = 7000): Promise<string | null> {
+// UA de navegador: muchos sitios bloquean clientes que no parecen un navegador.
+const BROWSER_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+// UA neutral: algunos sitios con anti-bot por fingerprint TLS resetean la conexión
+// cuando el UA dice "Chrome" pero el cliente no lo es (ej. marketing.infinidad.ai).
+// Con un UA honesto pasan. Se usa como reintento.
+const NEUTRAL_UA = "LOCABot/1.0 (+https://loca.ai; análisis de sitios para onboarding)";
+
+async function fetchHtmlWithUA(url: string, ua: string, timeoutMs: number): Promise<string | null> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -91,8 +99,7 @@ async function fetchHtml(url: string, timeoutMs = 7000): Promise<string | null> 
       signal: ctrl.signal,
       redirect: "follow",
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "User-Agent": ua,
         Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "es-AR,es;q=0.9,en;q=0.8",
       },
@@ -107,6 +114,14 @@ async function fetchHtml(url: string, timeoutMs = 7000): Promise<string | null> 
   } finally {
     clearTimeout(t);
   }
+}
+
+async function fetchHtml(url: string, timeoutMs = 7000): Promise<string | null> {
+  // Primario: UA de navegador. Si falla (null / conexión reseteada), reintento con
+  // UA neutral para los sitios que bloquean navegadores "falsos" por fingerprint.
+  const browser = await fetchHtmlWithUA(url, BROWSER_UA, timeoutMs);
+  if (browser) return browser;
+  return fetchHtmlWithUA(url, NEUTRAL_UA, timeoutMs);
 }
 
 // Colores/fuentes reales viven casi siempre en hojas de estilo externas
@@ -387,9 +402,16 @@ function parsePage(html: string, baseUrl: string): Partial<RawWebContent> {
     googleFonts,
     text,
     signals: {
-      hasEcommerce: /(add to cart|agregar al carrito|comprar ahora|carrito|checkout|tienda|\/shop|catálogo|catalogo)/.test(lower),
+      // Solo señales FUERTES de ecommerce real (plataforma o flujo de carrito/checkout).
+      // Palabras sueltas como "comprar"/"catálogo"/"tienda"/"carrito" generan falsos
+      // positivos en agencias y servicios B2B (ej. marketing.infinidad.ai salía "Compra
+      // ecommerce" con confianza alta). Ver fix análisis web, 2026-11.
+      hasEcommerce:
+        /(add to cart|add_to_cart|data-product_id|agregar al carrito|finalizar compra|finaliz[aá] compra|woocommerce|shopify|tiendanube|mercadoshops|snipcart|wc-ajax|\/cart\b|\/checkout\b|\/shop\b)/.test(lower),
       hasWhatsappSales: !!whatsapp || /wa\.me|whatsapp/.test(lower),
-      hasReservations: /(reserva|reservar|booking|turnos|agendar)/.test(lower),
+      // Reserva/turno real (restaurantes, salones, salud), no un genérico "agendá una
+      // reunión" que usa cualquier B2B. Por eso se piden términos específicos de turno.
+      hasReservations: /(reservar\b|reservá|reserva online|booking|turnos?\b|sacar turno|agendar (cita|turno|hora))/.test(lower),
       hasPhysicalStore: /(dirección|direccion|sucursal|local|vení|veni|nos visitás|nos visitas|maps\.google|goo\.gl\/maps)/.test(lower),
       hasContactForm: /(<form|contacto|contactanos|contáctanos|enviar mensaje)/.test(lower),
     },
@@ -631,7 +653,7 @@ export function buildBrandKitFromRaw(raw: RawWebContent): BrandKit {
 }
 
 function guessPrimaryConversion(s: RawWebContent["signals"]): { type: string; confidence: Confidence } {
-  if (s.hasEcommerce) return { type: "Compra ecommerce", confidence: "high" };
+  if (s.hasEcommerce) return { type: "Compra ecommerce", confidence: "medium" };
   if (s.hasReservations) return { type: "Reserva", confidence: "medium" };
   if (s.hasWhatsappSales) return { type: "Mensaje por WhatsApp", confidence: "medium" };
   if (s.hasPhysicalStore) return { type: "Visita al local", confidence: "medium" };
