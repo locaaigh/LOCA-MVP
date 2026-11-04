@@ -2,7 +2,7 @@ import { anthropicTextProvider, hasAnthropicText } from "./anthropic-text";
 import { geminiImageProvider, hasGeminiImage, GEMINI_IMAGE_MODEL } from "./gemini-image";
 import { openaiImageProvider, hasOpenAIImage, OPENAI_IMAGE_MODEL } from "./openai-image";
 import { openaiTextProvider, hasOpenAIText } from "./openai-text";
-import type { AiRuntimeStatus, ImageProvider, TextProvider } from "./types";
+import type { AiRuntimeStatus, ImageProvider, ImageProviderId, TextProvider } from "./types";
 
 export type { AiRuntimeStatus, ImageProvider, TextProvider };
 
@@ -10,16 +10,28 @@ export function getTextProvider(): TextProvider | null {
   const pref = (process.env.AI_TEXT_PROVIDER || "").toLowerCase();
   if (pref === "anthropic" && hasAnthropicText()) return anthropicTextProvider;
   if (pref === "openai" && hasOpenAIText()) return openaiTextProvider;
-  if (hasAnthropicText() && !hasOpenAIText()) return anthropicTextProvider;
+  if (hasAnthropicText()) return anthropicTextProvider;
   if (hasOpenAIText()) return openaiTextProvider;
   return null;
 }
 
+/** Proveedor de imagen por id (el ruteo por caso elige el id, ver image/routing.ts). */
+export function getImageProviderById(id: ImageProviderId): ImageProvider | null {
+  if (id === "gemini") return hasGeminiImage() ? geminiImageProvider : null;
+  if (id === "openai") return hasOpenAIImage() ? openaiImageProvider : null;
+  return null;
+}
+
+export function imageProvidersAvailable(): { openai: boolean; gemini: boolean } {
+  return { openai: hasOpenAIImage(), gemini: hasGeminiImage() };
+}
+
+/** Compat: proveedor "default" (legacy / status). */
 export function getImageProvider(): ImageProvider | null {
   const pref = (process.env.AI_IMAGE_PROVIDER || "").toLowerCase();
   if (pref === "gemini" && hasGeminiImage()) return geminiImageProvider;
   if (pref === "openai" && hasOpenAIImage()) return openaiImageProvider;
-  if (hasGeminiImage() && !hasOpenAIImage()) return geminiImageProvider;
+  if (hasGeminiImage()) return geminiImageProvider;
   if (hasOpenAIImage()) return openaiImageProvider;
   return null;
 }

@@ -30,6 +30,18 @@ export const SERVER_EVENTS = [
   "contact_lead_submitted",
   "business_deleted",
   "content_deleted",
+  // NUEVO-v2: pipeline de imagen, validadores de formato y agentes
+  "image_qa_failed",
+  "image_fallback_used",
+  "image_dimension_mismatch",
+  "image_moderation_blocked",
+  "image_no_face_rule_applied",
+  "image_consent_missing",
+  "format_blocked",
+  "story_interactive_blocked",
+  "agent_output_repaired",
+  "agent_mock_fallback",
+  "website_vision_used",
 ] as const;
 
 /**

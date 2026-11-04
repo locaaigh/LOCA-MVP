@@ -157,3 +157,35 @@ export function applyStructuredFeedback(
   if (customFeedback && customFeedback.trim()) parts.push(customFeedback.trim());
   return parts.join(" ");
 }
+
+// ─────────────────────────────────────────────────────────────
+// NUEVO-v2 fix 3: feedback VISUAL (modal "Cambiar imagen") → instrucción en
+// INGLÉS a nivel CONCEPTO de la imagen. Nunca toca la capa de texto (overlay):
+// se envía como `concept` a la pipeline, NO se pega al prompt final en castellano.
+// Mapea cada tag que ve el cliente a una instrucción visual breve.
+// ─────────────────────────────────────────────────────────────
+export const VISUAL_FEEDBACK_CONCEPT: Record<string, string> = {
+  "No representa mi marca": "rethink the visual concept so it clearly represents this brand",
+  "Producto equivocado": "feature the correct product as the main subject",
+  "Servicio equivocado": "represent the correct service",
+  "Persona/escena incorrecta": "use a more fitting person or scene",
+  "Estilo visual incorrecto": "change the visual style to better fit the brand",
+  "Colores incorrectos": "use the brand colors correctly",
+  "Baja calidad": "higher quality, sharper, more professional result",
+  "Texto en imagen incorrecto": "keep the background clean, no text baked into the image",
+  "Formato incorrecto": "recompose for the correct aspect ratio",
+  "Quiero algo más premium": "a more premium, elegant and refined look",
+  "Quiero algo más simple": "fewer elements, a single clear subject, plain uncluttered background",
+};
+
+/**
+ * Construye el concepto visual ajustado (en inglés) a partir del concepto base
+ * de la pieza + los tags elegidos + el texto libre. Es lo que se envía como
+ * `concept` a /api/image (regeneración), sin tocar `imagePrompt` ni el overlay.
+ */
+export function visualFeedbackConcept(baseConcept: string, tags: string[], custom?: string): string {
+  const bits = tags.map((t) => VISUAL_FEEDBACK_CONCEPT[t]).filter(Boolean);
+  if (custom && custom.trim()) bits.push(custom.trim());
+  if (!bits.length) return baseConcept;
+  return `${baseConcept}. Adjust the visual concept: ${bits.join("; ")}.`;
+}
