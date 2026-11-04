@@ -73,7 +73,14 @@ export async function POST(req: NextRequest) {
     });
     // NUEVO-v2 fix 4: generation va a su COLUMNA propia (server-only), para que el
     // sync del cliente —que reemplaza el `data` jsonb— no la borre (como las 301 filas).
-    await ctx.repo.setContentGeneration(ctx.userId, contentId, generation);
+    // No fatal: si la columna aún no existe (migración 0008 sin correr), la generación
+    // ya quedó en el `data` jsonb vía upsertContent; solo se pierde la protección anti-sync
+    // hasta correr la migración. Así el deploy no depende del timing de la migración.
+    try {
+      await ctx.repo.setContentGeneration(ctx.userId, contentId, generation);
+    } catch (e) {
+      console.warn("[LOCA] setContentGeneration falló (¿migración 0008 sin correr?):", e instanceof Error ? e.message : e);
+    }
 
     await logAiUsage({ userId: ctx.userId, businessId, agent: "image", meta: result.meta });
     await logEvent({
