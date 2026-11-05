@@ -6,7 +6,7 @@ import type {
   ProductService,
   Strategy,
 } from "../types";
-import { isFormatEnabled } from "../constants";
+import { isFormatEnabled, INDUSTRIES } from "../constants";
 import { PIECE_PURPOSES, type PiecePurpose } from "./types";
 import { INTERACTIVE_STORY_RULE, NO_REELS_RULE } from "./shared/validators";
 import { resolveBrandStyle } from "./image/style-resolver";
@@ -391,7 +391,8 @@ const WEBSITE_REASONING_RULES = `CÓMO PENSAR (clave):
 - Razoná el negocio REAL: qué vende, a quién, cómo gana plata. No copies literal un titular de marketing.
 - "A quién le vende" (businessModel): pensá quién PAGA. Si el texto dice que ayuda a "empresas", "pymes", "comercios", "equipos" o "profesionales", es B2B — aunque también mencione consumidores. No pongas B2C por default.
 - Producto vs servicio: un SERVICIO es trabajo/tiempo/asesoría/atención recurrente (consultoría, mantenimiento, diseño, clases, instalación). Un PRODUCTO es un bien tangible o digital que se compra una vez. Si la web habla de "soluciones", "acompañamiento", "gestión", "implementación" → probablemente SERVICIOS, no productos. No clasifiques todo como producto.
-- Industria y subcategoría: inferí la categoría real del negocio. Si es evidente, poné tu mejor opción con confianza alta.
+- Industria: en "industry" tenés que elegir OBLIGATORIAMENTE UNA de esta lista EXACTA, copiando el texto tal cual (está en inglés, NO lo traduzcas): ${INDUSTRIES.join(" · ")}. Elegí la que mejor encaje con el negocio real. En "options" de industry ofrecé 2 a 4 alternativas de ESTA MISMA lista. Nunca inventes una industria fuera de la lista ni la escribas en español.
+- Subcategoría: inferí la subcategoría real del negocio (texto libre, en español, está bien).
 
 REGLA DE CONFIANZA (muy importante — evita inventar):
 - Para CADA campo, estimá tu confianza en "confidence": "high" | "medium" | "low".
