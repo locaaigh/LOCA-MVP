@@ -25,8 +25,20 @@ export interface FieldRequirement {
   step: number;
   /** subconjunto que bloquea la estrategia y alimenta pendientes/completitud. */
   critical: boolean;
+  /**
+   * Si el campo es OBLIGATORIO (bloquea terminar el onboarding / entra al flujo
+   * de pendientes por steps). Default: true (todos los del registro lo son hoy).
+   * FLAG DATA-DRIVEN: el futuro backoffice de admins editará esto por campo
+   * (idealmente movido a DB). El flujo lee este flag, no cambia la UI.
+   */
+  required?: boolean;
   /** true si el campo está sin completar. */
   isMissing: (b: Business) => boolean;
+}
+
+/** Un campo cuenta como obligatorio salvo que se marque `required: false`. */
+export function isRequired(f: FieldRequirement): boolean {
+  return f.required !== false;
 }
 
 function isEmpty(v: unknown): boolean {
@@ -167,11 +179,16 @@ export function requirementsForStep(step: number): FieldRequirement[] {
  * (Feedback formulario, ítem 11.)
  */
 export function missingRequired(b: Business): FieldRequirement[] {
-  return FIELD_REQUIREMENTS.filter((f) => f.isMissing(b));
+  return FIELD_REQUIREMENTS.filter((f) => isRequired(f) && f.isMissing(b));
 }
 
 /** Primer paso del wizard con algún requerido sin resolver (o null si está todo). */
 export function firstIncompleteStep(b: Business): number | null {
   const steps = missingRequired(b).map((f) => f.step);
   return steps.length ? Math.min(...steps) : null;
+}
+
+/** Steps del wizard (ordenados) que tienen al menos un requerido incompleto. */
+export function pendingSteps(b: Business): number[] {
+  return [...new Set(missingRequired(b).map((f) => f.step))].sort((a, z) => a - z);
 }
