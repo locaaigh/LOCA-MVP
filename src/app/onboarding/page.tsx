@@ -51,7 +51,7 @@ import { Logo } from "@/components/brand";
 import { EvaChatBubble } from "@/components/eva-chat";
 import { getFieldExample } from "@/lib/examples";
 import { getMissingRequiredFields } from "@/lib/onboarding-validation";
-import { missingRequired, firstIncompleteStep } from "@/lib/onboarding/field-requirements";
+import { missingRequired, firstIncompleteStep, pendingSteps } from "@/lib/onboarding/field-requirements";
 import { emptyBrandKit } from "@/lib/store";
 import { api } from "@/lib/api";
 import { uid, copyToClipboard, nowIso, downloadFile } from "@/lib/utils";
@@ -118,6 +118,12 @@ function OnboardingPageInner() {
   const [step, setStep] = useState(1); // el wizard manual arranca en el paso 1 (Negocio)
   const [b, setB] = useState<Business>(() => emptyBusiness(user?.id || "anon"));
   const [missing, setMissing] = useState<Set<string>>(new Set());
+  // Modo "completar pendientes por steps": lista CONGELADA de steps con algún
+  // campo obligatorio incompleto (tras el análisis de Eva). El wizard recorre
+  // solo estos steps. Vacío = wizard normal (manual/edición). Ver field-requirements.ts.
+  const [pendingList, setPendingList] = useState<number[]>([]);
+  const pendingMode = pendingList.length > 0;
+  const pendingIdx = pendingList.indexOf(step);
 
   // Modo edición del formulario completo (item 25): carga el negocio activo en
   // el wizard y, al confirmar, guarda sin regenerar la estrategia.
@@ -293,12 +299,20 @@ function OnboardingPageInner() {
   // Decide a dónde ir después de analizar web / importar .md.
   // Suficiente info → resumen final. Faltan datos clave → pantalla de pendientes.
   function routeAfterImport(next: Business) {
-    if (missingCritical(next).length === 0) {
+    const list = pendingSteps(next);
+    if (list.length === 0) {
+      // Eva completó todos los obligatorios → directo al resumen.
+      setPendingList([]);
       setStep(SUMMARY_STEP);
       setPhase("wizard");
-    } else {
-      setPhase("pending");
+      return;
     }
+    // Quedan obligatorios incompletos: recorrer SOLO los steps con pendientes,
+    // step por step, resaltando lo que falta.
+    setPendingList(list);
+    setMissing(new Set(missingRequired(next).map((f) => f.id)));
+    setStep(list[0]);
+    setPhase("wizard");
   }
 
   // Elección de método en la pantalla inicial.
@@ -416,6 +430,20 @@ function OnboardingPageInner() {
       },
       { businessId: b.id }
     );
+    // Modo pendientes: saltar al PRÓXIMO step con pendientes (no al +1).
+    if (pendingMode) {
+      const nextStep = pendingList.find((s) => s > step);
+      if (nextStep != null) {
+        setMissing(new Set(missingRequired(b).map((f) => f.id)));
+        setStep(nextStep);
+      } else {
+        // No quedan pendientes → resumen. Salimos del modo pendientes.
+        setPendingList([]);
+        setMissing(new Set());
+        setStep(SUMMARY_STEP);
+      }
+      return;
+    }
     if (step < SUMMARY_STEP) setStep(step + 1);
   }
 
@@ -443,9 +471,11 @@ function OnboardingPageInner() {
     if (pending.length > 0) {
       const target = firstIncompleteStep(b);
       if (target != null) {
+        // Reentrar al modo "pendientes por steps" para completar lo que falta.
+        setPendingList(pendingSteps(b));
         setPhase("wizard");
         setStep(target);
-        setMissing(new Set(pending.filter((f) => f.step === target).map((f) => f.id)));
+        setMissing(new Set(pending.map((f) => f.id)));
         const first = pending.find((f) => f.step === target);
         if (first) goToMissingField(first.id, first.label);
       }
@@ -555,41 +585,59 @@ function OnboardingPageInner() {
                   <Logo className="text-xl" />
                 </Link>
                 <span className="text-sm font-semibold text-faint">
-                  Paso {step} de {WIZARD_TOTAL} · <span className="text-foreground-muted">{STEPS[step]}</span>
+                  Paso {pendingMode ? pendingIdx + 1 : step} de {pendingMode ? pendingList.length : WIZARD_TOTAL} ·{" "}
+                  <span className="text-foreground-muted">{STEPS[step]}</span>
                 </span>
               </div>
               <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-surface-muted">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-loca-500 to-loca-400 transition-all duration-500"
-                  style={{ width: `${(step / WIZARD_TOTAL) * 100}%` }}
+                  style={{
+                    width: `${
+                      pendingMode
+                        ? ((pendingIdx + 1) / pendingList.length) * 100
+                        : (step / WIZARD_TOTAL) * 100
+                    }%`,
+                  }}
                 />
               </div>
             </div>
           </header>
 
           <div className="mx-auto max-w-3xl px-4 py-8 pb-28 sm:px-6">
-            {/* Stepper navegable (pasos 1..7) */}
-            <div className="mb-7 flex items-center">
-              {Array.from({ length: WIZARD_TOTAL }, (_, k) => k + 1).map((i, idx) => (
-                <div key={i} className="flex flex-1 items-center">
-                  <button
-                    onClick={() => i <= step && setStep(i)}
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition ${
-                      i < step
-                        ? "bg-lima-400 text-ink shadow-glow-lima"
-                        : i === step
-                          ? "bg-loca-600 text-white shadow-lift"
-                          : "bg-border/80 text-faint"
-                    }`}
-                  >
-                    {i < step ? <Check className="h-4 w-4" /> : i}
-                  </button>
-                  {idx < WIZARD_TOTAL - 1 && (
-                    <div className={`mx-1.5 h-1 flex-1 rounded-full transition ${i < step ? "bg-lima-400" : "bg-border/80"}`} />
-                  )}
+            {/* Stepper navegable. En modo pendientes muestra SOLO los steps con
+                faltantes (numerados 1..N); en modo normal, los 7 pasos. */}
+            {(() => {
+              const items = pendingMode ? pendingList : Array.from({ length: WIZARD_TOTAL }, (_, k) => k + 1);
+              const curIdx = pendingMode ? pendingIdx : step - 1;
+              return (
+                <div className="mb-7 flex items-center">
+                  {items.map((i, idx) => {
+                    const done = idx < curIdx;
+                    const current = i === step;
+                    return (
+                      <div key={i} className="flex flex-1 items-center">
+                        <button
+                          onClick={() => idx <= curIdx && setStep(i)}
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition ${
+                            done
+                              ? "bg-lima-400 text-ink shadow-glow-lima"
+                              : current
+                                ? "bg-loca-600 text-white shadow-lift"
+                                : "bg-border/80 text-faint"
+                          }`}
+                        >
+                          {done ? <Check className="h-4 w-4" /> : idx + 1}
+                        </button>
+                        {idx < items.length - 1 && (
+                          <div className={`mx-1.5 h-1 flex-1 rounded-full transition ${done ? "bg-lima-400" : "bg-border/80"}`} />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
 
             {!onSummary && (
               <>
@@ -597,6 +645,26 @@ function OnboardingPageInner() {
                 <StepIntro step={step} />
               </>
             )}
+
+            {/* Modo pendientes: banner con lo que falta en ESTE step (foco en lo incompleto). */}
+            {pendingMode &&
+              !onSummary &&
+              (() => {
+                const miss = getMissingRequiredFields(step, b);
+                if (!miss.length) return null;
+                return (
+                  <div className="mt-4 rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/40 p-4">
+                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+                      Eva ya completó el resto. Acá solo falta:
+                    </p>
+                    <ul className="mt-1 list-disc pl-5 text-sm text-amber-700 dark:text-amber-300">
+                      {miss.map((m) => (
+                        <li key={m.id}>{m.label}</li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
 
             <div className="mt-5">
               {step === 1 && <StepBasic b={b} set={set} subcats={subcats} missing={missing} statusOf={statusOf} />}
@@ -623,11 +691,27 @@ function OnboardingPageInner() {
           {!onSummary && (
             <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border/70 bg-card/90 backdrop-blur-md">
               <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
-                <Button variant="ghost" size="lg" onClick={() => (step === 1 ? setPhase("select") : setStep(step - 1))}>
-                  {step === 1 ? "Volver al inicio" : "Atrás"}
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  onClick={() => {
+                    if (pendingMode) {
+                      const prev = [...pendingList].reverse().find((s) => s < step);
+                      if (prev != null) {
+                        setMissing(new Set(missingRequired(b).map((f) => f.id)));
+                        setStep(prev);
+                      } else setPhase("select");
+                    } else if (step === 1) setPhase("select");
+                    else setStep(step - 1);
+                  }}
+                >
+                  {(pendingMode ? pendingIdx <= 0 : step === 1) ? "Volver al inicio" : "Atrás"}
                 </Button>
                 <Button size="lg" onClick={tryNext}>
-                  {step === SUMMARY_STEP - 1 ? "Ver resumen" : "Siguiente"} <ArrowRight className="h-4 w-4" />
+                  {(pendingMode ? pendingIdx === pendingList.length - 1 : step === SUMMARY_STEP - 1)
+                    ? "Ver resumen"
+                    : "Siguiente"}{" "}
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
               </div>
             </div>
