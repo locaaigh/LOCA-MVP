@@ -67,6 +67,7 @@ async function analyzeWebsiteContentWithAI(
     websiteAnalysisPrompt({
       url: raw.url,
       title: raw.title,
+      siteName: raw.ogSiteName,
       description: raw.metaDescription || raw.ogDescription,
       headings: raw.headings,
       paragraphs: raw.paragraphs,
@@ -153,6 +154,9 @@ export function mergeAiIntoAnalysis(
     if (idx >= 0) basic.missingFields.splice(idx, 1);
   };
 
+  // El nombre solo entra como sugerencia cuando el heurístico no lo dio por
+  // "encontrado" (título genérico tipo "Inicio" o basura de plantilla).
+  suggest("name", asString(j.name), readConfidence(j, "name"));
   suggest("industry", asString(j.industry), readConfidence(j, "industry"), readOptions(j, "industry"));
   suggest(
     "subcategory",

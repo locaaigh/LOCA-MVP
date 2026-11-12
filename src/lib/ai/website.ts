@@ -22,6 +22,10 @@ export interface RawWebContent {
   metaDescription: string;
   ogTitle: string;
   ogDescription: string;
+  // Nombre del sitio declarado por la plataforma (og:site_name). Shopify,
+  // Tiendanube y WordPress lo setean con el nombre REAL de la marca, mucho más
+  // confiable que el <title> (que suele ser un título SEO o "Inicio - X").
+  ogSiteName: string;
   ogImage: string;
   favicon: string;
   headings: string[];
@@ -39,6 +43,13 @@ export interface RawWebContent {
   cssColors: string[];
   // Colores con señal fuerte de marca (theme-color, variables --brand/--primary).
   priorityColors: string[];
+  // Cuántas veces aparece cada color (clave: hex normalizado) en HTML+CSS.
+  // El color de marca real se repite (botones, links, titulares); los defaults
+  // del framework aparecen una vez. Sin frecuencia, un hex suelto bien saturado
+  // le gana al color real.
+  colorCounts: Record<string, number>;
+  // Colores dominantes del logo (la señal más fuerte del color real de marca).
+  logoColors: string[];
   fontFamilies: string[];
   googleFonts: string[];
   text: string; // texto plano agregado (limitado)
@@ -280,14 +291,21 @@ function extractFunctionalColors(text: string): string[] {
 function extractColorsAndFonts(text: string): {
   cssColors: string[];
   priorityColors: string[];
+  colorCounts: Record<string, number>;
   fontFamilies: string[];
   googleFonts: string[];
 } {
-  const cssColors = uniq([
+  const occurrences = [
     ...matchAll(text, /#[0-9a-fA-F]{6}\b/),
     ...matchAll(text, /#[0-9a-fA-F]{3}\b/),
     ...extractFunctionalColors(text),
-  ]);
+  ];
+  const colorCounts: Record<string, number> = {};
+  for (const c of occurrences) {
+    const n = norm6(c);
+    colorCounts[n] = (colorCounts[n] || 0) + 1;
+  }
+  const cssColors = uniq(occurrences);
   // Valores de variables CSS con nombre de marca/primario/acento.
   const brandVarValues = matchAll(text, /--[\w-]*(?:brand|primary|accent)[\w-]*\s*:\s*([^;}\n]+)/i);
   const priorityColors = uniq(
@@ -307,7 +325,7 @@ function extractColorsAndFonts(text: string): {
       decodeURIComponent(f).replace(/\+/g, " ")
     )
   );
-  return { cssColors, priorityColors, fontFamilies, googleFonts };
+  return { cssColors, priorityColors, colorCounts, fontFamilies, googleFonts };
 }
 
 function absolute(base: string, href: string): string {
@@ -354,7 +372,7 @@ function parsePage(html: string, baseUrl: string): Partial<RawWebContent> {
 
   // colores y fuentes (inline/<style> en el HTML; las hojas externas se
   // fetchean y escanean aparte en fetchWebsite)
-  const { cssColors: htmlColors, priorityColors: htmlPriority, fontFamilies, googleFonts } =
+  const { cssColors: htmlColors, priorityColors: htmlPriority, colorCounts, fontFamilies, googleFonts } =
     extractColorsAndFonts(html);
   // theme-color / TileColor son señal fuerte del color de marca del sitio.
   const metaColors = [
@@ -382,6 +400,7 @@ function parsePage(html: string, baseUrl: string): Partial<RawWebContent> {
     metaDescription: metaContent(html, "description", "name"),
     ogTitle: metaContent(html, "og:title", "property"),
     ogDescription: metaContent(html, "og:description", "property"),
+    ogSiteName: metaContent(html, "og:site_name", "property"),
     ogImage: metaContent(html, "og:image", "property"),
     favicon: favicon ? absolute(baseUrl, favicon) : "",
     headings: uniq([...extractTags(html, "h1"), ...extractTags(html, "h2"), ...extractTags(html, "h3")]).slice(0, 30),
@@ -398,6 +417,7 @@ function parsePage(html: string, baseUrl: string): Partial<RawWebContent> {
     logoCandidates: uniq(logoCandidates).slice(0, 5),
     cssColors,
     priorityColors,
+    colorCounts,
     fontFamilies,
     googleFonts,
     text,
@@ -430,6 +450,9 @@ function mergeRaw(base: RawWebContent, add: Partial<RawWebContent>): void {
   base.logoCandidates = uniq([...base.logoCandidates, ...(add.logoCandidates || [])]).slice(0, 8);
   base.cssColors = uniq([...base.cssColors, ...(add.cssColors || [])]);
   base.priorityColors = uniq([...base.priorityColors, ...(add.priorityColors || [])]);
+  for (const [hex, n] of Object.entries(add.colorCounts || {})) {
+    base.colorCounts[hex] = (base.colorCounts[hex] || 0) + n;
+  }
   base.fontFamilies = uniq([...base.fontFamilies, ...(add.fontFamilies || [])]);
   base.googleFonts = uniq([...base.googleFonts, ...(add.googleFonts || [])]);
   base.text = (base.text + " " + (add.text || "")).slice(0, 12000);
@@ -455,6 +478,7 @@ export async function fetchWebsite(url: string): Promise<RawWebContent> {
     metaDescription: "",
     ogTitle: "",
     ogDescription: "",
+    ogSiteName: "",
     ogImage: "",
     favicon: "",
     headings: [],
@@ -471,6 +495,8 @@ export async function fetchWebsite(url: string): Promise<RawWebContent> {
     logoCandidates: [],
     cssColors: [],
     priorityColors: [],
+    colorCounts: {},
+    logoColors: [],
     fontFamilies: [],
     googleFonts: [],
     text: "",
@@ -494,6 +520,7 @@ export async function fetchWebsite(url: string): Promise<RawWebContent> {
     metaDescription: home.metaDescription,
     ogTitle: home.ogTitle,
     ogDescription: home.ogDescription,
+    ogSiteName: home.ogSiteName,
     ogImage: home.ogImage,
     favicon: home.favicon,
     navTexts: home.navTexts || [],
@@ -511,6 +538,9 @@ export async function fetchWebsite(url: string): Promise<RawWebContent> {
       const fromCss = extractColorsAndFonts(cssTexts.join("\n"));
       base.cssColors = uniq([...base.cssColors, ...fromCss.cssColors]);
       base.priorityColors = uniq([...base.priorityColors, ...fromCss.priorityColors]);
+      for (const [hex, n] of Object.entries(fromCss.colorCounts)) {
+        base.colorCounts[hex] = (base.colorCounts[hex] || 0) + n;
+      }
       base.fontFamilies = uniq([...base.fontFamilies, ...fromCss.fontFamilies]);
       base.googleFonts = uniq([...base.googleFonts, ...fromCss.googleFonts]);
     }
@@ -544,7 +574,59 @@ export async function fetchWebsite(url: string): Promise<RawWebContent> {
     }
   }
   base.pagesRead.unshift(full);
+  base.logoColors = await extractLogoColors([...base.logoCandidates, base.favicon]);
   return base;
+}
+
+// ── Colores del logo ─────────────────────────────────────────
+// El logo es la señal más directa del color real de marca (el CSS trae además
+// defaults del theme, botones sociales, etc.). Se baja el logo detectado, se
+// reduce con sharp y se cuentan los píxeles con color real (se descartan
+// transparencias, blancos/negros de fondo y grises). Si sharp no está
+// disponible o la imagen no se puede leer (.ico, SVG raro), se omite sin romper.
+async function extractLogoColors(candidates: string[]): Promise<string[]> {
+  const url = candidates.find((u) => u && /^https?:\/\//.test(u) && !/\.ico(\?|$)/i.test(u));
+  if (!url) return [];
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 3500);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal, headers: { "User-Agent": BROWSER_UA } });
+    if (!res.ok) return [];
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (!buf.length || buf.length > 2_000_000) return [];
+    const sharp = (await import("sharp")).default;
+    const { data } = await sharp(buf)
+      .resize(48, 48, { fit: "inside" })
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    // Bins gruesos de color (8 niveles por canal) para que el antialiasing no
+    // disperse un mismo tono; se promedian los píxeles de cada bin para
+    // devolver el color real y no el centro del bin.
+    const bins = new Map<string, { n: number; r: number; g: number; b: number }>();
+    for (let i = 0; i + 3 < data.length; i += 4) {
+      const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+      if (a < 128) continue;
+      const max = Math.max(r, g, b) / 255;
+      const min = Math.min(r, g, b) / 255;
+      const l = (max + min) / 2;
+      const s = max === min ? 0 : l > 0.5 ? (max - min) / (2 - max - min) : (max - min) / (max + min);
+      if (l > 0.93 || l < 0.08 || s < 0.25) continue;
+      const key = `${r >> 5}-${g >> 5}-${b >> 5}`;
+      const e = bins.get(key) || { n: 0, r: 0, g: 0, b: 0 };
+      e.n++; e.r += r; e.g += g; e.b += b;
+      bins.set(key, e);
+    }
+    return [...bins.values()]
+      .filter((e) => e.n >= 8) // menos de ~8px es antialiasing/ruido
+      .sort((x, y) => y.n - x.n)
+      .slice(0, 3)
+      .map((e) => toHex(e.r / e.n, e.g / e.n, e.b / e.n));
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -575,23 +657,71 @@ function saturation(hex: string): number {
   return l > 0.5 ? (max - min) / (2 - max - min) : (max - min) / (max + min);
 }
 
+// Colores "de fábrica" que aparecen en el CSS de casi cualquier sitio y NO son
+// de la marca: defaults de frameworks/UI kits y colores de marcas sociales
+// embebidas (botones de WhatsApp/Instagram/Facebook/etc.). Solo se descartan
+// como candidatos heurísticos; si el sitio los declara como --brand/--primary
+// o theme-color, se respetan igual.
+const FRAMEWORK_SOCIAL_COLORS = new Set([
+  "#007aff", // iOS / links de Safari
+  "#007bff", "#0056b3", "#0d6efd", "#0b5ed7", "#0a58ca", // Bootstrap
+  "#1877f2", "#4267b2", "#3b5998", // Facebook
+  "#25d366", "#128c7e", "#075e54", "#00a884", // WhatsApp
+  "#e4405f", "#c13584", "#833ab4", "#fd1d1d", // Instagram
+  "#ff0000", "#cc0000", // YouTube
+  "#1da1f2", "#1d9bf0", // Twitter/X
+  "#0a66c2", "#0077b5", // LinkedIn
+  "#e60023", "#bd081c", // Pinterest
+  "#ee1d52", "#69c9d0", // TikTok
+  "#5865f2", "#7289da", // Discord
+  "#1db954", // Spotify
+  "#4285f4", "#ea4335", "#fbbc05", "#34a853", // Google
+  "#635bff", "#0070ba", "#003087", "#ffc439", // Stripe / PayPal
+]);
+
+// Distancia RGB simple: evita que secundario/acento sean casi el mismo color
+// que el primario (variantes hover/sombras del mismo tono).
+function colorDistance(a: string, b: string): number {
+  const [r1, g1, b1] = hexToRgb(a);
+  const [r2, g2, b2] = hexToRgb(b);
+  return Math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2);
+}
+
 export function buildBrandKitFromRaw(raw: RawWebContent): BrandKit {
   const colors = uniq(raw.cssColors.map(norm6)).filter((c) => /^#[0-9a-f]{6}$/.test(c));
   // Colores con señal fuerte de marca (theme-color / variables --brand/--primary).
   const priority = uniq((raw.priorityColors || []).map(norm6)).filter((c) => /^#[0-9a-f]{6}$/.test(c));
+  // Colores dominantes del logo (señal fuerte, ya filtrados de fondos/grises).
+  const logo = uniq((raw.logoColors || []).map(norm6)).filter((c) => /^#[0-9a-f]{6}$/.test(c));
+  const counts = raw.colorCounts || {};
   // Un color "de marca" usable: ni casi blanco ni casi negro, con algo de color.
   const isBrandy = (c: string) => saturation(c) > 0.15 && luminance(c) > 0.08 && luminance(c) < 0.92;
 
-  // saturados (candidatos a primario/acento) ordenados por saturación
+  // Candidatos heurísticos: saturados, sin defaults de framework/sociales,
+  // ordenados por FRECUENCIA de uso (el color de marca se repite por todo el
+  // CSS; un hex suelto bien saturado suele ser decorativo) con la saturación
+  // como desempate.
+  const score = (c: string) => (counts[c] || 1) * (0.5 + saturation(c));
   const saturated = colors
     .filter((c) => saturation(c) > 0.25 && luminance(c) > 0.08 && luminance(c) < 0.95)
-    .sort((a, b) => saturation(b) - saturation(a));
+    .filter((c) => !FRAMEWORK_SOCIAL_COLORS.has(c))
+    .sort((a, b) => score(b) - score(a));
   const lights = colors.filter((c) => luminance(c) >= 0.9).sort((a, b) => luminance(b) - luminance(a));
   const darks = colors.filter((c) => luminance(c) <= 0.2).sort((a, b) => luminance(a) - luminance(b));
 
-  // El primario sale primero de las señales fuertes; si no hay, del más saturado.
-  const primary = priority.find(isBrandy) || saturated[0];
-  const rest = saturated.filter((c) => c !== primary);
+  // Primario: señal explícita del sitio > logo > el candidato con mejor score.
+  const primary = priority.find(isBrandy) || logo.find(isBrandy) || saturated[0];
+  // Secundario/acento: primero los otros colores del logo, después el CSS;
+  // siempre visualmente distintos de lo ya elegido (no variantes del mismo tono).
+  const chosen: string[] = primary ? [primary] : [];
+  const distinct = (c: string) => chosen.every((p) => colorDistance(c, p) > 60);
+  const rest: { hex: string; fromLogo: boolean }[] = [];
+  for (const c of [...logo.filter(isBrandy), ...saturated]) {
+    if (rest.length >= 2) break;
+    if (c === primary || !distinct(c) || rest.some((r) => r.hex === c)) continue;
+    rest.push({ hex: c, fromLogo: logo.includes(c) });
+    chosen.push(c);
+  }
 
   const palette: BrandColor[] = [];
   const add = (
@@ -604,13 +734,14 @@ export function buildBrandKitFromRaw(raw: RawWebContent): BrandKit {
     if (!hex || palette.some((p) => p.hex === hex)) return;
     palette.push({ hex, role, name, source, confidence });
   };
-  // Si el primario vino de una señal fuerte, la confianza es alta.
+  // Si el primario vino de una señal fuerte (variable de marca o logo), la
+  // confianza es alta/media; si salió de la heurística de CSS, media.
   if (primary) {
-    const fromSignal = priority.includes(primary);
+    const fromSignal = priority.includes(primary) || logo.includes(primary);
     add(primary, "primary", "Color principal", fromSignal ? "high" : "medium");
   }
-  if (rest[0]) add(rest[0], "secondary", "Color secundario", "low");
-  if (rest[1]) add(rest[1], "accent", "Color de acento", "low");
+  if (rest[0]) add(rest[0].hex, "secondary", "Color secundario", rest[0].fromLogo ? "medium" : "low");
+  if (rest[1]) add(rest[1].hex, "accent", "Color de acento", rest[1].fromLogo ? "medium" : "low");
   // Si no se detectó un color claro/oscuro real, el blanco/negro genérico
   // se marca "inferred" (no "detected") para no mentirle al usuario.
   add(lights[0] || "#ffffff", "background", "Fondo", lights[0] ? "medium" : "low", lights[0] ? "detected" : "inferred");
@@ -728,10 +859,41 @@ const INDUSTRY_HINTS: { re: RegExp; industry: string }[] = [
   { re: /(indumentaria|ropa|moda|calzado|accesorios)/i, industry: "Fashion & Accessories" },
 ];
 
+// Títulos genéricos que NO son el nombre del negocio ("Inicio - Mi Empresa",
+// "Home", páginas en construcción, etc.). Si el título cae acá, el nombre lo
+// decide la IA (o queda pendiente), nunca se da por "encontrado".
+const GENERIC_NAME_RE =
+  /^(inicio|home|bienvenidos?|welcome|p[áa]gina (principal|de inicio)|my site|mi sitio( web)?|untitled|sin t[íi]tulo|index|default|new site|website|web site|under construction|en construcci[óo]n|coming soon|pr[óo]ximamente|tienda( online)?|shop|store)$/i;
+
+// Texto de plantilla/tema que los sitios olvidan reemplazar (demos de Avada /
+// Elementor / Divi / WooCommerce, "Just another WordPress site"...). Eso NO
+// describe el negocio real: si la meta description es esto, se descarta y la
+// descripción la redacta la IA a partir del contenido. (Bug real: mateando
+// mostraba "Explore Avada's Ecommerce prebuilt website..." como descripción.)
+const BOILERPLATE_DESC_RE =
+  /(avada|elementor|divi theme|betheme|oceanwp|astra theme|prebuilt website|website template|theme demo|demo (site|store)|just another wordpress|woocommerce (theme|integration)|lorem ipsum|this is a sample|sample page|sitio (web )?en construcci[óo]n|p[áa]gina en construcci[óo]n|under construction|coming soon|powered by (wordpress|shopify|wix)|create your (own )?website|build (your|a) (stunning |beautiful )?website)/i;
+
+export function isBoilerplateDescription(desc: string): boolean {
+  return BOILERPLATE_DESC_RE.test(desc);
+}
+
+// ¿Este texto parece el NOMBRE de una marca (y no un genérico ni una frase
+// SEO tipo "Comprá yerba al mejor precio")? Corto, sin palabras de venta.
+function looksLikeBrandName(s: string): boolean {
+  if (!s || GENERIC_NAME_RE.test(s)) return false;
+  if (s.split(/\s+/).length > 5) return false;
+  return !/(compr[aá]|precio|env[íi]os?|ofertas?|descuentos?|venta de|los mejores|la mejor)/i.test(s);
+}
+
 // Construye un análisis básico (sin IA) a partir del contenido crudo.
 export function buildBasicAnalysis(raw: RawWebContent, url: string): WebsiteAnalysis {
-  const name =
-    (raw.ogTitle || raw.title || "").split(/[|\-–—·]/)[0].trim() || domainName(url);
+  // Nombre: primer segmento del título si parece un nombre real; si el título
+  // es genérico ("Inicio - X") o una frase SEO, cae a og:site_name. Los guiones
+  // solo separan con espacios alrededor ("Coca-Cola" no se corta). Si ninguno
+  // sirve, va el dominio como sugerencia (no "encontrado") para que la IA lo
+  // corrija con el nombre real — antes el título SEO quedaba clavado como nombre.
+  const fromTitle = (raw.ogTitle || raw.title || "").split(/\s*[|·]\s*|\s+[-–—]\s+/)[0].trim();
+  const name = [fromTitle, (raw.ogSiteName || "").trim()].find(looksLikeBrandName) || "";
   const fullText = [raw.title, raw.metaDescription, raw.ogDescription, ...raw.headings, ...raw.paragraphs].join(" ");
   const industry = INDUSTRY_HINTS.find((h) => h.re.test(fullText))?.industry || "";
   const brandKit = buildBrandKitFromRaw(raw);
@@ -758,9 +920,18 @@ export function buildBasicAnalysis(raw: RawWebContent, url: string): WebsiteAnal
   };
 
   if (name) setFound("name", name);
+  else setSuggested("name", domainName(url), "low");
   setFound("websiteUrl", raw.url);
-  const desc = raw.metaDescription || raw.ogDescription || "";
-  if (desc) setFound("shortDescription", desc.slice(0, 200));
+  // La meta description solo cuenta como dato "encontrado" (intocable para la
+  // IA) si parece una descripción real: no boilerplate de plantilla, con largo
+  // razonable y que no sea un eco del título. Si es floja, queda como sugerencia
+  // de confianza baja para que la IA la reescriba desde el contenido real.
+  const descRaw = raw.metaDescription || raw.ogDescription || "";
+  const desc = isBoilerplateDescription(descRaw) ? "" : descRaw;
+  const descLooksReal =
+    desc.length >= 40 && desc.trim().toLowerCase() !== (raw.title || "").trim().toLowerCase();
+  if (desc && descLooksReal) setFound("shortDescription", desc.slice(0, 200));
+  else if (desc) setSuggested("shortDescription", desc.slice(0, 200), "low");
   const longDesc = raw.paragraphs.slice(0, 2).join(" ");
   if (longDesc) setSuggested("fullDescription", longDesc.slice(0, 500), "medium");
   if (industry) setSuggested("industry", industry, "medium");
@@ -817,7 +988,7 @@ export function buildBasicAnalysis(raw: RawWebContent, url: string): WebsiteAnal
   return {
     confidence,
     summary: {
-      whatEvaUnderstood: desc || `Un negocio llamado ${name}.`,
+      whatEvaUnderstood: desc || `Un negocio llamado ${name || domainName(url)}.`,
       completedFieldsCount: completed,
       missingFieldsCount: missing.length,
       reviewFieldsCount: review + suggested,
