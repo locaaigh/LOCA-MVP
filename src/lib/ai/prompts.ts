@@ -360,6 +360,7 @@ Devolvé EXACTAMENTE este JSON:
 export function websiteAnalysisPrompt(input: {
   url: string;
   title: string;
+  siteName?: string;
   description: string;
   headings: string[];
   paragraphs: string[];
@@ -371,6 +372,7 @@ export function websiteAnalysisPrompt(input: {
 
 URL: ${input.url}
 TÍTULO: ${input.title}
+NOMBRE DEL SITIO (og:site_name): ${input.siteName || "(no declarado)"}
 DESCRIPCIÓN: ${input.description}
 TITULARES: ${input.headings.slice(0, 20).join(" | ")}
 PÁRRAFOS: ${input.paragraphs.slice(0, 12).join(" ")}
@@ -389,6 +391,9 @@ ${WEBSITE_JSON_SHAPE}`;
 
 const WEBSITE_REASONING_RULES = `CÓMO PENSAR (clave):
 - Razoná el negocio REAL: qué vende, a quién, cómo gana plata. No copies literal un titular de marketing.
+- CUIDADO CON LA BASURA DE PLANTILLA: el título y la descripción de la web muchas veces traen texto del tema/plantilla que el dueño olvidó reemplazar (ej: "Explore Avada's Ecommerce prebuilt website...", "Just another WordPress site", nombres de temas como Avada/Elementor/Divi, demos de WooCommerce, "lorem ipsum"). Eso NO describe el negocio: ignoralo por completo y escribí la descripción real a partir del contenido (titulares, productos, textos visibles).
+- Nombre del negocio: en "name" poné el nombre REAL de la marca (ej: "Café Bruma"), tal como la marca se llama a sí misma. NO pongas un eslogan, un título SEO ("Comprá X al mejor precio"), "Inicio"/"Home" ni el nombre de la plantilla. Priorizá og:site_name si está; si no, deducilo del contenido o del dominio.
+- Productos vs servicios según la evidencia: si la web muestra un catálogo con productos y precios, listá los principales (hasta 6) con su precio. Si es un negocio de SERVICIOS sin lista de precios (consultora, estudio, agencia, profesional), NO inventes una lista larga: resumí la oferta en 1 o 2 servicios principales (type "servicio") con un nombre claro y una shortDescription que diga qué incluye.
 - "A quién le vende" (businessModel): pensá quién PAGA. Si el texto dice que ayuda a "empresas", "pymes", "comercios", "equipos" o "profesionales", es B2B — aunque también mencione consumidores. No pongas B2C por default.
 - Producto vs servicio: un SERVICIO es trabajo/tiempo/asesoría/atención recurrente (consultoría, mantenimiento, diseño, clases, instalación). Un PRODUCTO es un bien tangible o digital que se compra una vez. Si la web habla de "soluciones", "acompañamiento", "gestión", "implementación" → probablemente SERVICIOS, no productos. No clasifiques todo como producto.
 - Industria: en "industry" tenés que elegir OBLIGATORIAMENTE UNA de esta lista EXACTA, copiando el texto tal cual (está en inglés, NO lo traduzcas): ${INDUSTRIES.join(" · ")}. Elegí la que mejor encaje con el negocio real. En "options" de industry ofrecé 2 a 4 alternativas de ESTA MISMA lista. Nunca inventes una industria fuera de la lista ni la escribas en español.
@@ -405,6 +410,7 @@ Reglas de forma:
 - Respondé SOLO el JSON.`;
 
 const WEBSITE_JSON_SHAPE = `{
+  "name": string,                    // nombre REAL de la marca (no eslogan, no título SEO, no "Inicio")
   "industry": string,
   "subcategory": string,
   "businessType": string,            // Local físico | Online | Híbrido (físico + online) | Servicios a domicilio | Marca personal
@@ -434,6 +440,7 @@ const WEBSITE_JSON_SHAPE = `{
   "brandKeywords": string[],
   "whatEvaUnderstood": string,       // 1-2 frases: qué entendió Eva del negocio
   "confidence": {                    // confianza POR campo. Omití los que no apliquen.
+    "name": "high" | "medium" | "low",
     "industry": "high" | "medium" | "low",
     "subcategory": "high" | "medium" | "low",
     "businessModel": "high" | "medium" | "low",
