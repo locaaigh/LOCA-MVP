@@ -1277,6 +1277,23 @@ function StepDot({ n }: { n: number }) {
 // ─────────────────────────────────────────────────────────────
 // PANTALLA DE PENDIENTES: asistente enfocado 1-de-N (web/.md)
 // ─────────────────────────────────────────────────────────────
+// Paso del wizard al que pertenece cada sección de preguntas: los pendientes
+// se presentan con los MISMOS pasos del formulario (Negocio, Marca, Identidad
+// visual...), uno por pantalla, mostrando solo lo obligatorio incompleto.
+const PENDING_STEP_OF_SECTION: Record<QSection, number> = {
+  basicos: 1,
+  propuesta: 2,
+  canales: 2,
+  agenda: 2,
+  fechas: 2,
+  brandkit: 3,
+  restricciones: 3,
+  productos: 4,
+  audiencia: 5,
+  objetivos: 6,
+  necesidades: 6,
+};
+
 function PendingScreen({
   business,
   applyPatch,
@@ -1293,11 +1310,25 @@ function PendingScreen({
   onBack: () => void;
 }) {
   // Lista CONGELADA de obligatorios faltantes al entrar: no se reordena ni
-  // desaparece mientras los completás (al terminar, van al resumen). Agrupados
-  // por sección. Solo se muestran los campos que Eva NO completó.
-  const [questions] = useState(() => missingRequiredQuestions(business));
+  // desaparece mientras los completás (al terminar, van al resumen). Se agrupa
+  // por paso del wizard y se recorre paso a paso: solo los pasos con faltantes
+  // y, dentro de cada paso, solo los campos que Eva NO completó.
+  const [steps] = useState<[number, BusinessQuestion[]][]>(() => {
+    const byStep = new Map<number, BusinessQuestion[]>();
+    for (const q of missingRequiredQuestions(business)) {
+      const s = PENDING_STEP_OF_SECTION[q.section] ?? 6;
+      byStep.set(s, [...(byStep.get(s) ?? []), q]);
+    }
+    return [...byStep.entries()].sort((a, b) => a[0] - b[0]);
+  });
+  const [idx, setIdx] = useState(0);
   const [errors, setErrors] = useState<Set<string>>(new Set());
 
+  const current = steps[Math.min(idx, Math.max(0, steps.length - 1))];
+  const questions = useMemo(() => current?.[1] ?? [], [current]);
+  const allQuestions = useMemo(() => steps.flatMap(([, qs]) => qs), [steps]);
+
+  // Dentro del paso actual, las preguntas se agrupan por su sección.
   const groups = useMemo(() => {
     const map = new Map<QSection, BusinessQuestion[]>();
     for (const q of questions) {
@@ -1308,12 +1339,14 @@ function PendingScreen({
     return [...map.entries()];
   }, [questions]);
 
-  // Contador en vivo de lo que todavía falta (los críticos bloquean; el resto se
-  // puede completar después). Escribimos directo al negocio, como el wizard.
-  const remaining = questions.filter((q) => q.isMissing(business)).length;
-  const canSuggestAny = questions.some((q) => q.canSuggest);
+  // Contador en vivo de lo que todavía falta en total (los críticos bloquean;
+  // el resto se puede completar después). Escribimos directo al negocio.
+  const remaining = allQuestions.filter((q) => q.isMissing(business)).length;
+  const canSuggestAny = allQuestions.some((q) => q.canSuggest);
+  const isLast = idx >= steps.length - 1;
 
   function handleContinue() {
+    // Bloquean solo los críticos DEL PASO ACTUAL (productos se edita aparte).
     const missCrit = questions.filter((q) => q.critical && q.input !== "products" && q.isMissing(business));
     if (missCrit.length > 0) {
       setErrors(new Set(missCrit.map((q) => q.id)));
@@ -1322,7 +1355,23 @@ function PendingScreen({
       );
       return;
     }
-    onSummary();
+    setErrors(new Set());
+    if (isLast) {
+      onSummary();
+      return;
+    }
+    setIdx(idx + 1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function handleBack() {
+    if (idx > 0) {
+      setErrors(new Set());
+      setIdx(idx - 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      onBack();
+    }
   }
 
   function clearError(id: string) {
@@ -1341,7 +1390,7 @@ function PendingScreen({
         <Link href="/">
           <Logo className="text-2xl" />
         </Link>
-        <button onClick={onBack} className="flex items-center gap-1 text-sm font-semibold text-faint transition hover:text-foreground-muted">
+        <button onClick={handleBack} className="flex items-center gap-1 text-sm font-semibold text-faint transition hover:text-foreground-muted">
           <ArrowLeft className="h-4 w-4" /> Volver
         </button>
       </div>
@@ -1363,6 +1412,26 @@ function PendingScreen({
             </Button>
           )}
         </div>
+
+        {/* Stepper: paso actual sobre el total de pasos CON faltantes */}
+        {steps.length > 0 && current && (
+          <div className="mb-5">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-bold text-foreground">
+                Paso {idx + 1} de {steps.length}: <span className="text-accent">{STEPS[current[0]]}</span>
+              </p>
+              <span className="rounded-full bg-accent-subtle-bg px-2.5 py-1 text-xs font-bold text-accent-subtle-fg">
+                {questions.length} {questions.length === 1 ? "dato" : "datos"}
+              </span>
+            </div>
+            <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-surface-muted">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-loca-500 to-loca-400 transition-all duration-500"
+                style={{ width: `${((idx + 1) / steps.length) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         {questions.length === 0 ? (
           <Card className="flex flex-col items-center gap-3 py-12 text-center">
@@ -1418,9 +1487,16 @@ function PendingScreen({
         )}
 
         <div className="mt-7">
-          <Button variant="success" size="lg" className="w-full" onClick={handleContinue}>
-            Guardar y continuar <ArrowRight className="h-5 w-5" />
-          </Button>
+          <div className="flex items-center gap-3">
+            {idx > 0 && (
+              <Button variant="ghost" size="lg" onClick={handleBack}>
+                <ArrowLeft className="h-5 w-5" /> Atrás
+              </Button>
+            )}
+            <Button variant="success" size="lg" className="flex-1" onClick={handleContinue}>
+              {isLast ? "Guardar y continuar" : "Continuar"} <ArrowRight className="h-5 w-5" />
+            </Button>
+          </div>
           <div className="mt-3 text-center">
             <button onClick={onSummary} className="text-sm font-semibold text-faint transition hover:text-foreground-muted">
               Prefiero completar el resto después
