@@ -46,6 +46,12 @@ export interface BusinessQuestion {
   allowCustom?: boolean;
   placeholder?: string;
   critical: boolean;
+  /**
+   * Si el dato es OBLIGATORIO para terminar el onboarding (entra al flujo
+   * "Completá lo que falta"). Default: true. FLAG DATA-DRIVEN: el futuro
+   * backoffice de admins lo editará por campo (ideal moverlo a DB) sin tocar la UI.
+   */
+  required?: boolean;
   canSuggest?: boolean;
   get: (b: Business) => any;
   apply: (b: Business, v: any) => Partial<Business>;
@@ -367,6 +373,16 @@ export function pendingQuestions(b: Business, includeExtended = true): BusinessQ
   return QUESTIONS.filter((q) => (includeExtended || q.critical) && q.isMissing(b)).sort(
     (a, c) => Number(c.critical) - Number(a.critical)
   );
+}
+
+/** Un dato es obligatorio salvo que se marque required:false (futuro backoffice). */
+export function isQuestionRequired(q: BusinessQuestion): boolean {
+  return q.required !== false;
+}
+
+/** Pendientes OBLIGATORIOS (faltantes + requeridos). Base del flujo "Completá lo que falta". */
+export function missingRequiredQuestions(b: Business): BusinessQuestion[] {
+  return pendingQuestions(b).filter(isQuestionRequired);
 }
 
 /** % de completitud del perfil (sobre el total de preguntas). */

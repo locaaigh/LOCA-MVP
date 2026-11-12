@@ -46,7 +46,14 @@ import { VisualStylePicker } from "@/components/visual-style-picker";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { OnboardingSummary, missingCritical, type SummarySectionKey } from "@/components/onboarding-summary";
 import { PendingFlow } from "@/components/pending-flow";
-import { pendingQuestions } from "@/lib/business-questions";
+import { QuestionField } from "@/components/question-field";
+import {
+  pendingQuestions,
+  missingRequiredQuestions,
+  SECTION_LABELS,
+  type BusinessQuestion,
+  type QSection,
+} from "@/lib/business-questions";
 import { Logo } from "@/components/brand";
 import { EvaChatBubble } from "@/components/eva-chat";
 import { getFieldExample } from "@/lib/examples";
@@ -293,7 +300,9 @@ function OnboardingPageInner() {
   // Decide a dónde ir después de analizar web / importar .md.
   // Suficiente info → resumen final. Faltan datos clave → pantalla de pendientes.
   function routeAfterImport(next: Business) {
-    if (missingCritical(next).length === 0) {
+    // Todos los obligatorios completos → resumen. Si falta alguno → pantalla
+    // "Completá lo que falta" (solo los campos vacíos, agrupados).
+    if (missingRequiredQuestions(next).length === 0) {
       setStep(SUMMARY_STEP);
       setPhase("wizard");
     } else {
@@ -1289,8 +1298,45 @@ function PendingScreen({
   onSummary: () => void;
   onBack: () => void;
 }) {
-  // Congelamos la lista al entrar para poder caminarla "1 de N" sin que se reordene.
-  const [questions] = useState(() => pendingQuestions(business));
+  // Lista CONGELADA de obligatorios faltantes al entrar: no se reordena ni
+  // desaparece mientras los completás (al terminar, van al resumen). Agrupados
+  // por sección. Solo se muestran los campos que Eva NO completó.
+  const [questions] = useState(() => missingRequiredQuestions(business));
+  const [errors, setErrors] = useState<Set<string>>(new Set());
+
+  const groups = useMemo(() => {
+    const map = new Map<QSection, BusinessQuestion[]>();
+    for (const q of questions) {
+      const arr = map.get(q.section) ?? [];
+      arr.push(q);
+      map.set(q.section, arr);
+    }
+    return [...map.entries()];
+  }, [questions]);
+
+  // Contador en vivo de lo que todavía falta (los críticos bloquean; el resto se
+  // puede completar después). Escribimos directo al negocio, como el wizard.
+  const remaining = questions.filter((q) => q.isMissing(business)).length;
+  const canSuggestAny = questions.some((q) => q.canSuggest);
+
+  function handleContinue() {
+    const missCrit = questions.filter((q) => q.critical && q.input !== "products" && q.isMissing(business));
+    if (missCrit.length > 0) {
+      setErrors(new Set(missCrit.map((q) => q.id)));
+      requestAnimationFrame(() =>
+        document.getElementById(`pf-${missCrit[0].id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
+      );
+      return;
+    }
+    onSummary();
+  }
+
+  function clearError(id: string) {
+    if (!errors.has(id)) return;
+    const n = new Set(errors);
+    n.delete(id);
+    setErrors(n);
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden loca-hero-bg">
@@ -1306,33 +1352,86 @@ function PendingScreen({
         </button>
       </div>
 
-      <div className="mx-auto max-w-xl animate-fade-in-up px-4 py-9 sm:px-6">
+      <div className="mx-auto max-w-2xl animate-fade-in-up px-4 py-9 pb-28 sm:px-6">
         <div className="mb-7 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-3xl bg-gradient-to-br from-loca-500 to-loca-700 text-white shadow-lift ring-8 ring-loca-50">
             <Sparkles className="h-7 w-7" />
           </div>
           <h1 className="text-[1.7rem] font-extrabold tracking-tight text-foreground sm:text-[2.1rem] sm:leading-[1.1]">
-            Eva ya completó gran parte.<br className="hidden sm:block" /> Revisemos <span className="loca-gradient-text">lo que falta</span>.
+            Eva ya completó gran parte.<br className="hidden sm:block" /> Completá <span className="loca-gradient-text">lo que falta</span>.
           </h1>
           <p className="mx-auto mt-3 max-w-md text-[15px] text-muted-foreground">
-            Completá solo lo necesario, de a una pregunta por vez.
+            Solo te mostramos los datos que Eva no pudo completar{remaining > 0 ? `: ${remaining} ${remaining === 1 ? "dato" : "datos"}` : ""}.
           </p>
+          {canSuggestAny && (
+            <Button variant="outline" size="sm" className="mt-4" onClick={onSuggest}>
+              <Sparkles className="h-3.5 w-3.5 text-loca-500" /> Que Eva sugiera lo que pueda
+            </Button>
+          )}
         </div>
 
-        <PendingFlow
-          business={business}
-          questions={questions}
-          applyPatch={applyPatch}
-          onSuggest={onSuggest}
-          onEditSection={onEditSection}
-          onDone={onSummary}
-          doneLabel="Ver el resumen de mi negocio"
-        />
+        {questions.length === 0 ? (
+          <Card className="flex flex-col items-center gap-3 py-12 text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-3xl bg-lima-100 dark:bg-lima-900/50 text-lima-700 dark:text-lima-300">
+              <Check className="h-7 w-7" />
+            </span>
+            <p className="text-lg font-bold text-foreground">No falta nada 🎉</p>
+          </Card>
+        ) : (
+          <div className="space-y-5">
+            {groups.map(([section, qs]) => (
+              <Card key={section} className="space-y-5">
+                <h2 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-accent">
+                  {SECTION_LABELS[section]}
+                </h2>
+                {qs.map((q) => {
+                  const done = !q.isMissing(business);
+                  return (
+                    <div key={q.id} id={`pf-${q.id}`} className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm font-semibold text-foreground-soft">{q.label}</label>
+                        {done ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-lima-50 dark:bg-lima-950/40 px-2 py-0.5 text-[11px] font-bold text-lima-700 dark:text-lima-300">
+                            <Check className="h-3 w-3" /> Listo
+                          </span>
+                        ) : q.critical ? (
+                          <span className="rounded-full bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:text-amber-300">Necesario</span>
+                        ) : (
+                          <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">Recomendado</span>
+                        )}
+                      </div>
+                      {q.why && <p className="text-xs text-faint">{q.why}</p>}
+                      <QuestionField
+                        question={q}
+                        business={business}
+                        value={q.get(business)}
+                        error={errors.has(q.id)}
+                        onChange={(v) => {
+                          applyPatch(q.apply(business, v));
+                          clearError(q.id);
+                        }}
+                        onEditProducts={() => onEditSection("productos")}
+                      />
+                      {errors.has(q.id) && (
+                        <p className="text-xs font-semibold text-red-600 dark:text-red-300">Completá este dato para continuar.</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </Card>
+            ))}
+          </div>
+        )}
 
-        <div className="mt-5 text-center">
-          <button onClick={onSummary} className="text-sm font-semibold text-faint transition hover:text-foreground-muted">
-            Saltar y ver el resumen
-          </button>
+        <div className="mt-7">
+          <Button variant="success" size="lg" className="w-full" onClick={handleContinue}>
+            Guardar y continuar <ArrowRight className="h-5 w-5" />
+          </Button>
+          <div className="mt-3 text-center">
+            <button onClick={onSummary} className="text-sm font-semibold text-faint transition hover:text-foreground-muted">
+              Prefiero completar el resto después
+            </button>
+          </div>
         </div>
       </div>
     </div>
