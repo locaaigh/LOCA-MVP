@@ -50,6 +50,7 @@ import { QuestionField } from "@/components/question-field";
 import {
   pendingQuestions,
   missingRequiredQuestions,
+  missingCriticalQuestions,
   SECTION_LABELS,
   type BusinessQuestion,
   type QSection,
@@ -58,7 +59,6 @@ import { Logo } from "@/components/brand";
 import { EvaChatBubble } from "@/components/eva-chat";
 import { getFieldExample } from "@/lib/examples";
 import { getMissingRequiredFields } from "@/lib/onboarding-validation";
-import { missingRequired, firstIncompleteStep } from "@/lib/onboarding/field-requirements";
 import { emptyBrandKit } from "@/lib/store";
 import { api } from "@/lib/api";
 import { uid, copyToClipboard, nowIso, downloadFile } from "@/lib/utils";
@@ -444,25 +444,19 @@ function OnboardingPageInner() {
       return;
     }
 
-    // Gate de estrategia (items 1, 11 y 19): no se puede generar con NINGÚN
-    // obligatorio sin resolver — faltante o en estado "Revisar". Fuente única:
-    // field-requirements.ts. Cubre el hueco de web/IA/pendientes que saltaban al
-    // resumen sin revalidar. Rutea al primer paso del wizard con faltantes.
-    const pending = missingRequired(b);
-    if (pending.length > 0) {
-      const target = firstIncompleteStep(b);
-      if (target != null) {
-        setPhase("wizard");
-        setStep(target);
-        setMissing(new Set(pending.filter((f) => f.step === target).map((f) => f.id)));
-        const first = pending.find((f) => f.step === target);
-        if (first) goToMissingField(first.id, first.label);
-      }
+    // Gate de estrategia: no se puede generar sin los datos CRÍTICOS. Si falta
+    // alguno, volvemos a la pantalla "Completá lo que falta" (una sola página),
+    // NO al wizard step-by-step. Los no-críticos no bloquean (se completan después).
+    // Usamos la MISMA fuente que esa pantalla (business-questions) para no tener
+    // dos definiciones de "obligatorio" que se contradigan.
+    const missCrit = missingCriticalQuestions(b);
+    if (missCrit.length > 0) {
+      setPhase("pending");
       track("onboarding_validation_failed", {
-        step: target ?? -1,
+        step: -1,
         label: "strategy_gate",
-        field: pending[0].id,
-        missingCount: pending.length,
+        field: missCrit[0].id,
+        missingCount: missCrit.length,
       });
       return;
     }
