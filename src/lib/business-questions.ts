@@ -7,19 +7,20 @@
 //  - el gate de generación de estrategia (missingCritical)
 // NUNCA inventa datos: solo describe qué falta y cómo editarlo.
 // ─────────────────────────────────────────────────────────────
-import type { Business } from "./types";
+import type { Business, BusinessStage, Channel } from "./types";
 import {
   INDUSTRIES,
   BUSINESS_TYPES,
+  BUSINESS_STAGES,
   AGE_RANGES,
   VALUE_SUGGESTIONS,
   ADVANTAGE_SUGGESTIONS,
   MARKETING_ACTIVITIES,
+  foundingYearOptions,
   seasonalityOptionsFor,
   specialDatesOptionsFor,
 } from "./constants";
 import { emptyBrandKit } from "./store";
-import { isCriticalField } from "./onboarding/field-requirements";
 
 export type QSection =
   | "basicos"
@@ -34,7 +35,19 @@ export type QSection =
   | "restricciones"
   | "necesidades";
 
-export type QInput = "text" | "textarea" | "select" | "chips" | "channels" | "products" | "country";
+export type QInput =
+  | "text"
+  | "textarea"
+  | "select"
+  | "chips"
+  | "channels"
+  | "products"
+  | "country"
+  | "region"
+  // "section": campo con input especial (color/tipografía/foto) que se completa
+  // en su sección del formulario, no inline. El flujo de pendientes muestra un
+  // botón que lleva a esa sección.
+  | "section";
 
 export interface BusinessQuestion {
   id: string;
@@ -343,18 +356,220 @@ export const QUESTIONS: BusinessQuestion[] = [
     apply: (_b, v) => ({ communicationNeeds: v }),
     isMissing: (b) => empty(b.communicationNeeds),
   },
-];
 
-// Unificación (fuente única): el flag `critical` es autoritativo en
-// field-requirements.ts. Lo re-derivamos por id para que NUNCA pueda divergir
-// de la validación por paso. Dos ids tienen otro nombre en el registro.
-const CRITICAL_ID_MAP: Record<string, string> = {
-  audience: "ageRanges",
-  toneTags: "bk_tone",
-};
-for (const q of QUESTIONS) {
-  q.critical = isCriticalField(CRITICAL_ID_MAP[q.id] ?? q.id);
-}
+  // ── Campos que antes vivían solo en field-requirements (wizard) ──
+  // Se suman acá para que el admin los liste, el flujo con IA los pida y el
+  // gate/completitud los contemplen. Mismos ids que field-requirements (así
+  // la derivación de `critical` por id sigue coincidiendo). Todos critical:false.
+  {
+    id: "businessStage",
+    section: "basicos",
+    label: "Tipo de organización",
+    why: "Ajusta el tono y los ejemplos (emprendimiento, pyme, startup, marca personal).",
+    input: "select",
+    options: BUSINESS_STAGES.map((s) => s.label),
+    critical: false,
+    get: (b) => BUSINESS_STAGES.find((s) => s.value === b.businessStage)?.label || "",
+    apply: (_b, v) => ({ businessStage: BUSINESS_STAGES.find((s) => s.label === v)?.value }),
+    isMissing: (b) => empty(b.businessStage),
+  },
+  {
+    id: "yearFounded",
+    section: "basicos",
+    label: "Año de fundación",
+    why: "Contexto de madurez del negocio.",
+    input: "select",
+    options: () => foundingYearOptions(new Date().getFullYear()).map((o) => o.value),
+    critical: false,
+    get: (b) => b.yearFounded || "",
+    apply: (_b, v) => ({ yearFounded: v }),
+    isMissing: (b) => empty(b.yearFounded),
+  },
+  {
+    id: "employees",
+    section: "basicos",
+    label: "Cantidad de empleados",
+    why: "Ayuda a dimensionar el negocio.",
+    input: "text",
+    placeholder: "Ej: 5",
+    critical: false,
+    get: (b) => b.employees || "",
+    apply: (_b, v) => ({ employees: v }),
+    isMissing: (b) => empty(b.employees),
+  },
+  {
+    id: "state",
+    section: "basicos",
+    label: "Provincia / Estado",
+    why: "Para referencias y campañas locales.",
+    input: "region",
+    critical: false,
+    get: (b) => b.state,
+    apply: (_b, v) => ({ state: v }),
+    isMissing: (b) => empty(b.state),
+  },
+  {
+    id: "city",
+    section: "basicos",
+    label: "Ciudad",
+    why: "Para referencias y campañas locales.",
+    input: "text",
+    placeholder: "Ej: Palermo, CABA",
+    critical: false,
+    get: (b) => b.city,
+    apply: (_b, v) => ({ city: v }),
+    isMissing: (b) => empty(b.city),
+  },
+  {
+    id: "locations",
+    section: "audiencia",
+    label: "Ubicaciones objetivo",
+    why: "Dónde está tu audiencia (ciudades, zonas, país).",
+    input: "chips",
+    allowCustom: true,
+    critical: false,
+    canSuggest: true,
+    get: (b) => b.audience?.locations || [],
+    apply: (b, v) => ({ audience: { ...b.audience, locations: v } }),
+    isMissing: (b) => empty(b.audience?.locations),
+  },
+  {
+    id: "painPoints",
+    section: "audiencia",
+    label: "Qué problema le resolvés",
+    why: "El dolor que resuelve tu negocio orienta todo el contenido.",
+    input: "chips",
+    allowCustom: true,
+    critical: false,
+    canSuggest: true,
+    get: (b) => b.audience?.painPoints || [],
+    apply: (b, v) => ({ audience: { ...b.audience, painPoints: v } }),
+    isMissing: (b) => empty(b.audience?.painPoints),
+  },
+  {
+    id: "behavior",
+    section: "audiencia",
+    label: "Comportamiento del cliente",
+    why: "Cómo compra y decide tu cliente.",
+    input: "textarea",
+    placeholder: "Ej: compara precios, compra por impulso en fechas especiales…",
+    critical: false,
+    canSuggest: true,
+    get: (b) => b.audience?.behavior || "",
+    apply: (b, v) => ({ audience: { ...b.audience, behavior: v } }),
+    isMissing: (b) => empty(b.audience?.behavior),
+  },
+  {
+    id: "segments",
+    section: "audiencia",
+    label: "Segmentos de audiencia",
+    why: "Grupos distintos a los que le hablás.",
+    input: "chips",
+    allowCustom: true,
+    critical: false,
+    canSuggest: true,
+    get: (b) => b.audience?.segments || [],
+    apply: (b, v) => ({ audience: { ...b.audience, segments: v } }),
+    isMissing: (b) => empty(b.audience?.segments),
+  },
+  {
+    id: "businessObjectives",
+    section: "objetivos",
+    label: "Objetivos de negocio",
+    why: "Qué querés lograr con el negocio (más allá del contenido).",
+    input: "textarea",
+    placeholder: "Ej: abrir un segundo local, duplicar ventas online…",
+    critical: false,
+    get: (b) => b.goals?.businessObjectives || "",
+    apply: (b, v) => ({ goals: { ...b.goals, businessObjectives: v } }),
+    isMissing: (b) => empty(b.goals?.businessObjectives),
+  },
+  {
+    id: "successMetrics",
+    section: "objetivos",
+    label: "Métricas de éxito",
+    why: "Cómo vas a medir si el marketing funciona.",
+    input: "chips",
+    allowCustom: true,
+    critical: false,
+    get: (b) => b.goals?.successMetrics || [],
+    apply: (b, v) => ({ goals: { ...b.goals, successMetrics: v } }),
+    isMissing: (b) => empty(b.goals?.successMetrics),
+  },
+  {
+    id: "marketingObjectives",
+    section: "objetivos",
+    label: "Objetivos de marketing",
+    why: "Qué querés lograr puntualmente con el marketing.",
+    input: "textarea",
+    placeholder: "Ej: ganar seguidores, más consultas por DM…",
+    critical: false,
+    get: (b) => b.goals?.marketingObjectives || "",
+    apply: (b, v) => ({ goals: { ...b.goals, marketingObjectives: v } }),
+    isMissing: (b) => empty(b.goals?.marketingObjectives),
+  },
+  {
+    id: "timeline",
+    section: "objetivos",
+    label: "Plazo",
+    why: "En cuánto tiempo querés ver resultados.",
+    input: "text",
+    placeholder: "Ej: 3 meses",
+    critical: false,
+    get: (b) => b.goals?.timeline || "",
+    apply: (b, v) => ({ goals: { ...b.goals, timeline: v } }),
+    isMissing: (b) => empty(b.goals?.timeline),
+  },
+  {
+    id: "publishChannels",
+    section: "canales",
+    label: "Dónde publicar",
+    why: "Las cuentas concretas donde Eva va a publicar.",
+    input: "channels",
+    critical: false,
+    get: (b) => b.publishChannels || [],
+    apply: (_b, v) => ({ publishChannels: v as Channel[] }),
+    isMissing: (b) => empty(b.publishChannels),
+  },
+  {
+    id: "bk_color",
+    section: "brandkit",
+    label: "Un color de marca",
+    why: "Eva usa tus colores en las piezas.",
+    input: "section",
+    critical: false,
+    get: (b) => b.brandKit?.colors?.primary || "",
+    apply: (_b) => ({}),
+    isMissing: (b) =>
+      !(!!b.brandKit?.colors?.primary || (b.brandKit?.colors?.palette?.length ?? 0) > 0),
+  },
+  {
+    id: "bk_font",
+    section: "brandkit",
+    label: "Una tipografía",
+    why: "Para que los textos sobre las imágenes usen tu tipografía.",
+    input: "section",
+    critical: false,
+    get: (b) => b.brandKit?.typography?.heading?.family || b.brandKit?.typography?.body?.family || "",
+    apply: (_b) => ({}),
+    isMissing: (b) =>
+      !(!!b.brandKit?.typography?.heading?.family || !!b.brandKit?.typography?.body?.family),
+  },
+  {
+    id: "personPhotos",
+    section: "brandkit",
+    label: "Al menos una foto tuya",
+    why: "Para marca personal: sin foto propia, no se generan rostros.",
+    input: "section",
+    critical: false,
+    // Solo aplica (y bloquea) a marca personal / profesional independiente.
+    get: (b) => b.personPhotos || [],
+    apply: (_b) => ({}),
+    isMissing: (b) =>
+      (b.businessStage === "profesional_independiente" || b.businessType === "Marca personal") &&
+      empty(b.personPhotos),
+  },
+];
 
 // ── Overrides del backoffice ─────────────────────────────────
 // Los admins pueden cambiar required/critical por campo desde /admin (tabla

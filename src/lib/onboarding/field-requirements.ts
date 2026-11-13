@@ -1,20 +1,39 @@
 // ─────────────────────────────────────────────────────────────
-// FUENTE ÚNICA DE VERDAD de los campos OBLIGATORIOS del onboarding.
+// Validación POR PASO del wizard manual.
 //
-// Antes esto vivía duplicado en dos lugares que podían divergir:
-//   - onboarding-validation.ts (requeridos por paso, para avanzar el wizard)
-//   - business-questions.ts    (críticos, para el gate de estrategia)
-// Al estar en un solo registro declarativo, "qué es obligatorio" y "qué es
-// crítico" se definen una sola vez. Ambos sistemas derivan de acá.
-//
-// - `required` (bloquea el paso del wizard) = estar en este registro con `step`.
-// - `critical` (subconjunto que además bloquea la estrategia / alimenta el
-//   flujo de pendientes 1-de-N y la completitud del perfil).
+// El registro declarativo de campos del onboarding es business-questions.ts
+// (fuente única: lo que ve el admin, lo que pide el flujo con IA, el gate de
+// estrategia y la completitud). Este archivo conserva el mapeo "campo → paso
+// del wizard" + los ids de scroll/foco de cada input del formulario manual
+// (que a veces difieren del id lógico), y respeta el flag `required` que los
+// admins editan en /admin — así el wizard y el flujo con IA nunca divergen en
+// "qué es obligatorio".
 //
 // Los campos dinámicos (ej: el nombre de cada producto cargado) NO se listan
 // acá porque no son estáticos; se chequean aparte en getMissingRequiredFields.
 // ─────────────────────────────────────────────────────────────
 import type { Business } from "../types";
+import { QUESTIONS } from "../business-questions";
+
+// Mapa de id del wizard → id de business-questions, para los pocos campos que
+// se llaman distinto. Así el wizard puede respetar el flag `required` que los
+// admins editan en /admin (que vive en business-questions). El resto comparte id.
+const WIZARD_TO_QUESTION_ID: Record<string, string> = {
+  ageRanges: "audience",
+  bk_tone: "toneTags",
+  hasSeasonality: "seasonalityTags",
+  hasSpecialDates: "specialDates",
+};
+
+/**
+ * ¿Este campo del wizard sigue siendo obligatorio?
+ * Default true; si el admin lo marcó `required:false` en /admin, el wizard deja
+ * de exigirlo también (misma definición que el flujo con IA → sin divergencias).
+ */
+function isWizardFieldRequired(id: string): boolean {
+  const q = QUESTIONS.find((x) => x.id === (WIZARD_TO_QUESTION_ID[id] ?? id));
+  return q ? q.required !== false : true;
+}
 
 export interface FieldRequirement {
   /** id del campo = ancla de scroll/foco en el wizard. */
@@ -154,9 +173,9 @@ export function isCriticalField(id: string): boolean {
   return BY_ID.get(id)?.critical ?? false;
 }
 
-/** Requeridos de un paso del wizard. */
+/** Requeridos de un paso del wizard (respetando el toggle `required` del admin). */
 export function requirementsForStep(step: number): FieldRequirement[] {
-  return FIELD_REQUIREMENTS.filter((f) => f.step === step);
+  return FIELD_REQUIREMENTS.filter((f) => f.step === step && isWizardFieldRequired(f.id));
 }
 
 /**
