@@ -13,6 +13,10 @@ export async function GET() {
       fieldId: r.fieldId,
       required: r.required,
       critical: r.critical,
+      sortOrder: r.sortOrder,
+      label: r.label,
+      placeholder: r.placeholder,
+      why: r.why,
     })),
   });
 }
