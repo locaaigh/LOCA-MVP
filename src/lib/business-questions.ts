@@ -356,11 +356,52 @@ for (const q of QUESTIONS) {
   q.critical = isCriticalField(CRITICAL_ID_MAP[q.id] ?? q.id);
 }
 
-export const CRITICAL_QUESTIONS = QUESTIONS.filter((q) => q.critical);
+// ── Overrides del backoffice ─────────────────────────────────
+// Los admins pueden cambiar required/critical por campo desde /admin (tabla
+// onboarding_field_config). Los DEFAULTS son los de código, capturados acá
+// ANTES de aplicar ningún override; applyFieldConfigOverrides es idempotente
+// (restaura defaults y aplica), así un fetch repetido nunca acumula estado.
+
+/** Piso intocable: sin estos campos la estrategia sería de otro negocio. */
+export const FLOOR_FIELD_IDS = new Set(["name", "industry"]);
+
+const DEFAULT_FLAGS = new Map(
+  QUESTIONS.map((q) => [q.id, { required: q.required !== false, critical: q.critical }])
+);
+
+/** Flags default (de código) de un campo, para mostrarlos en el backoffice. */
+export function defaultFlagsOf(id: string): { required: boolean; critical: boolean } | undefined {
+  return DEFAULT_FLAGS.get(id);
+}
+
+export interface FieldFlagsOverride {
+  fieldId: string;
+  required?: boolean | null;
+  critical?: boolean | null;
+}
+
+/**
+ * Aplica los overrides del backoffice sobre el registro en memoria.
+ * Garantiza el invariante crítico ⇒ obligatorio y nunca toca el piso.
+ */
+export function applyFieldConfigOverrides(overrides: FieldFlagsOverride[]): void {
+  for (const q of QUESTIONS) {
+    const d = DEFAULT_FLAGS.get(q.id)!;
+    q.required = d.required;
+    q.critical = d.critical;
+  }
+  for (const o of overrides) {
+    const q = QUESTIONS.find((x) => x.id === o.fieldId);
+    if (!q || FLOOR_FIELD_IDS.has(q.id)) continue;
+    if (typeof o.critical === "boolean") q.critical = o.critical;
+    if (typeof o.required === "boolean") q.required = o.required;
+    if (q.critical) q.required = true;
+  }
+}
 
 /** Preguntas críticas que faltan (las que bloquean la estrategia). */
 export function missingCriticalQuestions(b: Business): BusinessQuestion[] {
-  return CRITICAL_QUESTIONS.filter((q) => q.isMissing(b));
+  return QUESTIONS.filter((q) => q.critical && q.isMissing(b));
 }
 
 /** Labels de los críticos faltantes (para banners / gate). */

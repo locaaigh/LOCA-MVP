@@ -55,6 +55,7 @@ import {
   type BusinessQuestion,
   type QSection,
 } from "@/lib/business-questions";
+import { syncFieldConfigOverrides } from "@/lib/onboarding/field-config-client";
 import { Logo } from "@/components/brand";
 import { EvaChatBubble } from "@/components/eva-chat";
 import { getFieldExample } from "@/lib/examples";
@@ -152,6 +153,11 @@ function OnboardingPageInner() {
     track("onboarding_started", {}, { businessId: b.id });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editMode]);
+  // Config del backoffice (qué campos son obligatorios/críticos): se baja una
+  // vez y se aplica en memoria. Sin backoffice o sin red, defaults de código.
+  useEffect(() => {
+    syncFieldConfigOverrides();
+  }, []);
   useEffect(() => {
     if (phase !== "wizard" || editMode) return;
     stepStartedAt.current = Date.now();

@@ -18,6 +18,7 @@ const APP_PREFIXES = [
   "/settings",
   "/demo",
   "/auth",
+  "/admin",
 ];
 
 /** Rutas que pertenecen solo a la WEB de marketing (heyloca.ai). */
@@ -158,11 +159,57 @@ async function refreshSession(request: NextRequest): Promise<NextResponse> {
   return response;
 }
 
+/**
+ * Gate del backoffice: /admin exige sesión verificada y acá es FAIL-CLOSED
+ * (lo inverso de refreshSession): si Supabase no responde o no hay sesión,
+ * no entrás. La membresía de admin la re-chequea el layout del server contra
+ * admin_users (404 si no sos admin); esto solo corta a los anónimos temprano.
+ */
+async function adminGate(request: NextRequest): Promise<NextResponse | null> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const toLogin = () => {
+    const login = new URL("/login", request.url);
+    login.searchParams.set("next", request.nextUrl.pathname);
+    return NextResponse.redirect(login);
+  };
+  if (!url || !anonKey) return toLogin();
+
+  const supabase = createServerClient(url, anonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll() {
+        // Solo verificación: el refresh de cookies lo hace refreshSession.
+      },
+    },
+  });
+  try {
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("supabase auth timeout")), 3000)
+    );
+    const { data } = (await Promise.race([supabase.auth.getUser(), timeout])) as Awaited<
+      ReturnType<typeof supabase.auth.getUser>
+    >;
+    if (!data.user) return toLogin();
+    return null;
+  } catch {
+    return toLogin();
+  }
+}
+
 export async function middleware(request: NextRequest) {
   const hosts = resolveHosts(request);
   if (hosts) {
     const redirect = hostRedirect(request, hosts);
     if (redirect) return redirect;
+  }
+
+  const { pathname } = request.nextUrl;
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+    const blocked = await adminGate(request);
+    if (blocked) return blocked;
   }
 
   const response = await refreshSession(request);
