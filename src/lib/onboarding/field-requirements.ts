@@ -29,8 +29,10 @@ const WIZARD_TO_QUESTION_ID: Record<string, string> = {
  * ¿Este campo del wizard sigue siendo obligatorio?
  * Default true; si el admin lo marcó `required:false` en /admin, el wizard deja
  * de exigirlo también (misma definición que el flujo con IA → sin divergencias).
+ * Exportado para que los `*` del formulario (HelpField required) lean lo mismo
+ * que la validación, en vez de estar hardcodeados.
  */
-function isWizardFieldRequired(id: string): boolean {
+export function isFieldRequired(id: string): boolean {
   const q = QUESTIONS.find((x) => x.id === (WIZARD_TO_QUESTION_ID[id] ?? id));
   return q ? q.required !== false : true;
 }
@@ -175,7 +177,7 @@ export function isCriticalField(id: string): boolean {
 
 /** Requeridos de un paso del wizard (respetando el toggle `required` del admin). */
 export function requirementsForStep(step: number): FieldRequirement[] {
-  return FIELD_REQUIREMENTS.filter((f) => f.step === step && isWizardFieldRequired(f.id));
+  return FIELD_REQUIREMENTS.filter((f) => f.step === step && isFieldRequired(f.id));
 }
 
 /**

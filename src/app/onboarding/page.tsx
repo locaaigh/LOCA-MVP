@@ -60,6 +60,7 @@ import { Logo } from "@/components/brand";
 import { EvaChatBubble } from "@/components/eva-chat";
 import { getFieldExample } from "@/lib/examples";
 import { getMissingRequiredFields } from "@/lib/onboarding-validation";
+import { isFieldRequired } from "@/lib/onboarding/field-requirements";
 import { emptyBrandKit } from "@/lib/store";
 import { api } from "@/lib/api";
 import { uid, copyToClipboard, nowIso, downloadFile } from "@/lib/utils";
@@ -465,19 +466,18 @@ function OnboardingPageInner() {
       return;
     }
 
-    // Gate de estrategia: no se puede generar sin los datos CRÍTICOS. Si falta
-    // alguno, volvemos a la pantalla "Completá lo que falta" (una sola página),
-    // NO al wizard step-by-step. Los no-críticos no bloquean (se completan después).
-    // Usamos la MISMA fuente que esa pantalla (business-questions) para no tener
-    // dos definiciones de "obligatorio" que se contradigan.
-    const missCrit = missingCriticalQuestions(b);
-    if (missCrit.length > 0) {
+    // Gate del final: "obligatorio" obliga de verdad. Si falta CUALQUIER campo
+    // required (los que el admin tiene en ON), volvemos a "Completá lo que
+    // falta" — misma fuente que esa pantalla y que el wizard (business-questions
+    // + overrides del admin), así nunca divergen las definiciones.
+    const missReq = missingRequiredQuestions(b);
+    if (missReq.length > 0) {
       setPhase("pending");
       track("onboarding_validation_failed", {
         step: -1,
-        label: "strategy_gate",
-        field: missCrit[0].id,
-        missingCount: missCrit.length,
+        label: "required_gate",
+        field: missReq[0].id,
+        missingCount: missReq.length,
       });
       return;
     }
@@ -1367,12 +1367,14 @@ function PendingScreen({
   const isLast = idx >= steps.length - 1;
 
   function handleContinue() {
-    // Bloquean solo los críticos DEL PASO ACTUAL (productos se edita aparte).
-    const missCrit = questions.filter((q) => q.critical && q.input !== "products" && q.isMissing(business));
-    if (missCrit.length > 0) {
-      setErrors(new Set(missCrit.map((q) => q.id)));
+    // Acá TODO lo que se muestra es obligatorio (lo define el admin): bloquea
+    // cualquier faltante del paso actual. Productos se edita en su modal y lo
+    // bloquea el resumen (Confirmar deshabilitado) si quedó vacío.
+    const missNow = questions.filter((q) => q.input !== "products" && q.isMissing(business));
+    if (missNow.length > 0) {
+      setErrors(new Set(missNow.map((q) => q.id)));
       requestAnimationFrame(() =>
-        document.getElementById(`pf-${missCrit[0].id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
+        document.getElementById(`pf-${missNow[0].id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })
       );
       return;
     }
@@ -1478,10 +1480,9 @@ function PendingScreen({
                           <span className="inline-flex items-center gap-1 rounded-full bg-lima-50 dark:bg-lima-950/40 px-2 py-0.5 text-[11px] font-bold text-lima-700 dark:text-lima-300">
                             <Check className="h-3 w-3" /> Listo
                           </span>
-                        ) : q.critical ? (
-                          <span className="rounded-full bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:text-amber-300">Necesario</span>
                         ) : (
-                          <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">Recomendado</span>
+                          // Todo lo que llega acá es obligatorio (lo define el admin).
+                          <span className="rounded-full bg-amber-100 dark:bg-amber-900/50 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:text-amber-300">Obligatorio</span>
                         )}
                       </div>
                       {q.why && <p className="text-xs text-faint">{q.why}</p>}
@@ -1519,11 +1520,6 @@ function PendingScreen({
               {isLast ? "Guardar y continuar" : "Continuar"} <ArrowRight className="h-5 w-5" />
             </Button>
           </div>
-          <div className="mt-3 text-center">
-            <button onClick={onSummary} className="text-sm font-semibold text-faint transition hover:text-foreground-muted">
-              Prefiero completar el resto después
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -1546,12 +1542,12 @@ function StepBasic({
 }) {
   return (
     <Card className="space-y-5">
-      <HelpField label="Nombre de la empresa" required error={missing.has("name")} id="name" status={statusOf("name")}>
+      <HelpField label="Nombre de la empresa" required={isFieldRequired("name")} error={missing.has("name")} id="name" status={statusOf("name")}>
         <Input value={b.name} onChange={(e) => set({ name: e.target.value })} placeholder="Café Bruma" />
       </HelpField>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <HelpField label="Industria" required error={missing.has("industry")} id="industry" status={statusOf("industry")}>
+        <HelpField label="Industria" required={isFieldRequired("industry")} error={missing.has("industry")} id="industry" status={statusOf("industry")}>
           <Select value={b.industry} onChange={(e) => set({ industry: e.target.value, subcategory: "" })}>
             <option value="">Elegí una industria</option>
             {INDUSTRIES.map((i) => (
@@ -1564,7 +1560,7 @@ function StepBasic({
             onPick={(v) => set({ industry: v, subcategory: "" })}
           />
         </HelpField>
-        <HelpField label="Subcategoría" required error={missing.has("subcategory")} id="subcategory" help="Elegí la opción más parecida. No tiene que ser perfecta." status={statusOf("subcategory")}>
+        <HelpField label="Subcategoría" required={isFieldRequired("subcategory")} error={missing.has("subcategory")} id="subcategory" help="Elegí la opción más parecida. No tiene que ser perfecta." status={statusOf("subcategory")}>
           {subcats.length ? (
             <Select value={b.subcategory} onChange={(e) => set({ subcategory: e.target.value })}>
               <option value="">Elegí una subcategoría</option>
@@ -1584,7 +1580,7 @@ function StepBasic({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <HelpField label="Tipo de negocio" required error={missing.has("businessType")} id="businessType" status={statusOf("businessType")}>
+        <HelpField label="Tipo de negocio" required={isFieldRequired("businessType")} error={missing.has("businessType")} id="businessType" status={statusOf("businessType")}>
           <Select value={b.businessType} onChange={(e) => set({ businessType: e.target.value })}>
             <option value="">Elegí</option>
             {BUSINESS_TYPES.map((t) => (
@@ -1612,7 +1608,7 @@ function StepBasic({
 
       <HelpField
         label="Tipo de organización"
-        required
+        required={isFieldRequired("businessStage")}
         error={missing.has("businessStage")}
         id="businessStage"
         help="Nos ayuda a pedirte la info y generar el contenido adecuado para tu caso."
@@ -1632,14 +1628,14 @@ function StepBasic({
       </HelpField>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <HelpField label="Año de fundación" required error={missing.has("yearFounded")} id="yearFounded">
+        <HelpField label="Año de fundación" required={isFieldRequired("yearFounded")} error={missing.has("yearFounded")} id="yearFounded">
           <Select value={b.yearFounded} onChange={(e) => set({ yearFounded: e.target.value })}>
             {foundingYearOptions(CURRENT_YEAR).map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </Select>
         </HelpField>
-        <HelpField label="Cantidad de empleados" required error={missing.has("employees")} id="employees">
+        <HelpField label="Cantidad de empleados" required={isFieldRequired("employees")} error={missing.has("employees")} id="employees">
           <Select value={b.employees} onChange={(e) => set({ employees: e.target.value })}>
             <option value="">Elegí</option>
             {["Solo yo", "1-10", "11-50", "51-200", "200+"].map((e) => (
@@ -1650,17 +1646,17 @@ function StepBasic({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <HelpField label="País" required error={missing.has("country")} id="country" status={statusOf("country")}>
+        <HelpField label="País" required={isFieldRequired("country")} error={missing.has("country")} id="country" status={statusOf("country")}>
           <SearchableCountrySelect
             value={b.country}
             onChange={(v) => set({ country: v, state: "" })}
             error={missing.has("country")}
           />
         </HelpField>
-        <HelpField label="Provincia / Estado" required error={missing.has("state")} id="state">
+        <HelpField label="Provincia / Estado" required={isFieldRequired("state")} error={missing.has("state")} id="state">
           <SearchableRegionSelect country={b.country} value={b.state} onChange={(v) => set({ state: v })} />
         </HelpField>
-        <HelpField label="Ciudad" required error={missing.has("city")} id="city">
+        <HelpField label="Ciudad" required={isFieldRequired("city")} error={missing.has("city")} id="city">
           <Input value={b.city} onChange={(e) => set({ city: e.target.value })} placeholder="Buenos Aires" />
         </HelpField>
       </div>
@@ -1712,7 +1708,7 @@ function StepBrand({
     <Card className="space-y-5">
       <HelpField
         label="Descripción corta"
-        required
+        required={isFieldRequired("shortDescription")}
         error={missing.has("shortDescription")}
         id="shortDescription"
         status={statusOf("shortDescription")}
@@ -1729,7 +1725,7 @@ function StepBrand({
         </div>
       </HelpField>
 
-      <HelpField label="Descripción completa" required error={missing.has("fullDescription")} id="fullDescription" help="Mientras más claro seas, mejores contenidos va a generar Eva." status={statusOf("fullDescription")}>
+      <HelpField label="Descripción completa" required={isFieldRequired("fullDescription")} error={missing.has("fullDescription")} id="fullDescription" help="Mientras más claro seas, mejores contenidos va a generar Eva." status={statusOf("fullDescription")}>
         <div className="space-y-2">
           <Textarea
             value={b.fullDescription}
@@ -1740,13 +1736,13 @@ function StepBrand({
         </div>
       </HelpField>
 
-      <HelpField label="Valores de marca (hasta 5)" required error={missing.has("values")} id="values">
+      <HelpField label="Valores de marca (hasta 5)" required={isFieldRequired("values")} error={missing.has("values")} id="values">
         <ChipSelect options={VALUE_SUGGESTIONS} value={b.values} onChange={(v) => set({ values: v.slice(0, 5) })} allowCustom />
       </HelpField>
 
       <HelpField
         label="Ventaja competitiva"
-        required
+        required={isFieldRequired("competitiveAdvantages")}
         error={missing.has("competitiveAdvantages")}
         id="competitiveAdvantages"
         status={statusOf("competitiveAdvantages")}
@@ -1762,7 +1758,7 @@ function StepBrand({
 
       <HelpField
         label="Canales actuales"
-        required
+        required={isFieldRequired("marketingChannels")}
         error={missing.has("marketingChannels")}
         id="marketingChannels"
         status={statusOf("marketingChannels")}
@@ -1773,7 +1769,7 @@ function StepBrand({
 
       <HelpField
         label="¿Qué venís haciendo de marketing?"
-        required
+        required={isFieldRequired("marketingActivities")}
         error={missing.has("marketingActivities")}
         id="marketingActivities"
         help="Elegí todo lo que apliquen. Si no hacés nada todavía, está perfecto."
@@ -1795,7 +1791,7 @@ function StepBrand({
         )}
       </HelpField>
 
-      <HelpField label="¿Tu negocio tiene temporadas fuertes?" required error={missing.has("hasSeasonality")} id="hasSeasonality">
+      <HelpField label="¿Tu negocio tiene temporadas fuertes?" required={isFieldRequired("hasSeasonality")} error={missing.has("hasSeasonality")} id="hasSeasonality">
         <YesNoChoice value={b.hasSeasonality} onChange={(v) => set({ hasSeasonality: v })} />
         {b.hasSeasonality && (
           <div className="mt-3">
@@ -1818,7 +1814,7 @@ function StepBrand({
         )}
       </HelpField>
 
-      <HelpField label="¿Hay fechas especiales importantes para tu negocio?" required error={missing.has("hasSpecialDates")} id="hasSpecialDates">
+      <HelpField label="¿Hay fechas especiales importantes para tu negocio?" required={isFieldRequired("hasSpecialDates")} error={missing.has("hasSpecialDates")} id="hasSpecialDates">
         <YesNoChoice value={b.hasSpecialDates} onChange={(v) => set({ hasSpecialDates: v })} />
         {b.hasSpecialDates && (
           <div className="mt-3">
@@ -2024,7 +2020,7 @@ function StepAudience({
   const setA = (patch: Partial<Business["audience"]>) => set({ audience: { ...a, ...patch } });
   return (
     <Card className="space-y-5">
-      <HelpField label="Rango de edad" required error={missing.has("ageRanges")} id="ageRanges">
+      <HelpField label="Rango de edad" required={isFieldRequired("ageRanges")} error={missing.has("ageRanges")} id="ageRanges">
         <ChipSelect options={AGE_RANGES} value={a.ageRanges} onChange={(v) => setA({ ageRanges: v })} />
       </HelpField>
 
@@ -2056,16 +2052,16 @@ function StepAudience({
             <option value="global">En todo el mundo</option>
           </Select>
         </HelpField>
-        <HelpField label="Ubicaciones objetivo" required error={missing.has("locations")} id="locations">
+        <HelpField label="Ubicaciones objetivo" required={isFieldRequired("locations")} error={missing.has("locations")} id="locations">
           <ChipSelect options={[]} value={a.locations} onChange={(v) => setA({ locations: v })} allowCustom />
         </HelpField>
       </div>
 
-      <HelpField label="¿Qué problema le resolvés?" required error={missing.has("painPoints")} id="painPoints" help={getFieldExample("painPoint", b.industry)}>
+      <HelpField label="¿Qué problema le resolvés?" required={isFieldRequired("painPoints")} error={missing.has("painPoints")} id="painPoints" help={getFieldExample("painPoint", b.industry)}>
         <ChipSelect options={[]} value={a.painPoints} onChange={(v) => setA({ painPoints: v })} allowCustom />
       </HelpField>
 
-      <HelpField label="¿Cómo se comporta tu cliente?" required error={missing.has("behavior")} id="behavior">
+      <HelpField label="¿Cómo se comporta tu cliente?" required={isFieldRequired("behavior")} error={missing.has("behavior")} id="behavior">
         <Textarea
           value={a.behavior}
           onChange={(e) => setA({ behavior: e.target.value })}
@@ -2073,7 +2069,7 @@ function StepAudience({
         />
       </HelpField>
 
-      <HelpField label="Segmentos de audiencia" required error={missing.has("segments")} id="segments">
+      <HelpField label="Segmentos de audiencia" required={isFieldRequired("segments")} error={missing.has("segments")} id="segments">
         <ChipSelect options={[]} value={a.segments} onChange={(v) => setA({ segments: v })} allowCustom />
       </HelpField>
     </Card>
@@ -2094,7 +2090,7 @@ function StepGoals({
   const setG = (patch: Partial<Business["goals"]>) => set({ goals: { ...g, ...patch } });
   return (
     <Card className="space-y-5">
-      <HelpField label="¿Qué buscás principalmente?" required error={missing.has("primaryContentGoal")} id="primaryContentGoal">
+      <HelpField label="¿Qué buscás principalmente?" required={isFieldRequired("primaryContentGoal")} error={missing.has("primaryContentGoal")} id="primaryContentGoal">
         <OptionCards
           columns={3}
           options={[
@@ -2123,7 +2119,7 @@ function StepGoals({
         </HelpField>
       )}
 
-      <HelpField label="¿Qué querés lograr con tu negocio?" required error={missing.has("businessObjectives")} id="businessObjectives">
+      <HelpField label="¿Qué querés lograr con tu negocio?" required={isFieldRequired("businessObjectives")} error={missing.has("businessObjectives")} id="businessObjectives">
         <Textarea
           value={g.businessObjectives}
           onChange={(e) => setG({ businessObjectives: e.target.value })}
@@ -2131,7 +2127,7 @@ function StepGoals({
         />
       </HelpField>
 
-      <HelpField label="¿Cómo vas a medir el éxito?" required error={missing.has("successMetrics")} id="successMetrics">
+      <HelpField label="¿Cómo vas a medir el éxito?" required={isFieldRequired("successMetrics")} error={missing.has("successMetrics")} id="successMetrics">
         <ChipSelect
           options={["Ventas", "Alcance", "Seguidores", "Visitas al local", "Mensajes", "Conversión"]}
           value={g.successMetrics}
@@ -2140,7 +2136,7 @@ function StepGoals({
         />
       </HelpField>
 
-      <HelpField label="¿Qué querés lograr con tu marketing?" required error={missing.has("marketingObjectives")} id="marketingObjectives">
+      <HelpField label="¿Qué querés lograr con tu marketing?" required={isFieldRequired("marketingObjectives")} error={missing.has("marketingObjectives")} id="marketingObjectives">
         <Textarea
           value={g.marketingObjectives}
           onChange={(e) => setG({ marketingObjectives: e.target.value })}
@@ -2148,7 +2144,7 @@ function StepGoals({
         />
       </HelpField>
 
-      <HelpField label="¿En cuánto tiempo?" required error={missing.has("timeline")} id="timeline">
+      <HelpField label="¿En cuánto tiempo?" required={isFieldRequired("timeline")} error={missing.has("timeline")} id="timeline">
         <Select value={g.timeline} onChange={(e) => setG({ timeline: e.target.value })}>
           <option value="">Elegí</option>
           <option value="Próximo mes">Próximo mes</option>
