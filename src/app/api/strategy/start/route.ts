@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { strategyAgent } from "@/lib/ai/agents";
 import { resolveBusiness, jsonError } from "@/lib/repository/resolve";
+import { missingCriticalsServer } from "@/lib/onboarding/strategy-gate";
 import { isStrategyJobStale } from "@/lib/strategy-job-utils";
 import { logAiUsage } from "@/lib/ai-usage";
 import { logEvent } from "@/lib/events";
@@ -26,6 +27,19 @@ export async function POST(req: NextRequest) {
     if ("error" in resolved) return jsonError(resolved);
 
     const { ctx, business } = resolved;
+
+    // Gate server-side: sin los críticos no se arranca el job (misma
+    // definición que el cliente: business-questions + overrides del backoffice).
+    const missing = await missingCriticalsServer(business);
+    if (missing.length > 0) {
+      return NextResponse.json(
+        {
+          error: `Faltan datos obligatorios para generar la estrategia: ${missing.map((m) => m.label).join(", ")}.`,
+          missingCritical: missing,
+        },
+        { status: 422 }
+      );
+    }
 
     if (
       business.strategyJob?.status === "generating" &&

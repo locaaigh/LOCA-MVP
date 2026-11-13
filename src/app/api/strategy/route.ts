@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { strategyAgent } from "@/lib/ai/agents";
 import { resolveBusiness, jsonError } from "@/lib/repository/resolve";
+import { missingCriticalsServer } from "@/lib/onboarding/strategy-gate";
 import { logAiUsage } from "@/lib/ai-usage";
 import { logEvent } from "@/lib/events";
 
@@ -18,6 +19,19 @@ export async function POST(req: NextRequest) {
 
     const resolved = await resolveBusiness(req, businessId);
     if ("error" in resolved) return jsonError(resolved);
+
+    // Gate server-side: sin los críticos no se genera, venga de donde venga
+    // la request (el cliente valida lo mismo, esto es el candado real).
+    const missing = await missingCriticalsServer(resolved.business);
+    if (missing.length > 0) {
+      return NextResponse.json(
+        {
+          error: `Faltan datos obligatorios para generar la estrategia: ${missing.map((m) => m.label).join(", ")}.`,
+          missingCritical: missing,
+        },
+        { status: 422 }
+      );
+    }
 
     const result = await strategyAgent.run({ business: resolved.business, feedback });
     await logAiUsage({
