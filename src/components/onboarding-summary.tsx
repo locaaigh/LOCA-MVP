@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Badge, Button, Card, SectionLabel } from "@/components/ui";
 import { PlatformLogo } from "@/components/platform-logo";
-import { missingCriticalLabels } from "@/lib/business-questions";
+import { missingRequiredLabels } from "@/lib/business-questions";
 import type { Business } from "@/lib/types";
 import {
   ShoppingBag,
@@ -34,10 +34,11 @@ export type SummarySectionKey =
   | "comerciales"
   | "keywords";
 
-// Calidad mínima para que Eva no genere una estrategia genérica.
-// Fuente única de verdad: business-questions.ts (críticos).
+// Datos que faltan para confirmar: TODOS los obligatorios (lo que el admin
+// tiene en ON), no solo los críticos. Así "obligatorio" obliga también acá.
+// Fuente única de verdad: business-questions.ts + overrides del admin.
 function missingCritical(b: Business): string[] {
-  return missingCriticalLabels(b);
+  return missingRequiredLabels(b);
 }
 
 export function OnboardingSummary({

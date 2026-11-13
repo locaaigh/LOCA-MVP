@@ -298,6 +298,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     input: "chips",
     options: MARKETING_ACTIVITIES,
     critical: false,
+    required: false, // su propia ayuda dice "si no hacés nada, está perfecto"
     get: (b) => b.marketingActivities,
     apply: (_b, v) => ({ marketingActivities: v }),
     isMissing: (b) => empty(b.marketingActivities),
@@ -311,6 +312,9 @@ export const QUESTIONS: BusinessQuestion[] = [
     options: (b) => seasonalityOptionsFor(b.industry),
     allowCustom: true,
     critical: false,
+    // Opcional por defecto: no todo negocio tiene temporadas, y el flujo con IA
+    // (solo chips) no tiene un "no tengo" → obligarlo trabaría. El admin lo prende.
+    required: false,
     get: (b) => b.seasonalityTags,
     apply: (_b, v) => ({ hasSeasonality: (v as string[]).length > 0, seasonalityTags: v }),
     isMissing: (b) => empty(b.seasonalityTags),
@@ -324,6 +328,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     options: (b) => specialDatesOptionsFor(b.industry),
     allowCustom: true,
     critical: false,
+    required: false, // opcional por defecto (ver seasonalityTags)
     get: (b) => b.specialDates,
     apply: (_b, v) => ({ hasSpecialDates: (v as string[]).length > 0, specialDates: v }),
     isMissing: (b) => empty(b.specialDates),
@@ -337,6 +342,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     options: [],
     allowCustom: true,
     critical: false,
+    required: false, // muchos negocios no tienen nada que evitar
     get: (b) => b.brandKit?.avoidList || [],
     apply: (b, v) => {
       const bk = b.brandKit || emptyBrandKit();
@@ -352,6 +358,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     input: "textarea",
     placeholder: "Ej: Lanzamos un nuevo blend; queremos promocionar el 2x1 de los martes.",
     critical: false,
+    required: false, // opcional: es un extra del mes, no un dato base del negocio
     get: (b) => b.communicationNeeds || "",
     apply: (_b, v) => ({ communicationNeeds: v }),
     isMissing: (b) => empty(b.communicationNeeds),
@@ -679,6 +686,11 @@ export function isQuestionRequired(q: BusinessQuestion): boolean {
 /** Pendientes OBLIGATORIOS (faltantes + requeridos). Base del flujo "Completá lo que falta". */
 export function missingRequiredQuestions(b: Business): BusinessQuestion[] {
   return pendingQuestions(b).filter(isQuestionRequired);
+}
+
+/** Labels de los OBLIGATORIOS faltantes (para el gate/banner del resumen final). */
+export function missingRequiredLabels(b: Business): string[] {
+  return missingRequiredQuestions(b).map((q) => q.label);
 }
 
 /** % de completitud del perfil (sobre el total de preguntas). */
