@@ -91,13 +91,57 @@ export default function WebAnalysisAdminPage() {
     <div className="space-y-6">
       {node}
       <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Análisis de Eva</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Análisis de IA</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Cada vez que Eva analiza una web (o se importa un .md de otra IA) queda registrado acá:
+          Registro de calidad de los análisis que hace la IA. Por ahora: análisis de webs del
+          onboarding (más adelante se suman otros tipos de análisis acá).
+        </p>
+      </div>
+
+      {/* ── Sección: Análisis de web ─────────────────────────── */}
+      <div>
+        <h2 className="text-lg font-bold tracking-tight text-foreground">Análisis de web</h2>
+        <p className="mt-0.5 max-w-2xl text-sm text-muted-foreground">
+          Cada vez que Eva analiza una web (o se importa un .md de otra IA) queda registrado:
           qué modelo se usó y qué campos pudo completar — se concrete o no el onboarding. Hacé
           click en una fila para ver el detalle campo por campo.
         </p>
       </div>
+
+      {/* Referencia: qué significa cada estado de campo */}
+      <Card className="overflow-x-auto p-0">
+        <h3 className="border-b border-border px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+          Referencia: estados de los campos (✓ / ~ / ⚠ / ✗)
+        </h3>
+        <table className="w-full min-w-[640px] text-xs">
+          <tbody>
+            <tr className="border-b border-border align-top">
+              <td className="whitespace-nowrap px-4 py-2 font-bold text-lima-700 dark:text-lima-300">✓ Detectado</td>
+              <td className="px-4 py-2 text-foreground-soft">
+                Dato extraído directo de la web, sin interpretación (redes, URL, nombre claro, descripción sólida). Los más confiables: la IA no los pisa.
+              </td>
+            </tr>
+            <tr className="border-b border-border align-top">
+              <td className="whitespace-nowrap px-4 py-2 font-bold text-loca-600 dark:text-loca-300">~ Sugerido</td>
+              <td className="px-4 py-2 text-foreground-soft">
+                Inferido por la IA razonando sobre el contenido (industria, tipo de negocio, audiencia, productos). Editable, con confianza alta/media/baja.
+              </td>
+            </tr>
+            <tr className="border-b border-border align-top">
+              <td className="whitespace-nowrap px-4 py-2 font-bold text-amber-700 dark:text-amber-300">⚠ A revisar</td>
+              <td className="px-4 py-2 text-foreground-soft">
+                Sugerencia que exige confirmación explícita del usuario antes de valer (ej: productos detectados sin IA).
+              </td>
+            </tr>
+            <tr className="align-top">
+              <td className="whitespace-nowrap px-4 py-2 font-bold text-red-600 dark:text-red-300">✗ No pudo</td>
+              <td className="px-4 py-2 text-foreground-soft">
+                Sin señal ni inferencia posible: el usuario lo completa a mano en &quot;Completá lo que falta&quot;. <strong>✗ alto = la IA entendió poco de esa web</strong> — esas filas son las que vale la pena abrir.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </Card>
 
       {migrationPending && (
         <Card className="border-amber-300 bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">

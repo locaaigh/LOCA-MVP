@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const TABS = [
   { href: "/admin/onboarding-fields", label: "Campos del onboarding" },
-  { href: "/admin/web-analysis", label: "Análisis de Eva" },
+  { href: "/admin/ai-analysis", label: "Análisis de IA" },
 ];
 
 export function AdminTabs() {
