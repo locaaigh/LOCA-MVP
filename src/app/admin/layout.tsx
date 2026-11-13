@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAdminSession } from "@/lib/auth/admin";
 import { Logo } from "@/components/brand";
+import { AdminTabs } from "@/components/admin-tabs";
 
 // El backoffice no existe para quien no es admin: notFound() (404, no 403)
 // para no confirmar que la ruta está. El middleware ya cortó a los anónimos
@@ -23,6 +24,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </span>
           </div>
           <span className="text-xs font-semibold text-muted-foreground">{session.email}</span>
+        </div>
+        <div className="mx-auto max-w-4xl px-4 pb-3 sm:px-6">
+          <AdminTabs />
         </div>
       </header>
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">{children}</main>

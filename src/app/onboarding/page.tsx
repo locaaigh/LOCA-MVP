@@ -373,6 +373,21 @@ function OnboardingPageInner() {
       complete: isAnalysisComplete(res),
       missingFields: res.missingFields.length,
     });
+    // Log de calidad para el backoffice (fire-and-forget: nunca bloquea).
+    fetch("/api/analysis-log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fileName,
+        businessId: b.id,
+        analysis: {
+          confidence: res.confidence,
+          mode: res.mode,
+          fieldStatuses: res.fieldStatuses,
+          foundFields: res.foundFields,
+        },
+      }),
+    }).catch(() => {});
     set({
       businessInfoImportSource: "external_ai_md",
       externalAiImport: {
