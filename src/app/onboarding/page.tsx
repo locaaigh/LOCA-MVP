@@ -45,7 +45,7 @@ import { BrandKitEditor } from "@/components/brand-kit";
 import { VisualStylePicker } from "@/components/visual-style-picker";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { OnboardingSummary, missingCritical, type SummarySectionKey } from "@/components/onboarding-summary";
-import { PendingFlow } from "@/components/pending-flow";
+import { PendingFlow, SECTION_MAP } from "@/components/pending-flow";
 import { QuestionField } from "@/components/question-field";
 import {
   pendingQuestions,
@@ -1495,6 +1495,7 @@ function PendingScreen({
                           clearError(q.id);
                         }}
                         onEditProducts={() => onEditSection("productos")}
+                        onEditSection={(section) => onEditSection(SECTION_MAP[section])}
                       />
                       {errors.has(q.id) && (
                         <p className="text-xs font-semibold text-red-600 dark:text-red-300">Completá este dato para continuar.</p>

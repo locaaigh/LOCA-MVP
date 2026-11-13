@@ -2,10 +2,10 @@
 
 import { Button, ChipSelect, Input, Select, Textarea } from "@/components/ui";
 import { ChannelSelector } from "@/components/channel-selector";
-import { SearchableCountrySelect } from "@/components/inputs";
-import type { BusinessQuestion } from "@/lib/business-questions";
+import { SearchableCountrySelect, SearchableRegionSelect } from "@/components/inputs";
+import { SECTION_LABELS, type BusinessQuestion, type QSection } from "@/lib/business-questions";
 import type { Business } from "@/lib/types";
-import { Package } from "lucide-react";
+import { ArrowRight, Package } from "lucide-react";
 
 /**
  * Renderiza el input de UNA pregunta del onboarding según su tipo (text, textarea,
@@ -19,6 +19,7 @@ export function QuestionField({
   onChange,
   error,
   onEditProducts,
+  onEditSection,
   autoFocus,
 }: {
   question: BusinessQuestion;
@@ -28,6 +29,8 @@ export function QuestionField({
   error?: boolean;
   /** Para el caso "products": abrir el editor de productos. */
   onEditProducts?: () => void;
+  /** Para el caso "section": ir a completar el campo a su sección del formulario. */
+  onEditSection?: (section: QSection) => void;
   autoFocus?: boolean;
 }) {
   const options =
@@ -50,6 +53,28 @@ export function QuestionField({
       );
     case "country":
       return <SearchableCountrySelect value={value || ""} onChange={onChange} error={error} />;
+    case "region":
+      return (
+        <SearchableRegionSelect
+          country={business.country || ""}
+          value={value || ""}
+          onChange={onChange}
+          error={error}
+        />
+      );
+    case "section":
+      return (
+        <div className="rounded-2xl border border-dashed border-border bg-surface-subtle/60 p-4 text-center">
+          <p className="text-sm text-muted-foreground-2">
+            Este dato se completa en la sección <strong>{SECTION_LABELS[question.section]}</strong> del formulario.
+          </p>
+          {onEditSection && (
+            <Button variant="outline" className="mt-3" onClick={() => onEditSection(question.section)}>
+              Completar en {SECTION_LABELS[question.section]} <ArrowRight className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      );
     case "text":
       return (
         <Input

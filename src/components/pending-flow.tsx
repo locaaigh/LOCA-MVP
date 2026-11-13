@@ -3,14 +3,14 @@
 import * as React from "react";
 import { Button, Card, ChipSelect, Input, Select, Textarea } from "@/components/ui";
 import { ChannelSelector } from "@/components/channel-selector";
-import { SearchableCountrySelect } from "@/components/inputs";
+import { SearchableCountrySelect, SearchableRegionSelect } from "@/components/inputs";
 import type { BusinessQuestion, QSection } from "@/lib/business-questions";
 import type { Business } from "@/lib/types";
 import type { SummarySectionKey } from "@/components/onboarding-summary";
 import { Check, Package, Sparkles, ArrowRight, Wand2, PencilLine } from "lucide-react";
 
 // QSection → clave de sección editable del resumen (para "Editar sección completa").
-const SECTION_MAP: Record<QSection, SummarySectionKey> = {
+export const SECTION_MAP: Record<QSection, SummarySectionKey> = {
   basicos: "basicos",
   productos: "productos",
   audiencia: "audiencia",
@@ -138,8 +138,21 @@ export function PendingFlow({
               </Button>
             )}
           </div>
+        ) : current.input === "section" ? (
+          <div className="rounded-2xl border border-dashed border-border bg-surface-subtle/60 p-5 text-center">
+            <p className="text-sm text-muted-foreground-2">
+              Este dato se completa en la sección <strong>{current.label}</strong> del formulario.
+            </p>
+            {onEditSection && (
+              <Button className="mt-3" onClick={() => onEditSection(SECTION_MAP[current.section])}>
+                <PencilLine className="h-4 w-4" /> Completar sección
+              </Button>
+            )}
+          </div>
         ) : current.input === "country" ? (
           <SearchableCountrySelect value={value || ""} onChange={setValue} error={error} />
+        ) : current.input === "region" ? (
+          <SearchableRegionSelect country={business.country || ""} value={value || ""} onChange={setValue} error={error} />
         ) : current.input === "text" ? (
           <Input value={value || ""} onChange={(e) => setValue(e.target.value)} placeholder={current.placeholder} autoFocus />
         ) : current.input === "textarea" ? (
