@@ -87,6 +87,31 @@ Tres capas (ninguna es "solo UI"):
 
 ---
 
+## Detalle Fase 3b — Unificación con el wizard manual (13-nov)
+
+Hoy conviven TRES fuentes sobre los campos: `business-questions` (19 campos, lo que edita `/admin`), `field-requirements` (~34 campos, bloqueo por paso del wizard manual) y los textos hardcodeados en el JSX del wizard. Un cambio en `/admin` NO afecta al camino manual.
+
+| Sub-paso | Qué cambia | Tamaño |
+|---|---|---|
+| **3b.1 — Textos** | Labels/placeholders/ayudas del wizard leen del registro → las ediciones de texto del admin aplican también al formulario manual | S/M |
+| **3b.2 — Registro único** | Los ~15 campos exclusivos del wizard entran al registro unificado; la validación por paso lee de ahí; `field-requirements` desaparece | M |
+| **3b.3 — Admin completo** | `/admin` muestra todos los campos por paso del wizard; el toggle Obligatorio afecta también el bloqueo paso a paso (cierra la decisión abierta #1) | S |
+
+Riesgo: refactor del corazón de la validación (page.tsx ~2000 líneas) → tres PRs chicos con QA de los 7 pasos después de cada uno.
+
+## Detalle Fase 4 — Backoffice general (13-nov)
+
+Materia prima ya en DB sin UI: `events` (funnel completo), `ai_usage_log` (modelo/tokens/costo por llamada), `website_analysis_log` (calidad de análisis).
+
+| Tab | Qué muestra/hace | Tamaño |
+|---|---|---|
+| **4a — Métricas** | Funnel de onboarding (con drop-off por campo vía `validation_failed`), costos de IA por día/agente/modelo, calidad de Eva agregada (tasa de éxito, ranking de campos que no puede completar) | M |
+| **4b — Usuarios y negocios** | Lista de usuarios + negocios + estado (onboarding/estrategia/último acceso), detalle read-only, gestión de admins desde UI | M |
+| **4c — Feature flags** | Tabla `app_flags` (mismo patrón: defaults en código + overrides DB + caché + fallback) para prender/apagar features sin deploy | S/M |
+| **4d — Catálogos** | UI para `special_dates_catalog` (hoy editable solo por SQL) | S |
+
+**Orden recomendado:** 4a → 3b.1 → (3b.2/3b.3 vs 4b según necesidad).
+
 ## Anexo técnico
 
 ### Migración propuesta (`supabase/migrations/0009_admin_backoffice.sql`)
