@@ -697,13 +697,17 @@ export function buildBrandKitFromRaw(raw: RawWebContent): BrandKit {
   // Un color "de marca" usable: ni casi blanco ni casi negro, con algo de color.
   const isBrandy = (c: string) => saturation(c) > 0.15 && luminance(c) > 0.08 && luminance(c) < 0.92;
 
-  // Candidatos heurísticos: saturados, sin defaults de framework/sociales,
-  // ordenados por FRECUENCIA de uso (el color de marca se repite por todo el
-  // CSS; un hex suelto bien saturado suele ser decorativo) con la saturación
-  // como desempate.
+  // Candidatos heurísticos ordenados por FRECUENCIA de uso: el color de marca
+  // se repite por todo el CSS (botones, links, títulos); un hex suelto muy
+  // saturado suele ser decorativo. El umbral de saturación es BAJO (0.12) a
+  // propósito: muchas marcas usan colores terrosos/apagados (verde oliva,
+  // bordó, tierra) con saturación ~0.15-0.22 que un corte alto descartaría,
+  // dejando ganar un color vivo pero raro. Solo se excluyen los neutros reales
+  // (grises) y los defaults de framework/sociales; la frecuencia decide el
+  // resto (con la saturación como desempate suave).
   const score = (c: string) => (counts[c] || 1) * (0.5 + saturation(c));
   const saturated = colors
-    .filter((c) => saturation(c) > 0.25 && luminance(c) > 0.08 && luminance(c) < 0.95)
+    .filter((c) => saturation(c) > 0.12 && luminance(c) > 0.08 && luminance(c) < 0.95)
     .filter((c) => !FRAMEWORK_SOCIAL_COLORS.has(c))
     .sort((a, b) => score(b) - score(a));
   const lights = colors.filter((c) => luminance(c) >= 0.9).sort((a, b) => luminance(b) - luminance(a));
