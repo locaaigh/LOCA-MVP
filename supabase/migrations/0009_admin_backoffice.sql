@@ -30,8 +30,8 @@ create policy admin_users_self_read on public.admin_users
 insert into public.admin_users (user_id, email)
 select id, email from auth.users
 where email in (
-  'dev@infinidad.com.ar'   -- Alan
-  -- , 'sebi@...'          -- Sebi: completar con su email de la app
+  'alanroit@gmail.com'   -- Alan
+  ,'sebiadler@gmail.com'          -- Sebi: completar con su email de la app
 );
 
 -- ── Config de campos del onboarding ──────────────────────────
