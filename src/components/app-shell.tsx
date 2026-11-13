@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { useMonthContentGenerating } from "@/lib/generators";
 import { signOutSupabase } from "@/lib/auth/session";
+import { syncFieldConfigOverrides } from "@/lib/onboarding/field-config-client";
 import { hasSupabaseClientConfig } from "@/lib/supabase/client";
 import { Logo } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -57,6 +58,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (hydrated && !user) router.replace("/login");
   }, [hydrated, user, router]);
+
+  // Config del backoffice (campos obligatorios/críticos): toda la app (settings,
+  // strategy) usa los mismos flags que el onboarding. Falla en silencio.
+  useEffect(() => {
+    syncFieldConfigOverrides();
+  }, []);
 
   if (!hydrated) {
     return (
