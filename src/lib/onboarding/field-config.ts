@@ -13,6 +13,12 @@ export interface FieldConfigRow {
   fieldId: string;
   required: boolean;
   critical: boolean;
+  /** Orden efectivo del campo (null = posición default de código). */
+  sortOrder: number | null;
+  /** Textos editados (null = texto default de código). */
+  label: string | null;
+  placeholder: string | null;
+  why: string | null;
   updatedByEmail: string | null;
   updatedAt: string | null;
 }
@@ -24,15 +30,26 @@ export async function getFieldConfigOverrides(force = false): Promise<FieldConfi
   if (!hasSupabaseAdminConfig()) return [];
   if (!force && cache && Date.now() - cache.at < TTL_MS) return cache.data;
 
-  const { data, error } = await getSupabaseAdmin()
+  let { data, error } = await getSupabaseAdmin()
     .from("onboarding_field_config")
-    .select("field_id, required, critical, updated_by_email, updated_at");
+    .select("field_id, required, critical, sort_order, label, placeholder, why, updated_by_email, updated_at");
+  if (error) {
+    // Migración 0010 sin correr (faltan las columnas de textos/orden): no
+    // perder los overrides de required/critical — releer con el esquema 0009.
+    ({ data, error } = await getSupabaseAdmin()
+      .from("onboarding_field_config")
+      .select("field_id, required, critical, updated_by_email, updated_at"));
+  }
   if (error || !data) return cache?.data ?? [];
 
-  const rows: FieldConfigRow[] = data.map((r) => ({
+  const rows: FieldConfigRow[] = data.map((r: Record<string, unknown>) => ({
     fieldId: r.field_id as string,
     required: !!r.required,
     critical: !!r.critical,
+    sortOrder: (r.sort_order as number | null) ?? null,
+    label: (r.label as string | null) ?? null,
+    placeholder: (r.placeholder as string | null) ?? null,
+    why: (r.why as string | null) ?? null,
     updatedByEmail: (r.updated_by_email as string | null) ?? null,
     updatedAt: (r.updated_at as string | null) ?? null,
   }));

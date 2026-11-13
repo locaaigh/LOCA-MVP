@@ -368,35 +368,75 @@ export const FLOOR_FIELD_IDS = new Set(["name", "industry"]);
 const DEFAULT_FLAGS = new Map(
   QUESTIONS.map((q) => [q.id, { required: q.required !== false, critical: q.critical }])
 );
+// Textos y posición default de cada campo (para restaurar y para el backoffice).
+const DEFAULT_TEXTS = new Map(
+  QUESTIONS.map((q) => [q.id, { label: q.label, placeholder: q.placeholder, why: q.why }])
+);
+// Clave de orden default: índice * 10, así un sort_order custom puede
+// intercalarse entre dos defaults sin renumerar todo.
+const DEFAULT_ORDER = new Map(QUESTIONS.map((q, i) => [q.id, i * 10]));
 
 /** Flags default (de código) de un campo, para mostrarlos en el backoffice. */
 export function defaultFlagsOf(id: string): { required: boolean; critical: boolean } | undefined {
   return DEFAULT_FLAGS.get(id);
 }
 
+/** Textos default (de código) de un campo, para mostrarlos en el backoffice. */
+export function defaultTextsOf(
+  id: string
+): { label: string; placeholder?: string; why: string } | undefined {
+  return DEFAULT_TEXTS.get(id);
+}
+
+/** Clave de orden efectiva de un campo (override o posición default). */
+export function sortKeyOf(id: string, override?: number | null): number {
+  return override ?? DEFAULT_ORDER.get(id) ?? 0;
+}
+
 export interface FieldFlagsOverride {
   fieldId: string;
   required?: boolean | null;
   critical?: boolean | null;
+  sortOrder?: number | null;
+  label?: string | null;
+  placeholder?: string | null;
+  why?: string | null;
 }
 
 /**
- * Aplica los overrides del backoffice sobre el registro en memoria.
- * Garantiza el invariante crítico ⇒ obligatorio y nunca toca el piso.
+ * Aplica los overrides del backoffice sobre el registro en memoria: flags,
+ * textos y orden. Idempotente (restaura defaults y aplica). Garantiza el
+ * invariante crítico ⇒ obligatorio y nunca toca los flags del piso.
  */
 export function applyFieldConfigOverrides(overrides: FieldFlagsOverride[]): void {
   for (const q of QUESTIONS) {
     const d = DEFAULT_FLAGS.get(q.id)!;
+    const t = DEFAULT_TEXTS.get(q.id)!;
     q.required = d.required;
     q.critical = d.critical;
+    q.label = t.label;
+    q.placeholder = t.placeholder;
+    q.why = t.why;
   }
+  const orderOverride = new Map<string, number>();
   for (const o of overrides) {
     const q = QUESTIONS.find((x) => x.id === o.fieldId);
-    if (!q || FLOOR_FIELD_IDS.has(q.id)) continue;
-    if (typeof o.critical === "boolean") q.critical = o.critical;
-    if (typeof o.required === "boolean") q.required = o.required;
-    if (q.critical) q.required = true;
+    if (!q) continue;
+    if (!FLOOR_FIELD_IDS.has(q.id)) {
+      if (typeof o.critical === "boolean") q.critical = o.critical;
+      if (typeof o.required === "boolean") q.required = o.required;
+      if (q.critical) q.required = true;
+    }
+    if (typeof o.label === "string" && o.label.trim()) q.label = o.label.trim();
+    if (typeof o.placeholder === "string" && o.placeholder.trim()) q.placeholder = o.placeholder.trim();
+    if (typeof o.why === "string" && o.why.trim()) q.why = o.why.trim();
+    if (typeof o.sortOrder === "number") orderOverride.set(q.id, o.sortOrder);
   }
+  // Reordenar en el lugar: los consumidores (flujo de pendientes, 1-de-N,
+  // completitud) iteran QUESTIONS, así que el orden del array ES el orden.
+  QUESTIONS.sort(
+    (a, b) => sortKeyOf(a.id, orderOverride.get(a.id)) - sortKeyOf(b.id, orderOverride.get(b.id))
+  );
 }
 
 /** Preguntas críticas que faltan (las que bloquean la estrategia). */
