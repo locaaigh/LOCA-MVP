@@ -28,6 +28,10 @@ function LoginForm() {
   const supabaseEnabled = hasSupabaseClientConfig();
   const sessionExpired = searchParams.get("reason") === "session_expired";
   const fromOnboarding = searchParams.get("from") === "onboarding";
+  // ¿A dónde volver después de loguear? (ej: /admin te manda a /login?next=/admin).
+  // Solo rutas internas ("/algo", nunca "//" ni absolutas): evita open redirect.
+  const nextParam = searchParams.get("next");
+  const nextPath = nextParam && /^\/(?!\/)/.test(nextParam) ? nextParam : null;
 
   async function afterAuth(supabaseUser: Parameters<typeof toLocaUser>[0]) {
     const newUser = toLocaUser(supabaseUser);
@@ -41,7 +45,7 @@ function LoginForm() {
       router.push("/onboarding");
       return;
     }
-    router.push("/dashboard");
+    router.push(nextPath || "/dashboard");
   }
 
   useEffect(() => {
@@ -57,7 +61,8 @@ function LoginForm() {
             await afterAuth(data.user);
             return;
           }
-          router.replace("/dashboard");
+          // Ya había sesión: respetar el destino original (ej: /admin).
+          router.replace(nextPath || "/dashboard");
         } else {
           setCheckingSession(false);
         }
@@ -73,7 +78,7 @@ function LoginForm() {
 
     if (!supabaseEnabled) {
       login(email.trim());
-      router.push("/dashboard");
+      router.push(nextPath || "/dashboard");
       return;
     }
 
