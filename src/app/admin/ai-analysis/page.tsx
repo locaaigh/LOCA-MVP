@@ -23,6 +23,10 @@ interface LogRow {
   fields_suggested: number;
   fields_review: number;
   fields_missing: number;
+  // Vista del onboarding REAL (migración 0012; null en registros viejos).
+  onboarding_required_total: number | null;
+  onboarding_required_missing: number | null;
+  onboarding_missing: { id: string; label: string }[] | null;
 }
 
 interface LogDetail extends LogRow {
@@ -165,7 +169,8 @@ export default function WebAnalysisAdminPage() {
                 <th className="px-4 py-3">Origen</th>
                 <th className="px-4 py-3">Modelo</th>
                 <th className="px-4 py-3">Resultado</th>
-                <th className="px-4 py-3" title="Detectados / Sugeridos / A revisar / No pudo">Campos ✓/~/⚠/✗</th>
+                <th className="px-4 py-3" title="Obligatorios del onboarding que quedaron faltando tras el análisis (lo que se le pide al usuario)">Onboarding</th>
+                <th className="px-4 py-3" title="Vista del analizador — Detectados / Sugeridos / A revisar / No pudo">Campos ✓/~/⚠/✗</th>
                 <th className="px-4 py-3">Conf.</th>
                 <th className="px-4 py-3">Duración</th>
                 <th className="px-4 py-3">Costo</th>
@@ -199,6 +204,18 @@ export default function WebAnalysisAdminPage() {
                       <span className="rounded-full bg-lima-100 px-2 py-0.5 text-[11px] font-bold text-lima-700 dark:bg-lima-900/50 dark:text-lima-300">OK</span>
                     ) : (
                       <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700 dark:bg-red-900/40 dark:text-red-300" title={r.warning || undefined}>Falló</span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 tabular-nums text-foreground-soft">
+                    {r.onboarding_required_total != null && r.onboarding_required_missing != null ? (
+                      <span
+                        className={`font-semibold ${r.onboarding_required_missing > 0 ? "text-amber-700 dark:text-amber-300" : "text-lima-700 dark:text-lima-300"}`}
+                        title={(r.onboarding_missing || []).map((m) => m.label).join(", ") || "Completo"}
+                      >
+                        {r.onboarding_required_total - r.onboarding_required_missing}/{r.onboarding_required_total}
+                      </span>
+                    ) : (
+                      "—"
                     )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 tabular-nums text-foreground-soft">
@@ -289,6 +306,32 @@ export default function WebAnalysisAdminPage() {
               <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
                 {detail.warning}
               </p>
+            )}
+
+            {/* Vista del onboarding REAL: qué se le terminó pidiendo al usuario */}
+            {detail.onboarding_required_total != null && (
+              <div className="rounded-xl border border-border p-3">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Onboarding: quedaron {detail.onboarding_required_missing ?? 0} de{" "}
+                  {detail.onboarding_required_total} obligatorios por completar
+                </p>
+                {detail.onboarding_missing?.length ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {detail.onboarding_missing.map((m) => (
+                      <span
+                        key={m.id}
+                        className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"
+                      >
+                        {m.label}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-1 text-xs text-lima-700 dark:text-lima-300 font-semibold">
+                    La IA dejó todos los obligatorios completos 🎉
+                  </p>
+                )}
+              </div>
             )}
 
             <div className="overflow-x-auto rounded-xl border border-border">
