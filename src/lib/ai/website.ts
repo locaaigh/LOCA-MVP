@@ -137,18 +137,14 @@ async function fetchHtml(url: string, timeoutMs = 7000): Promise<string | null> 
 
 // Colores/fuentes reales viven casi siempre en hojas de estilo externas
 // (Tailwind/Next.js/Webflow/Shopify/WordPress), nunca inline en el HTML.
-async function fetchCss(url: string, timeoutMs = 4000): Promise<string | null> {
+async function fetchCssWithUA(url: string, ua: string, timeoutMs: number): Promise<string | null> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(url, {
       signal: ctrl.signal,
       redirect: "follow",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        Accept: "text/css,*/*;q=0.8",
-      },
+      headers: { "User-Agent": ua, Accept: "text/css,*/*;q=0.8" },
     });
     if (!res.ok) return null;
     const text = await res.text();
@@ -159,6 +155,15 @@ async function fetchCss(url: string, timeoutMs = 4000): Promise<string | null> {
   } finally {
     clearTimeout(t);
   }
+}
+
+async function fetchCss(url: string, timeoutMs = 4000): Promise<string | null> {
+  // Mismo doble intento que fetchHtml: algunos anti-bot resetean conexiones
+  // con UA de navegador "falso" — sin el retry, el sitio se lee pero queda
+  // SIN colores/fuentes (la paleta sale de acá).
+  const browser = await fetchCssWithUA(url, BROWSER_UA, timeoutMs);
+  if (browser) return browser;
+  return fetchCssWithUA(url, NEUTRAL_UA, timeoutMs);
 }
 
 function extractStylesheetLinks(html: string, baseUrl: string): string[] {
@@ -590,8 +595,12 @@ async function extractLogoColors(candidates: string[]): Promise<string[]> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 3500);
   try {
-    const res = await fetch(url, { signal: ctrl.signal, headers: { "User-Agent": BROWSER_UA } });
-    if (!res.ok) return [];
+    let res = await fetch(url, { signal: ctrl.signal, headers: { "User-Agent": BROWSER_UA } }).catch(() => null);
+    if (!res || !res.ok) {
+      // Retry con UA neutral (anti-bot por fingerprint, igual que fetchHtml/fetchCss).
+      res = await fetch(url, { signal: ctrl.signal, headers: { "User-Agent": NEUTRAL_UA } }).catch(() => null);
+    }
+    if (!res || !res.ok) return [];
     const buf = Buffer.from(await res.arrayBuffer());
     if (!buf.length || buf.length > 2_000_000) return [];
     const sharp = (await import("sharp")).default;
@@ -677,6 +686,16 @@ const FRAMEWORK_SOCIAL_COLORS = new Set([
   "#1db954", // Spotify
   "#4285f4", "#ea4335", "#fbbc05", "#34a853", // Google
   "#635bff", "#0070ba", "#003087", "#ffc439", // Stripe / PayPal
+  // Paleta DEFAULT de WordPress/Gutenberg (--wp--preset--color--*): viene en el
+  // CSS de TODO sitio WordPress aunque la marca no la use (caso
+  // marketing.infinidad.ai: naranja/ámbar/rojo fantasma en la paleta).
+  "#ff6900", "#fcb900", "#cf2e2e", "#0693e3", "#9b51e0",
+  "#f78da7", "#7bdcb5", "#abb8c3", "#8ed1fc", "#00d084",
+  // Defaults de Elementor (--e-global-color-primary/secondary/accent): se
+  // definen en todo sitio Elementor aunque no se personalicen, y como la
+  // variable se llama "primary"/"accent" entran como señal fuerte → por eso
+  // esta lista también filtra priorityColors.
+  "#6ec1e4", "#54595f", "#61ce70",
 ]);
 
 // Distancia RGB simple: evita que secundario/acento sean casi el mismo color
@@ -714,7 +733,13 @@ export function buildBrandKitFromRaw(raw: RawWebContent): BrandKit {
   const darks = colors.filter((c) => luminance(c) <= 0.2).sort((a, b) => luminance(a) - luminance(b));
 
   // Primario: señal explícita del sitio > logo > el candidato con mejor score.
-  const primary = priority.find(isBrandy) || logo.find(isBrandy) || saturated[0];
+  // La señal explícita también se filtra contra los defaults de framework:
+  // Elementor/WP declaran variables "primary/accent" con SUS defaults en todos
+  // los sitios, personalizados o no.
+  const primary =
+    priority.find((c) => isBrandy(c) && !FRAMEWORK_SOCIAL_COLORS.has(c)) ||
+    logo.find(isBrandy) ||
+    saturated[0];
   // Secundario/acento: primero los otros colores del logo, después el CSS;
   // siempre visualmente distintos de lo ya elegido (no variantes del mismo tono).
   const chosen: string[] = primary ? [primary] : [];
