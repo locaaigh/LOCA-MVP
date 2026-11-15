@@ -9,6 +9,9 @@ export const dynamic = "force-dynamic";
 const notFound = () => NextResponse.json({ error: "Not found" }, { status: 404 });
 
 const LIST_COLUMNS =
+  "id, created_at, source, url, file_name, business_id, provider, model, success, mode, confidence, duration_ms, usage, warning, fields_found, fields_suggested, fields_review, fields_missing, onboarding_required_total, onboarding_required_missing, onboarding_missing";
+// Esquema previo a la migración 0012 (fallback de lectura).
+const LIST_COLUMNS_0011 =
   "id, created_at, source, url, file_name, business_id, provider, model, success, mode, confidence, duration_ms, usage, warning, fields_found, fields_suggested, fields_review, fields_missing";
 
 /**
@@ -36,11 +39,20 @@ export async function GET(req: NextRequest) {
 
   const limit = Math.min(Number(req.nextUrl.searchParams.get("limit")) || 50, 200);
   const offset = Math.max(Number(req.nextUrl.searchParams.get("offset")) || 0, 0);
-  const { data, error, count } = await supabase
+  let res = await supabase
     .from("website_analysis_log")
     .select(LIST_COLUMNS, { count: "exact" })
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
+  if (res.error && /onboarding_/.test(res.error.message)) {
+    // Migración 0012 sin correr: releer con el esquema 0011.
+    res = (await supabase
+      .from("website_analysis_log")
+      .select(LIST_COLUMNS_0011, { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1)) as unknown as typeof res;
+  }
+  const { data, error, count } = res;
   if (error) {
     // Migración 0011 sin correr: lista vacía con aviso, no un error críptico.
     if (/website_analysis_log/.test(error.message)) {

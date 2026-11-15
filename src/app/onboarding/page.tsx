@@ -61,6 +61,7 @@ import { EvaChatBubble } from "@/components/eva-chat";
 import { getFieldExample } from "@/lib/examples";
 import { getMissingRequiredFields } from "@/lib/onboarding-validation";
 import { isFieldRequired } from "@/lib/onboarding/field-requirements";
+import { applyAnalysisToBusiness, emptyProductService } from "@/lib/onboarding/apply-analysis";
 import { emptyBrandKit } from "@/lib/store";
 import { api } from "@/lib/api";
 import { uid, copyToClipboard, nowIso, downloadFile } from "@/lib/utils";
@@ -228,78 +229,14 @@ function OnboardingPageInner() {
   const statusOf = (f: string): FieldStatusKind | undefined => b.fieldStatuses?.[f]?.status;
 
   // Aplica el análisis de la web (sin marcar como editado).
-  // Devuelve el negocio resultante para poder decidir el ruteo (resumen vs pendientes).
+  // Devuelve el negocio resultante para poder decidir el ruteo (resumen vs
+  // pendientes). El merge vive en apply-analysis.ts (compartido con el log de
+  // calidad del backoffice, que computa lo mismo server-side).
   function applyAnalysis(a: WebsiteAnalysis): Business {
-    const ff = a.foundFields;
     let computed: Business | null = null;
     setB((prev) => {
-      const next: Business = { ...prev };
-      if (ff.name) next.name = ff.name;
-      if (ff.websiteUrl) next.websiteUrl = ff.websiteUrl;
-      if (ff.industry) next.industry = ff.industry;
-      if (ff.subcategory) next.subcategory = ff.subcategory;
-      if (ff.businessType) next.businessType = ff.businessType;
-      if (ff.businessModel && ["B2B", "B2C", "Ambos"].includes(ff.businessModel))
-        next.businessModel = ff.businessModel as any;
-      if (ff.country) next.country = ff.country;
-      if (ff.state) next.state = ff.state;
-      if (ff.city) next.city = ff.city;
-      if (ff.shortDescription) next.shortDescription = ff.shortDescription;
-      if (ff.fullDescription) next.fullDescription = ff.fullDescription;
-      if (ff.values?.length) next.values = ff.values;
-      if (ff.competitiveAdvantages?.length) next.competitiveAdvantages = ff.competitiveAdvantages;
-      if (ff.marketingChannels?.length) next.marketingChannels = ff.marketingChannels;
-      if (ff.marketingActivities?.length) next.marketingActivities = ff.marketingActivities;
-      if (ff.productsServices?.length) {
-        next.productsServices = ff.productsServices.map((p) => ({
-          ...emptyPS(p.type),
-          name: p.name,
-          category: p.category || "",
-          shortDescription: p.shortDescription || "",
-          // No inventamos precio: solo si vino explícito.
-          priceMin: typeof p.price === "number" ? p.price : undefined,
-          currency: p.currency || "ARS",
-          isTopSeller: !!p.isTopSeller,
-          saved: true,
-          importSource: (p.source as any) || "website",
-          confidence: p.confidence,
-          shouldReview: p.shouldReview,
-        }));
-      }
-      if (ff.audience) {
-        next.audience = {
-          ...prev.audience,
-          ageRanges: ff.audience.ageRanges?.length ? ff.audience.ageRanges : prev.audience.ageRanges,
-          gender: (ff.audience.gender as any) || prev.audience.gender,
-          socioeconomicLevel: (ff.audience.socioeconomicLevel as any) || prev.audience.socioeconomicLevel,
-          segments: ff.audience.segments?.length ? ff.audience.segments : prev.audience.segments,
-          painPoints: ff.audience.painPoints?.length ? ff.audience.painPoints : prev.audience.painPoints,
-          behavior: ff.audience.behavior || prev.audience.behavior,
-        };
-      }
-      if (ff.goals) {
-        next.goals = {
-          ...prev.goals,
-          primaryContentGoal: (ff.goals.primaryContentGoal as any) || prev.goals.primaryContentGoal,
-          marketingObjectives: ff.goals.marketingObjectives || prev.goals.marketingObjectives,
-          businessObjectives: ff.goals.businessObjectives || prev.goals.businessObjectives,
-        };
-      }
-      if (ff.seasonalityTags?.length) {
-        next.seasonalityTags = ff.seasonalityTags;
-        next.hasSeasonality = true;
-      }
-      if (ff.specialDates?.length) {
-        next.specialDates = ff.specialDates;
-        next.hasSpecialDates = true;
-      }
-      if (ff.brandKit) next.brandKit = ff.brandKit;
-      if (ff.businessIntelligence) next.businessIntelligence = ff.businessIntelligence;
-      next.fieldStatuses = { ...prev.fieldStatuses, ...a.fieldStatuses };
-      next.websiteExtractionStatus = "done";
-      next.websiteExtractionConsent = true;
-      computed = next;
-      return next;
+      computed = applyAnalysisToBusiness(prev, a);
+      return computed;
     });
     return computed ?? b;
   }
@@ -1841,29 +1778,6 @@ function StepBrand({
 }
 
 // ── Paso 3: Productos / Servicios ────────────────────────────
-function emptyPS(type: ProductServiceType): ProductService {
-  return {
-    id: uid("ps"),
-    type,
-    name: "",
-    category: "",
-    subcategory: "",
-    shortDescription: "",
-    longDescription: "",
-    features: [],
-    variants: [],
-    pricingType: "fijo",
-    currency: "ARS",
-    priceMin: undefined,
-    priceMax: undefined,
-    imageCaption: "",
-    keywords: [],
-    negativeKeywords: [],
-    isTopSeller: false,
-    saved: false,
-    importSource: "manual",
-  };
-}
 
 function StepProducts({
   b,
@@ -1884,7 +1798,7 @@ function StepProducts({
     if (editingId === id) setEditingId(null);
   };
   const add = (type: ProductServiceType) => {
-    const ps = emptyPS(type);
+    const ps = emptyProductService(type);
     set({ productsServices: [...items, ps] });
     setEditingId(ps.id);
   };
@@ -1905,15 +1819,15 @@ function StepProducts({
   const suggestByEva = () => {
     const base = getFieldExample("productName", b.industry) || "Producto principal";
     addMany([
-      { ...emptyPS("producto"), name: base, saved: true, importSource: "eva", confidence: "low", shouldReview: true },
-      { ...emptyPS("servicio"), name: "Servicio principal", saved: true, importSource: "eva", confidence: "low", shouldReview: true },
+      { ...emptyProductService("producto"), name: base, saved: true, importSource: "eva", confidence: "low", shouldReview: true },
+      { ...emptyProductService("servicio"), name: "Servicio principal", saved: true, importSource: "eva", confidence: "low", shouldReview: true },
     ]);
     show("Eva sugirió algunos. Revisalos y editá nombres/precios.");
   };
   const useExamples = () => {
     addMany([
       {
-        ...emptyPS("producto"),
+        ...emptyProductService("producto"),
         name: getFieldExample("productName", b.industry) || "Producto",
         shortDescription: getFieldExample("productShort", b.industry),
         saved: true,
