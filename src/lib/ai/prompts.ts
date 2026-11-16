@@ -102,6 +102,11 @@ export function brandContext(b: Business): string {
   if (bk?.colors?.palette?.length) {
     parts.push(`Colores: ${bk.colors.palette.map((c) => `${c.name} ${c.hex}`).join(", ")}.`);
   }
+  if (bk?.colors?.distribution) {
+    // Cuánto se ve cada color en SU web: las piezas deben ponderar igual
+    // (ej: web casi toda negra con un acento → no un 50/50 de colores).
+    parts.push(`Distribución de color en su web: ${bk.colors.distribution}.`);
+  }
   const style = resolveBrandStyle(b);
   if (style.primaryFamily) {
     const fam = STYLE_FAMILIES[style.primaryFamily];
