@@ -6,10 +6,10 @@ import Link from "next/link";
 import { useStore } from "@/lib/store";
 import { enterDemoMode } from "@/lib/auth/session";
 import { toLocaUser } from "@/lib/auth/user";
-import { hasOnboardingDraft } from "@/lib/onboarding-draft";
 import { resumeOnboardingDraftIfAny } from "@/lib/onboarding/complete";
 import { getSupabaseBrowser, hasSupabaseClientConfig } from "@/lib/supabase/client";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { GoogleButton } from "@/components/google-button";
 import { Logo } from "@/components/brand";
 import { identifyUser, track } from "@/lib/analytics";
 
@@ -57,12 +57,11 @@ function LoginForm() {
       .auth.getUser()
       .then(async ({ data }) => {
         if (data.user) {
-          if (hasOnboardingDraft()) {
-            await afterAuth(data.user);
-            return;
-          }
-          // Ya había sesión: respetar el destino original (ej: /admin).
-          router.replace(nextPath || "/dashboard");
+          // SIEMPRE por afterAuth: puebla el store (clave para OAuth, donde el
+          // usuario llega con sesión de Supabase pero el store local vacío —
+          // sin esto, /dashboard lo rebotaba acá en loop), retoma borradores
+          // y respeta el destino original (?next=, ej: /admin).
+          await afterAuth(data.user);
         } else {
           setCheckingSession(false);
         }
@@ -173,6 +172,11 @@ function LoginForm() {
               {loading ? "Entrando…" : fromOnboarding ? "Entrar y generar estrategia" : "Entrar"}
             </Button>
           </form>
+          {supabaseEnabled && (
+            <div className="mt-4">
+              <GoogleButton next={nextPath || "/dashboard"} />
+            </div>
+          )}
           <div className="mt-6 flex items-center gap-3">
             <div className="h-px flex-1 bg-border" />
             <span className="text-xs font-medium text-faint">o probá sin cuenta</span>
