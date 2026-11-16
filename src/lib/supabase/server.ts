@@ -24,6 +24,11 @@ export function getSupabaseServer(): SupabaseClient {
           // el middleware se encarga de refrescar la sesión.
         },
       },
+      global: {
+        // Mismo criterio que el cliente admin: los fetch a Supabase nunca
+        // deben caer en el Data Cache de Next/Vercel (datos viejos).
+        fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+      },
     }
   );
 }
