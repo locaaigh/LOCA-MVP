@@ -18,7 +18,17 @@ export function getSupabaseAdmin(): SupabaseClient {
     admin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { persistSession: false, autoRefreshToken: false } }
+      {
+        auth: { persistSession: false, autoRefreshToken: false },
+        global: {
+          // CRÍTICO: sin esto, Next/Vercel puede meter los fetch de supabase-js
+          // en el Data Cache (compartido por deployment) y servir datos VIEJOS
+          // aunque la ruta sea force-dynamic. Caso real: /api/onboarding/
+          // field-config devolvía la config de hace 3 días desde 5 lambdas
+          // distintas. Los datos de DB jamás deben cachearse en el fetch.
+          fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+        },
+      }
     );
   }
   return admin;
