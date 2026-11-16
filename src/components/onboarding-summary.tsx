@@ -153,6 +153,9 @@ export function OnboardingSummary({
             : b.audience?.ageRanges?.length
               ? `Personas de ${b.audience.ageRanges.join(", ")}`
               : "Audiencia por definir."}
+          {!!b.audience?.segments?.length && !!b.audience?.ageRanges?.length && (
+            <p className="mt-1.5 text-xs text-muted-foreground">Edades: {b.audience.ageRanges.join(", ")}</p>
+          )}
           {!!b.audience?.locations?.length && (
             <p className="mt-1.5 text-xs text-muted-foreground">En: {b.audience.locations.join(", ")}</p>
           )}
@@ -175,6 +178,14 @@ export function OnboardingSummary({
             b.competitiveAdvantages.join(", ")
           ) : (
             "Sumá una ventaja competitiva."
+          )}
+          {/* Ventajas y valores cargados a mano: siempre visibles, aunque Eva
+              haya sugerido propuestas de valor propias. */}
+          {!!bi?.valuePropositions?.length && !!b.competitiveAdvantages?.length && (
+            <p className="mt-1.5 text-xs text-muted-foreground">Ventajas: {b.competitiveAdvantages.join(", ")}</p>
+          )}
+          {!!b.values?.length && (
+            <p className="mt-1 text-xs text-muted-foreground">Valores: {b.values.join(", ")}</p>
           )}
         </SummaryCard>
 
@@ -230,6 +241,15 @@ export function OnboardingSummary({
               </div>
             </div>
           )}
+          {!!b.marketingActivities?.length && (
+            <p className="mt-2 text-xs text-muted-foreground">Ya hace: {b.marketingActivities.join(", ")}</p>
+          )}
+          {!!b.seasonalityTags?.length && (
+            <p className="mt-1 text-xs text-muted-foreground">Temporadas: {b.seasonalityTags.join(", ")}</p>
+          )}
+          {!!b.specialDates?.length && (
+            <p className="mt-1 text-xs text-muted-foreground">Fechas: {b.specialDates.join(", ")}</p>
+          )}
         </SummaryCard>
 
         <SummaryCard icon={Phone} title="Datos comerciales" onEdit={() => onEditSection("comerciales")}>
@@ -243,6 +263,9 @@ export function OnboardingSummary({
           ) : (
             "Sin datos comerciales detectados."
           )}
+          {!!b.communicationNeeds && (
+            <p className="mt-2 text-xs text-muted-foreground">Este mes: {b.communicationNeeds}</p>
+          )}
         </SummaryCard>
 
         <SummaryCard icon={Target} title="Objetivos" onEdit={() => onEditSection("objetivos")} danger={miss.objetivos} onFix={onFixCritical}>
@@ -254,8 +277,17 @@ export function OnboardingSummary({
           ) : (
             b.goals?.marketingObjectives || "Objetivo por definir."
           )}
+          {!!b.goals?.primaryContentGoal && (
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Busca: {b.goals.primaryContentGoal.charAt(0).toUpperCase() + b.goals.primaryContentGoal.slice(1)}
+              {b.goals.salesGoalType ? ` (${b.goals.salesGoalType})` : ""}
+            </p>
+          )}
+          {!!b.goals?.marketingObjectives && !!bi?.recommendedGoal?.goal && (
+            <p className="mt-1 text-xs text-muted-foreground">Marketing: {b.goals.marketingObjectives}</p>
+          )}
           {!!b.goals?.businessObjectives && (
-            <p className="mt-1.5 text-xs text-muted-foreground">Negocio: {b.goals.businessObjectives}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Negocio: {b.goals.businessObjectives}</p>
           )}
           {!!b.goals?.successMetrics?.length && (
             <p className="mt-1 text-xs text-muted-foreground">Métricas: {b.goals.successMetrics.join(", ")}</p>
