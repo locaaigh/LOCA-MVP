@@ -4,6 +4,7 @@ import * as React from "react";
 import { Badge, Button, Card, SectionLabel } from "@/components/ui";
 import { PlatformLogo } from "@/components/platform-logo";
 import { missingRequiredLabels } from "@/lib/business-questions";
+import { BUSINESS_STAGES } from "@/lib/constants";
 import type { Business } from "@/lib/types";
 import {
   ShoppingBag,
@@ -126,6 +127,20 @@ export function OnboardingSummary({
       <div className="grid gap-3 sm:grid-cols-2">
         <SummaryCard icon={ShoppingBag} title="Qué vende" onEdit={() => onEditSection("basicos")} danger={miss.basicos} onFix={onFixCritical}>
           {b.shortDescription || b.fullDescription || `${b.industry || "Tu negocio"}${b.subcategory ? ` · ${b.subcategory}` : ""}`}
+          {(() => {
+            // Datos del negocio completados a mano: tienen que VERSE acá,
+            // si no el usuario siente que se perdieron.
+            const stage = BUSINESS_STAGES.find((s) => s.value === b.businessStage)?.label;
+            const bits = [
+              stage,
+              b.yearFounded && `desde ${b.yearFounded}`,
+              b.employees && `${b.employees} empleado${/^(1|solo)/i.test(b.employees) ? "" : "s"}`,
+              [b.city, b.state, b.country].filter(Boolean).join(", "),
+            ].filter(Boolean);
+            return bits.length ? (
+              <p className="mt-1.5 text-xs text-muted-foreground">{bits.join(" · ")}</p>
+            ) : null;
+          })()}
         </SummaryCard>
 
         <SummaryCard icon={Package} title="Productos y servicios" onEdit={() => onEditSection("productos")}>
@@ -138,6 +153,15 @@ export function OnboardingSummary({
             : b.audience?.ageRanges?.length
               ? `Personas de ${b.audience.ageRanges.join(", ")}`
               : "Audiencia por definir."}
+          {!!b.audience?.locations?.length && (
+            <p className="mt-1.5 text-xs text-muted-foreground">En: {b.audience.locations.join(", ")}</p>
+          )}
+          {!!b.audience?.painPoints?.length && (
+            <p className="mt-1 text-xs text-muted-foreground">Les resuelve: {b.audience.painPoints.join(", ")}</p>
+          )}
+          {!!b.audience?.behavior && (
+            <p className="mt-1 text-xs text-muted-foreground">{b.audience.behavior}</p>
+          )}
         </SummaryCard>
 
         <SummaryCard icon={Heart} title="Por qué la elegirían" onEdit={() => onEditSection("propuesta")} danger={miss.propuesta} onFix={onFixCritical}>
@@ -229,6 +253,15 @@ export function OnboardingSummary({
             </>
           ) : (
             b.goals?.marketingObjectives || "Objetivo por definir."
+          )}
+          {!!b.goals?.businessObjectives && (
+            <p className="mt-1.5 text-xs text-muted-foreground">Negocio: {b.goals.businessObjectives}</p>
+          )}
+          {!!b.goals?.successMetrics?.length && (
+            <p className="mt-1 text-xs text-muted-foreground">Métricas: {b.goals.successMetrics.join(", ")}</p>
+          )}
+          {!!b.goals?.timeline && (
+            <p className="mt-1 text-xs text-muted-foreground">Plazo: {b.goals.timeline}</p>
           )}
         </SummaryCard>
 

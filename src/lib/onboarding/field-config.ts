@@ -24,7 +24,10 @@ export interface FieldConfigRow {
 }
 
 let cache: { at: number; data: FieldConfigRow[] } | null = null;
-const TTL_MS = 5 * 60_000;
+// TTL corto: en Vercel el caché es POR INSTANCIA — el PATCH del admin invalida
+// solo la suya, y con 5 min otra instancia servía config vieja justo cuando el
+// admin estaba probando su cambio. 60s acota eso sin castigar a la DB.
+const TTL_MS = 60_000;
 
 export async function getFieldConfigOverrides(force = false): Promise<FieldConfigRow[]> {
   if (!hasSupabaseAdminConfig()) return [];
