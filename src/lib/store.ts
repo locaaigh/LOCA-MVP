@@ -14,26 +14,10 @@ import type {
   User,
 } from "./types";
 
-export function emptyBrandKit(): BrandKit {
-  return {
-    colors: { palette: [] },
-    typography: {},
-    logos: [],
-    visualStyle: { mood: [] },
-    voiceTone: { toneTags: [] },
-    brandKeywords: [],
-    avoidList: [],
-  };
-}
-
-export function emptyBusinessIntelligence(): BusinessIntelligence {
-  return {
-    socialLinks: [],
-    contactInfo: {},
-    conversionPaths: {},
-    valuePropositions: [],
-  };
-}
+// Fábricas puras: viven en business-defaults.ts (server-safe) y se re-exportan
+// acá para no romper los imports existentes del lado cliente.
+export { emptyBrandKit, emptyBusinessIntelligence, emptyBusiness } from "./business-defaults";
+import { emptyBrandKit, emptyBusiness } from "./business-defaults";
 
 // Estado del flujo guiado por negocio: Estrategia → Calendario → Contenidos
 export interface FlowState {
@@ -52,64 +36,6 @@ import { sanitizeBusiness } from "./sanitize";
 import { mergeStrategyJob } from "./strategy-job-utils";
 import { nowIso, uid } from "./utils";
 
-export function emptyBusiness(userId: string): Business {
-  return {
-    id: uid("biz"),
-    userId,
-    name: "",
-    industry: "",
-    subcategory: "",
-    businessType: "",
-    businessModel: "B2C",
-    yearFounded: "",
-    employees: "",
-    country: "",
-    state: "",
-    city: "",
-    shortDescription: "",
-    fullDescription: "",
-    values: [],
-    competitiveAdvantages: [],
-    marketingChannels: [],
-    marketingStrategy: "",
-    marketingActivities: [],
-    hasSeasonality: undefined,
-    seasonality: "",
-    seasonalityTags: [],
-    hasSpecialDates: undefined,
-    specialDates: [],
-    hasWebsite: undefined,
-    websiteUrl: "",
-    websiteExtractionConsent: false,
-    websiteExtractionStatus: "idle",
-    brandColors: ["#ec4899", "#84cc16", "#ffffff"],
-    brandKit: emptyBrandKit(),
-    businessIntelligence: emptyBusinessIntelligence(),
-    fieldStatuses: {},
-    businessInfoImportSource: "manual",
-    productsServices: [],
-    audience: {
-      ageRanges: [],
-      gender: "todos",
-      locationLogic: "ciudad",
-      locations: [],
-      socioeconomicLevel: "medio",
-      painPoints: [],
-      behavior: "",
-      segments: [],
-    },
-    goals: {
-      primaryContentGoal: "visibilidad",
-      businessObjectives: "",
-      successMetrics: [],
-      marketingObjectives: "",
-      timeline: "",
-    },
-    onboardingComplete: false,
-    createdAt: nowIso(),
-    updatedAt: nowIso(),
-  };
-}
 
 interface AppState {
   hydrated: boolean;

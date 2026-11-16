@@ -7,7 +7,7 @@
 // ─────────────────────────────────────────────────────────────
 import { getSupabaseAdmin, hasSupabaseAdminConfig } from "@/lib/supabase/admin";
 import type { WebsiteAnalysis } from "@/lib/types";
-import { emptyBusiness } from "@/lib/store";
+import { emptyBusiness } from "@/lib/business-defaults";
 import {
   QUESTIONS,
   isQuestionRequired,

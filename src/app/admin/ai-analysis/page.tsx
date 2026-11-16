@@ -34,6 +34,16 @@ interface LogDetail extends LogRow {
   found_fields: Record<string, unknown> | null;
 }
 
+/** Estado de CADA campo del registro del onboarding (computado por la API). */
+interface RegistryField {
+  id: string;
+  label: string;
+  section: string;
+  required: boolean;
+  missing: boolean;
+  value: string;
+}
+
 const STATUS_PILL: Record<string, string> = {
   found: "bg-lima-100 text-lima-700 dark:bg-lima-900/50 dark:text-lima-300",
   suggested: "bg-loca-100 text-loca-700 dark:bg-loca-900/50 dark:text-loca-300",
@@ -65,6 +75,7 @@ export default function WebAnalysisAdminPage() {
   const [migrationPending, setMigrationPending] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [detail, setDetail] = useState<LogDetail | null>(null);
+  const [registry, setRegistry] = useState<RegistryField[] | null>(null);
 
   async function load(offset = 0) {
     const res = await fetch(`/api/admin/analysis-log?limit=50&offset=${offset}`);
@@ -85,6 +96,7 @@ export default function WebAnalysisAdminPage() {
       const res = await fetch(`/api/admin/analysis-log?id=${id}`);
       if (!res.ok) throw new Error(String(res.status));
       const json = await res.json();
+      setRegistry(json.onboardingFields ?? null);
       setDetail(json.row);
     } catch {
       show("No se pudo cargar el detalle.");
@@ -308,60 +320,111 @@ export default function WebAnalysisAdminPage() {
               </p>
             )}
 
-            {/* Vista del onboarding REAL: qué se le terminó pidiendo al usuario */}
-            {detail.onboarding_required_total != null && (
-              <div className="rounded-xl border border-border p-3">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Onboarding: quedaron {detail.onboarding_required_missing ?? 0} de{" "}
-                  {detail.onboarding_required_total} obligatorios por completar
-                </p>
-                {detail.onboarding_missing?.length ? (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {detail.onboarding_missing.map((m) => (
-                      <span
-                        key={m.id}
-                        className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"
-                      >
-                        {m.label}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-1 text-xs text-lima-700 dark:text-lima-300 font-semibold">
-                    La IA dejó todos los obligatorios completos 🎉
-                  </p>
-                )}
+            {/* Vista del ONBOARDING real: los 36 campos del registro, con lo que
+                quedó después del análisis — es lo que se le pide (o no) al usuario. */}
+            {registry && (
+              <div>
+                {(() => {
+                  const reqMissing = registry.filter((f) => f.required && f.missing);
+                  const reqTotal = registry.filter((f) => f.required).length;
+                  return (
+                    <div className="mb-2 rounded-xl border border-border p-3">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Onboarding: {reqTotal - reqMissing.length} de {reqTotal} obligatorios completos
+                      </p>
+                      {reqMissing.length ? (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {reqMissing.map((m) => (
+                            <span
+                              key={m.id}
+                              className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"
+                            >
+                              {m.label}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-1 text-xs font-semibold text-lima-700 dark:text-lima-300">
+                          La IA dejó todos los obligatorios completos 🎉
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+                <div className="overflow-x-auto rounded-xl border border-border">
+                  <table className="w-full min-w-[560px] text-xs">
+                    <thead>
+                      <tr className="border-b border-border text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <th className="px-3 py-2">Campo del onboarding</th>
+                        <th className="px-3 py-2">Obligatorio</th>
+                        <th className="px-3 py-2">Estado</th>
+                        <th className="px-3 py-2">Qué quedó cargado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {registry.map((f) => (
+                        <tr key={f.id} className="border-b border-border align-top last:border-b-0">
+                          <td className="whitespace-nowrap px-3 py-2">
+                            <span className="font-semibold text-foreground">{f.label}</span>
+                            <span className="ml-1.5 text-[10px] text-faint">{f.section}</span>
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2 text-foreground-soft">
+                            {f.required ? "Sí" : "No"}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2">
+                            {f.missing ? (
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${f.required ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300" : "bg-surface-muted text-muted-foreground"}`}>
+                                {f.required ? "Se le pide al usuario" : "Vacío (opcional)"}
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-lima-100 px-2 py-0.5 text-[10px] font-bold text-lima-700 dark:bg-lima-900/50 dark:text-lima-300">
+                                Completo
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-foreground-soft">{f.value || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 
-            <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full min-w-[520px] text-xs">
-                <thead>
-                  <tr className="border-b border-border text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    <th className="px-3 py-2">Campo</th>
-                    <th className="px-3 py-2">Estado</th>
-                    <th className="px-3 py-2">Conf.</th>
-                    <th className="px-3 py-2">Qué generó Eva</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(detail.field_statuses || {}).map(([key, st]) => (
-                    <tr key={key} className="border-b border-border align-top last:border-b-0">
-                      <td className="whitespace-nowrap px-3 py-2 font-semibold text-foreground">{key}</td>
-                      <td className="whitespace-nowrap px-3 py-2">
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_PILL[st.status] || "bg-surface-muted text-muted-foreground"}`}>
-                          {STATUS_LABEL[st.status] || st.status}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-foreground-soft">{st.confidence || "—"}</td>
-                      <td className="px-3 py-2 text-foreground-soft">
-                        {preview((detail.found_fields as Record<string, unknown> | null)?.[key])}
-                      </td>
+            {/* Vista técnica del analizador (campos agregados ✓/~/⚠/✗) */}
+            <details>
+              <summary className="cursor-pointer text-xs font-semibold text-faint transition hover:text-foreground-muted">
+                Vista técnica del analizador (✓/~/⚠/✗)
+              </summary>
+              <div className="mt-2 overflow-x-auto rounded-xl border border-border">
+                <table className="w-full min-w-[520px] text-xs">
+                  <thead>
+                    <tr className="border-b border-border text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                      <th className="px-3 py-2">Campo</th>
+                      <th className="px-3 py-2">Estado</th>
+                      <th className="px-3 py-2">Conf.</th>
+                      <th className="px-3 py-2">Qué generó Eva</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {Object.entries(detail.field_statuses || {}).map(([key, st]) => (
+                      <tr key={key} className="border-b border-border align-top last:border-b-0">
+                        <td className="whitespace-nowrap px-3 py-2 font-semibold text-foreground">{key}</td>
+                        <td className="whitespace-nowrap px-3 py-2">
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_PILL[st.status] || "bg-surface-muted text-muted-foreground"}`}>
+                            {STATUS_LABEL[st.status] || st.status}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-foreground-soft">{st.confidence || "—"}</td>
+                        <td className="px-3 py-2 text-foreground-soft">
+                          {preview((detail.found_fields as Record<string, unknown> | null)?.[key])}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
 
             <details>
               <summary className="cursor-pointer text-xs font-semibold text-faint transition hover:text-foreground-muted">

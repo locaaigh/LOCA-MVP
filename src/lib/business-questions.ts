@@ -20,7 +20,7 @@ import {
   seasonalityOptionsFor,
   specialDatesOptionsFor,
 } from "./constants";
-import { emptyBrandKit } from "./store";
+import { emptyBrandKit } from "./business-defaults";
 
 export type QSection =
   | "basicos"
