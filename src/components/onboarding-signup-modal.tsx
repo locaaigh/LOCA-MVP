@@ -8,6 +8,7 @@ import { completeOnboardingAndGoToStrategy } from "@/lib/onboarding/complete";
 import { saveOnboardingDraft } from "@/lib/onboarding-draft";
 import type { Business } from "@/lib/types";
 import { Button, Field, Input, Modal } from "@/components/ui";
+import { GoogleButton } from "@/components/google-button";
 import { TermsCheckbox } from "@/components/terms-checkbox";
 import { getFirstTouchUtm, track } from "@/lib/analytics";
 
@@ -117,6 +118,14 @@ export function OnboardingSignupModal({ open, business, onClose, router }: Props
           {loading ? "Creando cuenta…" : "Crear cuenta y preparar estrategia"}
         </Button>
       </form>
+      {/* El borrador ya quedó guardado antes de abrir este modal: al volver del
+          OAuth, el login lo retoma y sigue directo a generar la estrategia. */}
+      <div className="mt-4">
+        <GoogleButton label="Continuar con Google" />
+        <p className="mt-2 text-center text-[11px] text-faint">
+          Al continuar con Google aceptás los Términos y la Política de privacidad.
+        </p>
+      </div>
       <p className="mt-5 text-center text-sm text-muted-foreground">
         ¿Ya tenés cuenta?{" "}
         <button

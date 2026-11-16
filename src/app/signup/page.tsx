@@ -7,6 +7,7 @@ import { useStore } from "@/lib/store";
 import { getSupabaseBrowser, hasSupabaseClientConfig } from "@/lib/supabase/client";
 import { toLocaUser } from "@/lib/auth/user";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { GoogleButton } from "@/components/google-button";
 import { TermsCheckbox } from "@/components/terms-checkbox";
 import { Logo } from "@/components/brand";
 import { getFirstTouchUtm, identifyUser, track } from "@/lib/analytics";
@@ -122,6 +123,14 @@ export default function SignupPage() {
               {loading ? "Creando cuenta…" : "Crear cuenta y empezar"}
             </Button>
           </form>
+          {supabaseEnabled && (
+            <div className="mt-4">
+              <GoogleButton label="Registrarme con Google" />
+              <p className="mt-2 text-center text-[11px] text-faint">
+                Al continuar con Google aceptás los Términos y la Política de privacidad.
+              </p>
+            </div>
+          )}
           <p className="mt-7 text-center text-sm text-muted-foreground">
             ¿Ya tenés cuenta?{" "}
             <Link href="/login" className="font-semibold text-accent hover:underline">
