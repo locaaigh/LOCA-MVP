@@ -63,8 +63,8 @@ async function registryView(row: Record<string, unknown>) {
 }
 
 const LIST_COLUMNS =
-  "id, created_at, source, url, file_name, business_id, provider, model, success, mode, confidence, duration_ms, usage, warning, fields_found, fields_suggested, fields_review, fields_missing, onboarding_required_total, onboarding_required_missing, onboarding_missing";
-// Esquema previo a la migración 0012 (fallback de lectura).
+  "id, created_at, source, url, file_name, business_id, provider, model, success, mode, confidence, duration_ms, usage, warning, fields_found, fields_suggested, fields_review, fields_missing, onboarding_required_total, onboarding_required_missing, onboarding_missing, user_completed, user_completed_at";
+// Esquema base (pre-migraciones 0012/0013): fallback de lectura.
 const LIST_COLUMNS_0011 =
   "id, created_at, source, url, file_name, business_id, provider, model, success, mode, confidence, duration_ms, usage, warning, fields_found, fields_suggested, fields_review, fields_missing";
 
@@ -98,8 +98,8 @@ export async function GET(req: NextRequest) {
     .select(LIST_COLUMNS, { count: "exact" })
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
-  if (res.error && /onboarding_/.test(res.error.message)) {
-    // Migración 0012 sin correr: releer con el esquema 0011.
+  if (res.error && /onboarding_|user_completed/.test(res.error.message)) {
+    // Migraciones 0012/0013 sin correr: releer con el esquema base.
     res = (await supabase
       .from("website_analysis_log")
       .select(LIST_COLUMNS_0011, { count: "exact" })

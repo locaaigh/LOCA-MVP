@@ -48,6 +48,7 @@ import { OnboardingSummary, missingCritical, type SummarySectionKey } from "@/co
 import { PendingFlow, SECTION_MAP } from "@/components/pending-flow";
 import { QuestionField } from "@/components/question-field";
 import {
+  QUESTIONS,
   pendingQuestions,
   missingRequiredQuestions,
   missingCriticalQuestions,
@@ -241,9 +242,31 @@ function OnboardingPageInner() {
     return computed ?? b;
   }
 
+  // Qué obligatorios quedaron faltando justo DESPUÉS del análisis: al terminar
+  // el onboarding se compara contra el estado final para avisarle al log de
+  // calidad qué completó el usuario a mano (cierre del funnel por campo).
+  const missingAfterAnalysis = useRef<string[] | null>(null);
+  const manualCompletionLogged = useRef(false);
+
+  function reportManualCompletion(finalBiz: Business) {
+    if (manualCompletionLogged.current || !missingAfterAnalysis.current?.length) return;
+    const completed = missingAfterAnalysis.current.filter((id) => {
+      const q = QUESTIONS.find((x) => x.id === id);
+      return q && !q.isMissing(finalBiz);
+    });
+    if (!completed.length) return;
+    manualCompletionLogged.current = true;
+    fetch("/api/analysis-log/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ businessId: finalBiz.id, completed }),
+    }).catch(() => {});
+  }
+
   // Decide a dónde ir después de analizar web / importar .md.
   // Suficiente info → resumen final. Faltan datos clave → pantalla de pendientes.
   function routeAfterImport(next: Business) {
+    missingAfterAnalysis.current = missingRequiredQuestions(next).map((q) => q.id);
     // Todos los obligatorios completos → resumen. Si falta alguno → pantalla
     // "Completá lo que falta" (solo los campos vacíos, agrupados).
     if (missingRequiredQuestions(next).length === 0) {
@@ -277,6 +300,9 @@ function OnboardingPageInner() {
     set({ websiteUrl: clean, hasWebsite: true, websiteExtractionStatus: "loading" });
     try {
       const res = await api.extractWebsite(clean, b.id);
+      // Config fresca ANTES de decidir qué campos pedir: si el admin tocó un
+      // toggle recién, el flujo de pendientes tiene que reflejarlo.
+      await syncFieldConfigOverrides(true);
       const next = applyAnalysis(res.data);
       const s = res.data.summary;
       track("onboarding_web_analyzed", {
@@ -306,6 +332,7 @@ function OnboardingPageInner() {
       return;
     }
     const res = parseExternalMarkdown(md);
+    void syncFieldConfigOverrides(true); // refresco en paralelo (parse local, no bloquea)
     const next = applyAnalysis(res);
     track("onboarding_md_imported", {
       complete: isAnalysisComplete(res),
@@ -420,6 +447,10 @@ function OnboardingPageInner() {
     }
 
     const finalBiz = prepareFinalBusiness(b, user?.id || "anon");
+
+    // Cierre del funnel del log de calidad: qué completó el usuario a mano
+    // de lo que la IA no pudo (fire-and-forget, nunca bloquea).
+    reportManualCompletion(b);
 
     // Onboarding completo (pasó el gate de críticos). Se trackea una sola
     // vez aunque el usuario vuelva a apretar tras cerrar el modal de signup.

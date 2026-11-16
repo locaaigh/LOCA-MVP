@@ -42,7 +42,8 @@ El motor de contenido de Sebi (100% su entrega) + los 4 fixes está **en prod** 
 - [x] ~~Correr la migración `0009_admin_backoffice.sql`~~ **Hecho (13-nov)**: `admin_users` con Alan (`alanroit@gmail.com`) y Sebi (`sebiadler@gmail.com`) ✓, `onboarding_field_config` creada ✓. `/admin` en prod ✓ (PRs #21, #22).
 - [x] ~~Correr la migración `0010_field_config_texts.sql`~~ **Hecho (13-nov)**.
 - [x] ~~Correr la migración `0011_website_analysis_log.sql`~~ **Hecho (13-nov)**.
-- [ ] **Correr la migración `0012_analysis_log_onboarding_view.sql`** en Supabase: el log de análisis pasa a mostrar también cuántos obligatorios del ONBOARDING real quedaron faltando (columna "Onboarding" + chips en el detalle). Hasta correrla, todo sigue funcionando (lectura y escritura tienen fallback al esquema 0011; los registros viejos muestran "—").
+- [x] ~~Correr la migración `0012_analysis_log_onboarding_view.sql`~~ **Hecho (15-nov)**.
+- [ ] **Correr la migración `0013_analysis_log_user_completed.sql`** en Supabase: el log registra qué campos completó el usuario a mano al terminar el onboarding (columna ✍️ + "Completada a mano" en el detalle). Con fallbacks: sin correrla nada se rompe.
 - [ ] **OpenAI**: cargar `OPENAI_API_KEY` en Vercel, correr `scripts/ai-v2/verify-image-models.mjs`, y pasar `AI_IMAGE_ROUTING=matrix` (hasta entonces, gemini-only).
 - [ ] **Verificar prueba clave** en prod: pieza educativa/promo con texto SOBRE la imagen; `/api/status` → `hasSharp: true`.
 - Fuera de alcance de Sebi (para más adelante): UI del brand kit, carrusel, V1/V2, auto-publicación.

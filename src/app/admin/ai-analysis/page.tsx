@@ -27,6 +27,9 @@ interface LogRow {
   onboarding_required_total: number | null;
   onboarding_required_missing: number | null;
   onboarding_missing: { id: string; label: string }[] | null;
+  // Qué completó el usuario a mano al terminar (migración 0013).
+  user_completed: { id: string; label: string }[] | null;
+  user_completed_at: string | null;
 }
 
 interface LogDetail extends LogRow {
@@ -229,6 +232,14 @@ export default function WebAnalysisAdminPage() {
                     ) : (
                       "—"
                     )}
+                    {!!r.user_completed?.length && (
+                      <span
+                        className="ml-1.5 font-semibold text-loca-600 dark:text-loca-300"
+                        title={`El usuario completó a mano: ${r.user_completed.map((m) => m.label).join(", ")}`}
+                      >
+                        ✍️{r.user_completed.length}
+                      </span>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 tabular-nums text-foreground-soft">
                     <span className="font-semibold text-lima-700 dark:text-lima-300">{r.fields_found}</span>
@@ -372,13 +383,17 @@ export default function WebAnalysisAdminPage() {
                             {f.required ? "Sí" : "No"}
                           </td>
                           <td className="whitespace-nowrap px-3 py-2">
-                            {f.missing ? (
+                            {detail.user_completed?.some((m) => m.id === f.id) ? (
+                              <span className="rounded-full bg-loca-100 px-2 py-0.5 text-[10px] font-bold text-loca-700 dark:bg-loca-900/50 dark:text-loca-300">
+                                ✍️ Completada a mano
+                              </span>
+                            ) : f.missing ? (
                               <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${f.required ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300" : "bg-surface-muted text-muted-foreground"}`}>
                                 {f.required ? "Se le pide al usuario" : "Vacío (opcional)"}
                               </span>
                             ) : (
                               <span className="rounded-full bg-lima-100 px-2 py-0.5 text-[10px] font-bold text-lima-700 dark:bg-lima-900/50 dark:text-lima-300">
-                                Completo
+                                Completo (IA)
                               </span>
                             )}
                           </td>
