@@ -598,6 +598,13 @@ export interface BrandKit {
     background?: string;
     text?: string;
     palette: BrandColor[];
+    /**
+     * Texto corto con la distribución de color observada en la web (ej:
+     * "Predomina: negro #111 ~60%, blanco ~25% · acentos puntuales: naranja
+     * #ff6900 ~3%"). Insumo para que la generación de imágenes pondere los
+     * colores como se ven de verdad, sin un sistema de pesos por negocio.
+     */
+    distribution?: string;
   };
   typography: {
     heading?: BrandFont;

@@ -48,6 +48,12 @@ export interface RawWebContent {
   // del framework aparecen una vez. Sin frecuencia, un hex suelto bien saturado
   // le gana al color real.
   colorCounts: Record<string, number>;
+  // Igual que colorCounts pero SOLO de declaraciones background(-color).
+  bgCounts: Record<string, number>;
+  // Colores de la regla body{background} / html{background} (el ÚNICO ground
+  // truth de si la página es clara u oscura: los overlays/menús del theme
+  // meten muchos background negros aunque el sitio sea blanco).
+  bodyBg: string[];
   // Colores dominantes del logo (la señal más fuerte del color real de marca).
   logoColors: string[];
   fontFamilies: string[];
@@ -297,6 +303,8 @@ function extractColorsAndFonts(text: string): {
   cssColors: string[];
   priorityColors: string[];
   colorCounts: Record<string, number>;
+  bgCounts: Record<string, number>;
+  bodyBg: string[];
   fontFamilies: string[];
   googleFonts: string[];
 } {
@@ -311,6 +319,29 @@ function extractColorsAndFonts(text: string): {
     colorCounts[n] = (colorCounts[n] || 0) + 1;
   }
   const cssColors = uniq(occurrences);
+  const bodyBg: string[] = [];
+  for (const block of matchAll(text, /(?:^|[}\s;,])(?:body|html)(?:\s*,[^{}]*)?\{([^}]*)\}/i)) {
+    for (const decl of matchAll(block, /background(?:-color)?\s*:\s*([^;}\n]+)/i)) {
+      for (const c of [
+        ...matchAll(decl, /#[0-9a-fA-F]{6}\b/),
+        ...matchAll(decl, /#[0-9a-fA-F]{3}\b/),
+        ...extractFunctionalColors(decl),
+      ]) {
+        bodyBg.push(norm6(c));
+      }
+    }
+  }
+  const bgCounts: Record<string, number> = {};
+  for (const decl of matchAll(text, /background(?:-color)?\s*:\s*([^;}\n]+)/i)) {
+    for (const c of [
+      ...matchAll(decl, /#[0-9a-fA-F]{6}\b/),
+      ...matchAll(decl, /#[0-9a-fA-F]{3}\b/),
+      ...extractFunctionalColors(decl),
+    ]) {
+      const n = norm6(c);
+      bgCounts[n] = (bgCounts[n] || 0) + 1;
+    }
+  }
   // Valores de variables CSS con nombre de marca/primario/acento.
   const brandVarValues = matchAll(text, /--[\w-]*(?:brand|primary|accent)[\w-]*\s*:\s*([^;}\n]+)/i);
   const priorityColors = uniq(
@@ -330,7 +361,7 @@ function extractColorsAndFonts(text: string): {
       decodeURIComponent(f).replace(/\+/g, " ")
     )
   );
-  return { cssColors, priorityColors, colorCounts, fontFamilies, googleFonts };
+  return { cssColors, priorityColors, colorCounts, bgCounts, bodyBg, fontFamilies, googleFonts };
 }
 
 function absolute(base: string, href: string): string {
@@ -377,7 +408,7 @@ function parsePage(html: string, baseUrl: string): Partial<RawWebContent> {
 
   // colores y fuentes (inline/<style> en el HTML; las hojas externas se
   // fetchean y escanean aparte en fetchWebsite)
-  const { cssColors: htmlColors, priorityColors: htmlPriority, colorCounts, fontFamilies, googleFonts } =
+  const { cssColors: htmlColors, priorityColors: htmlPriority, colorCounts, bgCounts, bodyBg, fontFamilies, googleFonts } =
     extractColorsAndFonts(html);
   // theme-color / TileColor son señal fuerte del color de marca del sitio.
   const metaColors = [
@@ -423,6 +454,8 @@ function parsePage(html: string, baseUrl: string): Partial<RawWebContent> {
     cssColors,
     priorityColors,
     colorCounts,
+    bgCounts,
+    bodyBg,
     fontFamilies,
     googleFonts,
     text,
@@ -458,6 +491,10 @@ function mergeRaw(base: RawWebContent, add: Partial<RawWebContent>): void {
   for (const [hex, n] of Object.entries(add.colorCounts || {})) {
     base.colorCounts[hex] = (base.colorCounts[hex] || 0) + n;
   }
+  for (const [hex, n] of Object.entries(add.bgCounts || {})) {
+    base.bgCounts[hex] = (base.bgCounts[hex] || 0) + n;
+  }
+  base.bodyBg = [...base.bodyBg, ...(add.bodyBg || [])];
   base.fontFamilies = uniq([...base.fontFamilies, ...(add.fontFamilies || [])]);
   base.googleFonts = uniq([...base.googleFonts, ...(add.googleFonts || [])]);
   base.text = (base.text + " " + (add.text || "")).slice(0, 12000);
@@ -501,6 +538,8 @@ export async function fetchWebsite(url: string): Promise<RawWebContent> {
     cssColors: [],
     priorityColors: [],
     colorCounts: {},
+    bgCounts: {},
+    bodyBg: [],
     logoColors: [],
     fontFamilies: [],
     googleFonts: [],
@@ -546,6 +585,10 @@ export async function fetchWebsite(url: string): Promise<RawWebContent> {
       for (const [hex, n] of Object.entries(fromCss.colorCounts)) {
         base.colorCounts[hex] = (base.colorCounts[hex] || 0) + n;
       }
+      for (const [hex, n] of Object.entries(fromCss.bgCounts)) {
+        base.bgCounts[hex] = (base.bgCounts[hex] || 0) + n;
+      }
+      base.bodyBg = [...base.bodyBg, ...fromCss.bodyBg];
       base.fontFamilies = uniq([...base.fontFamilies, ...fromCss.fontFamilies]);
       base.googleFonts = uniq([...base.googleFonts, ...fromCss.googleFonts]);
     }
@@ -706,6 +749,60 @@ function colorDistance(a: string, b: string): number {
   return Math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2);
 }
 
+// Nombre aproximado de un color en español (para el texto de distribución).
+function colorNameEs(hex: string): string {
+  const [r, g, b] = hexToRgb(hex);
+  const l = luminance(hex);
+  const s = saturation(hex);
+  if (l > 0.93) return "blanco";
+  if (l < 0.08) return "negro";
+  if (s < 0.12) return l > 0.6 ? "gris claro" : "gris oscuro";
+  const max = Math.max(r, g, b) / 255;
+  const min = Math.min(r, g, b) / 255;
+  const d = max - min;
+  let h = 0;
+  const rn = r / 255, gn = g / 255, bn = b / 255;
+  if (max === rn) h = ((gn - bn) / d) % 6;
+  else if (max === gn) h = (bn - rn) / d + 2;
+  else h = (rn - gn) / d + 4;
+  h = (h * 60 + 360) % 360;
+  if (h < 15) return l < 0.3 ? "bordó" : "rojo";
+  if (h < 40) return l < 0.35 ? "marrón" : "naranja";
+  if (h < 65) return "amarillo";
+  if (h < 160) return "verde";
+  if (h < 200) return "celeste";
+  if (h < 250) return "azul";
+  if (h < 290) return "violeta";
+  if (h < 335) return "rosa";
+  return "rojo";
+}
+
+/**
+ * Texto corto que describe CUÁNTO se ve cada color en la web (aproximado, por
+ * frecuencia en HTML+CSS). No es un sistema de pesos por negocio: es un texto
+ * para que la generación de imágenes sepa que "la web es casi toda negra con
+ * un acento naranja", en vez de tratar a todos los colores por igual.
+ */
+function buildColorDistribution(
+  counts: Record<string, number>,
+  excluded: Set<string>
+): string {
+  const entries = Object.entries(counts)
+    .filter(([hex]) => /^#[0-9a-f]{6}$/.test(hex) && !excluded.has(hex))
+    .sort((a, b) => b[1] - a[1]);
+  const total = entries.reduce((n, [, c]) => n + c, 0);
+  if (!total) return "";
+  const pct = (n: number) => Math.round((n / total) * 100);
+  const main = entries.filter(([, c]) => pct(c) >= 4).slice(0, 5);
+  const minor = entries
+    .filter(([hex, c]) => pct(c) < 4 && pct(c) >= 1 && saturation(hex) > 0.15)
+    .slice(0, 3);
+  const fmt = ([hex, c]: [string, number]) => `${colorNameEs(hex)} ${hex} ~${pct(c)}%`;
+  const parts = [`Predomina: ${main.map(fmt).join(", ")}`];
+  if (minor.length) parts.push(`acentos puntuales: ${minor.map(fmt).join(", ")}`);
+  return parts.join(" · ");
+}
+
 export function buildBrandKitFromRaw(raw: RawWebContent): BrandKit {
   const colors = uniq(raw.cssColors.map(norm6)).filter((c) => /^#[0-9a-f]{6}$/.test(c));
   // Colores con señal fuerte de marca (theme-color / variables --brand/--primary).
@@ -729,8 +826,20 @@ export function buildBrandKitFromRaw(raw: RawWebContent): BrandKit {
     .filter((c) => saturation(c) > 0.12 && luminance(c) > 0.08 && luminance(c) < 0.95)
     .filter((c) => !FRAMEWORK_SOCIAL_COLORS.has(c))
     .sort((a, b) => score(b) - score(a));
-  const lights = colors.filter((c) => luminance(c) >= 0.9).sort((a, b) => luminance(b) - luminance(a));
-  const darks = colors.filter((c) => luminance(c) <= 0.2).sort((a, b) => luminance(a) - luminance(b));
+  // Neutros ordenados por USO EN FONDOS: los `color:` de texto inflan el negro
+  // en sitios claros (y el blanco en oscuros), así que para fondo/texto cuentan
+  // solo las declaraciones background(-color). Fallback al conteo general.
+  const bgc = raw.bgCounts || {};
+  const byBgCount = (a: string, b: string) =>
+    (bgc[b] || 0) - (bgc[a] || 0) || (counts[b] || 0) - (counts[a] || 0);
+  const lights = colors.filter((c) => luminance(c) >= 0.9).sort(byBgCount);
+  const darks = colors.filter((c) => luminance(c) <= 0.2).sort(byBgCount);
+  // ¿La web es oscura? SOLO lo dice la regla body/html{background} (la última
+  // declarada gana, como en CSS). Los conteos engañan: los themes llenan el CSS
+  // de backgrounds negros para overlays/menús aunque el sitio sea blanco.
+  // Sin regla de body → se asume clara (el default de la web).
+  const bodyBg = [...(raw.bodyBg || [])].reverse().find((c) => /^#[0-9a-f]{6}$/.test(c));
+  const darkSite = !!bodyBg && luminance(bodyBg) <= 0.25;
 
   // Primario: señal explícita del sitio > logo > el candidato con mejor score.
   // La señal explícita también se filtra contra los defaults de framework:
@@ -745,10 +854,16 @@ export function buildBrandKitFromRaw(raw: RawWebContent): BrandKit {
   const chosen: string[] = primary ? [primary] : [];
   const distinct = (c: string) => chosen.every((p) => colorDistance(c, p) > 60);
   const rest: { hex: string; fromLogo: boolean }[] = [];
+  // Umbral de DOMINANCIA: secundario/acento entran solo si pesan de verdad
+  // frente al primario (≥20% de su score) o vienen del logo. Una web con un
+  // solo color real queda con 1 color — no inventamos una paleta de 4.
+  const minScore = primary ? score(primary) * 0.2 : 0;
   for (const c of [...logo.filter(isBrandy), ...saturated]) {
     if (rest.length >= 2) break;
     if (c === primary || !distinct(c) || rest.some((r) => r.hex === c)) continue;
-    rest.push({ hex: c, fromLogo: logo.includes(c) });
+    const fromLogo = logo.includes(c);
+    if (!fromLogo && score(c) < minScore) continue;
+    rest.push({ hex: c, fromLogo });
     chosen.push(c);
   }
 
@@ -771,10 +886,13 @@ export function buildBrandKitFromRaw(raw: RawWebContent): BrandKit {
   }
   if (rest[0]) add(rest[0].hex, "secondary", "Color secundario", rest[0].fromLogo ? "medium" : "low");
   if (rest[1]) add(rest[1].hex, "accent", "Color de acento", rest[1].fromLogo ? "medium" : "low");
-  // Si no se detectó un color claro/oscuro real, el blanco/negro genérico
-  // se marca "inferred" (no "detected") para no mentirle al usuario.
-  add(lights[0] || "#ffffff", "background", "Fondo", lights[0] ? "medium" : "low", lights[0] ? "detected" : "inferred");
-  add(darks[0] || "#18181b", "text", "Texto", darks[0] ? "medium" : "low", darks[0] ? "detected" : "inferred");
+  // Fondo/texto según el neutro que DOMINA: web clara → fondo claro + texto
+  // oscuro; web oscura → fondo oscuro + texto claro. Si no se detectó un
+  // neutro real, el genérico se marca "inferred" para no mentirle al usuario.
+  const bg = bodyBg || (darkSite ? darks[0] : lights[0]);
+  const txt = darkSite ? lights[0] : darks[0];
+  add(bg || (darkSite ? "#111111" : "#ffffff"), "background", "Fondo", bg ? "medium" : "low", bg ? "detected" : "inferred");
+  add(txt || (darkSite ? "#ffffff" : "#18181b"), "text", "Texto", txt ? "medium" : "low", txt ? "detected" : "inferred");
 
   return {
     colors: {
@@ -784,6 +902,7 @@ export function buildBrandKitFromRaw(raw: RawWebContent): BrandKit {
       background: palette.find((p) => p.role === "background")?.hex,
       text: palette.find((p) => p.role === "text")?.hex,
       palette,
+      distribution: buildColorDistribution(counts, FRAMEWORK_SOCIAL_COLORS) || undefined,
     },
     typography: {
       heading: raw.fontFamilies[0] || raw.googleFonts[0]
