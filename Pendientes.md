@@ -1,5 +1,18 @@
 # Pendientes
 
+## Login con Google (PR #38, en main) — config para activarlo
+
+El botón ya está en /login, /signup y el modal del onboarding. Hasta completar esto, muestra "Google no está habilitado todavía":
+
+1. **Google Cloud Console** → APIs y servicios → Credenciales → Crear credencial → **ID de cliente OAuth** (tipo *Aplicación web*):
+   - Orígenes autorizados: `https://app.heyloca.ai`
+   - URI de redirección autorizada: `https://baqzbbptyrtberxzsbiy.supabase.co/auth/v1/callback`
+   - (Si no existe, configurar antes la *pantalla de consentimiento*: External, nombre LOCA, email de soporte, y publicarla.)
+2. **Supabase** → Authentication → Providers → **Google**: Enable + pegar Client ID y Client Secret.
+3. **Supabase** → Authentication → URL Configuration: Site URL `https://app.heyloca.ai`; en Redirect URLs agregar `https://app.heyloca.ai/auth/callback` y `http://localhost:3000/auth/callback`.
+
+Nota: entrar con Google con un email que ya tiene cuenta (ej. alanroit@gmail.com) vincula al MISMO usuario — el rol admin queda intacto.
+
 Lo que quedó abierto del trabajo sobre el Formulario (commit `2480c36`, base: [cambios Formulario.md](cambios%20Formulario.md)).
 
 ---
