@@ -1,6 +1,6 @@
 {
   "empty": {
-    "completion": 6,
+    "completion": 5,
     "critical": [
       "name",
       "industry",
@@ -20,6 +20,7 @@
       "behavior": true,
       "bk_color": true,
       "bk_font": true,
+      "businessModel": true,
       "businessObjectives": true,
       "businessStage": true,
       "businessType": true,
@@ -64,6 +65,7 @@
       "competitiveAdvantages",
       "marketingChannels",
       "toneTags",
+      "businessModel",
       "fullDescription",
       "values",
       "businessStage",
@@ -87,9 +89,9 @@
       {
         "key": "basicos",
         "label": "Datos básicos",
-        "missing": 12,
+        "missing": 13,
         "missingCritical": 6,
-        "total": 12
+        "total": 13
       },
       {
         "key": "productos",
@@ -164,7 +166,7 @@
     ]
   },
   "manual": {
-    "completion": 31,
+    "completion": 30,
     "critical": [
       "products",
       "toneTags"
@@ -175,6 +177,7 @@
       "behavior": true,
       "bk_color": true,
       "bk_font": true,
+      "businessModel": true,
       "businessObjectives": true,
       "businessStage": true,
       "businessType": false,
@@ -210,6 +213,7 @@
     "required": [
       "products",
       "toneTags",
+      "businessModel",
       "fullDescription",
       "values",
       "businessStage",
@@ -233,9 +237,9 @@
       {
         "key": "basicos",
         "label": "Datos básicos",
-        "missing": 6,
+        "missing": 7,
         "missingCritical": 0,
-        "total": 12
+        "total": 13
       },
       {
         "key": "productos",
@@ -310,7 +314,7 @@
     ]
   },
   "md": {
-    "completion": 56,
+    "completion": 57,
     "critical": [],
     "isMissing": {
       "audience": false,
@@ -318,6 +322,7 @@
       "behavior": true,
       "bk_color": true,
       "bk_font": true,
+      "businessModel": false,
       "businessObjectives": true,
       "businessStage": true,
       "businessType": false,
@@ -372,7 +377,7 @@
         "label": "Datos básicos",
         "missing": 5,
         "missingCritical": 0,
-        "total": 12
+        "total": 13
       },
       {
         "key": "productos",
@@ -447,7 +452,7 @@
     ]
   },
   "web": {
-    "completion": 64,
+    "completion": 65,
     "critical": [],
     "isMissing": {
       "audience": false,
@@ -455,6 +460,7 @@
       "behavior": false,
       "bk_color": false,
       "bk_font": false,
+      "businessModel": false,
       "businessObjectives": true,
       "businessStage": true,
       "businessType": false,
@@ -504,7 +510,7 @@
         "label": "Datos básicos",
         "missing": 3,
         "missingCritical": 0,
-        "total": 12
+        "total": 13
       },
       {
         "key": "productos",

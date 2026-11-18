@@ -1,4 +1,4 @@
-import type { BusinessStage, Channel, ContentFormat } from "./types";
+import type { BusinessStage, Channel, ContentFormat, BusinessModel } from "./types";
 
 // ── Industrias ───────────────────────────────────────────────
 export const INDUSTRIES: string[] = [
@@ -475,4 +475,11 @@ export const AVOID_OPTIONS = [
   "No sonar demasiado corporativo",
   "No usar humor",
   "No mencionar precios",
+];
+
+// ── A quién le vende (modelo de negocio) ──
+export const BUSINESS_MODELS: { value: BusinessModel; label: string }[] = [
+  { value: "B2C", label: "Le vendo a personas (B2C)" },
+  { value: "B2B", label: "Le vendo a empresas (B2B)" },
+  { value: "Ambos", label: "A ambos" },
 ];

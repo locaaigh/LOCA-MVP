@@ -67,7 +67,7 @@ function businessContext(b: Business): string {
   return `DATOS DEL NEGOCIO:
 Nombre: ${b.name}
 Industria: ${b.industry} / ${b.subcategory}
-Tipo: ${b.businessType} | Modelo: ${b.businessModel}${stage ? ` | Organización: ${stage}` : ""}
+Tipo: ${b.businessType} | Modelo: ${b.businessModel ?? "sin definir"}${stage ? ` | Organización: ${stage}` : ""}
 Ubicación: ${b.city}, ${b.state}, ${b.country}
 Descripción corta: ${b.shortDescription}
 Descripción: ${b.fullDescription}

@@ -23,6 +23,11 @@
       },
       {
         "critical": false,
+        "id": "businessModel",
+        "label": "A quién le vendés"
+      },
+      {
+        "critical": false,
         "id": "businessStage",
         "label": "Tipo de organización"
       },
@@ -177,6 +182,7 @@
         "industry",
         "subcategory",
         "businessType",
+        "businessModel",
         "businessStage",
         "yearFounded",
         "employees",
@@ -218,6 +224,7 @@
     },
     "manual": {
       "1": [
+        "businessModel",
         "businessStage",
         "yearFounded",
         "employees",

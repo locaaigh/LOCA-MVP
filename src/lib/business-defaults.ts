@@ -38,7 +38,7 @@ export function emptyBusiness(userId: string): Business {
     industry: "",
     subcategory: "",
     businessType: "",
-    businessModel: "B2C",
+    businessModel: undefined,
     yearFounded: "",
     employees: "",
     country: "",

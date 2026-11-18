@@ -40,6 +40,14 @@
     "why": "Eva adapta el contenido a local físico, online o servicios."
   },
   {
+    "critical": false,
+    "id": "businessModel",
+    "label": "A quién le vendés",
+    "placeholder": null,
+    "required": true,
+    "why": "B2B o B2C cambia el tono, los argumentos y a quién le habla cada pieza."
+  },
+  {
     "critical": true,
     "id": "country",
     "label": "País o mercado principal",

@@ -5,7 +5,7 @@ import { Badge, Button, Card, SectionLabel } from "@/components/ui";
 import { PlatformLogo } from "@/components/platform-logo";
 import { missingCriticalQuestions, missingRequiredLabels } from "@/lib/business-questions";
 import { SUMMARY_KEY_OF_SECTION, type SummarySectionKey } from "@/lib/onboarding/sections";
-import { BUSINESS_STAGES } from "@/lib/constants";
+import { BUSINESS_MODELS, BUSINESS_STAGES } from "@/lib/constants";
 import type { Business } from "@/lib/types";
 import {
   ShoppingBag,
@@ -128,8 +128,10 @@ export function OnboardingSummary({
             // Datos del negocio completados a mano: tienen que VERSE acá,
             // si no el usuario siente que se perdieron.
             const stage = BUSINESS_STAGES.find((s) => s.value === b.businessStage)?.label;
+            const model = BUSINESS_MODELS.find((m) => m.value === b.businessModel)?.label;
             const bits = [
               stage,
+              model,
               b.yearFounded && `desde ${b.yearFounded}`,
               b.employees && (/solo/i.test(b.employees) ? "Solo yo" : `${b.employees} empleados`),
               [b.city, b.state, b.country].filter(Boolean).join(", "),
