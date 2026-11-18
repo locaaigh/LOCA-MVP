@@ -6,23 +6,9 @@ import { ChannelSelector } from "@/components/channel-selector";
 import { SearchableCountrySelect, SearchableRegionSelect } from "@/components/inputs";
 import type { BusinessQuestion, QSection } from "@/lib/business-questions";
 import type { Business } from "@/lib/types";
-import type { SummarySectionKey } from "@/components/onboarding-summary";
+import { SUMMARY_KEY_OF_SECTION, type SummarySectionKey } from "@/lib/onboarding/sections";
 import { Check, Package, Sparkles, ArrowRight, Wand2, PencilLine } from "lucide-react";
 
-// QSection → clave de sección editable del resumen (para "Editar sección completa").
-export const SECTION_MAP: Record<QSection, SummarySectionKey> = {
-  basicos: "basicos",
-  productos: "productos",
-  audiencia: "audiencia",
-  propuesta: "propuesta",
-  canales: "canales",
-  objetivos: "objetivos",
-  brandkit: "brandkit",
-  agenda: "canales",
-  fechas: "canales",
-  restricciones: "keywords",
-  necesidades: "comerciales",
-};
 
 // Asistente enfocado: una pregunta/campo por vez ("1 de N").
 export function PendingFlow({
@@ -144,7 +130,7 @@ export function PendingFlow({
               Este dato se completa en la sección <strong>{current.label}</strong> del formulario.
             </p>
             {onEditSection && (
-              <Button className="mt-3" onClick={() => onEditSection(SECTION_MAP[current.section])}>
+              <Button className="mt-3" onClick={() => onEditSection(SUMMARY_KEY_OF_SECTION[current.section])}>
                 <PencilLine className="h-4 w-4" /> Completar sección
               </Button>
             )}
@@ -211,7 +197,7 @@ export function PendingFlow({
             </Button>
           )}
           {onEditSection && !isProducts && (
-            <Button variant="ghost" size="sm" onClick={() => onEditSection(SECTION_MAP[current.section])}>
+            <Button variant="ghost" size="sm" onClick={() => onEditSection(SUMMARY_KEY_OF_SECTION[current.section])}>
               <PencilLine className="h-3.5 w-3.5" /> Editar sección completa
             </Button>
           )}

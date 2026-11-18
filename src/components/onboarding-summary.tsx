@@ -3,7 +3,8 @@
 import * as React from "react";
 import { Badge, Button, Card, SectionLabel } from "@/components/ui";
 import { PlatformLogo } from "@/components/platform-logo";
-import { missingRequiredLabels } from "@/lib/business-questions";
+import { missingCriticalQuestions, missingRequiredLabels } from "@/lib/business-questions";
+import { SUMMARY_KEY_OF_SECTION, type SummarySectionKey } from "@/lib/onboarding/sections";
 import { BUSINESS_STAGES } from "@/lib/constants";
 import type { Business } from "@/lib/types";
 import {
@@ -24,16 +25,9 @@ import {
   Check,
 } from "lucide-react";
 
-export type SummarySectionKey =
-  | "basicos"
-  | "productos"
-  | "audiencia"
-  | "propuesta"
-  | "canales"
-  | "objetivos"
-  | "brandkit"
-  | "comerciales"
-  | "keywords";
+// La clave de sección vive en lib (la usan pendientes y el resumen); se
+// re-exporta para no romper imports existentes.
+export type { SummarySectionKey };
 
 // Datos que faltan para confirmar: TODOS los obligatorios (lo que el admin
 // tiene en ON), no solo los críticos. Así "obligatorio" obliga también acá.
@@ -75,11 +69,13 @@ export function OnboardingSummary({
   const contact = bi?.contactInfo;
   const hasContact = contact && (contact.whatsapp || contact.email || contact.phone || contact.address);
 
-  // Faltantes obligatorios por sección (para resaltar en rojo)
+  // Secciones con algún CRÍTICO faltante (se marcan en rojo). Sale del
+  // registro: nada de repetir acá qué campo es crítico.
+  const critSections = new Set(missingCriticalQuestions(b).map((q) => SUMMARY_KEY_OF_SECTION[q.section]));
   const miss = {
-    basicos: !b.name?.trim() || !b.industry || !b.shortDescription?.trim(),
-    propuesta: !b.competitiveAdvantages?.length,
-    objetivos: !b.goals?.primaryContentGoal,
+    basicos: critSections.has("basicos"),
+    propuesta: critSections.has("propuesta"),
+    objetivos: critSections.has("objetivos"),
   };
 
   return (
