@@ -150,6 +150,30 @@ export async function listConnections(
 }
 
 /**
+ * Cambia la cuenta destino (página) de una conexión existente sin tocar los
+ * tokens. LinkedIn: el usuario administra varias páginas y elige en Settings.
+ */
+export async function updateConnectionAccount(
+  userId: string,
+  businessId: string,
+  provider: ConnectionProvider,
+  account: { accountId: string; accountName: string }
+): Promise<void> {
+  const admin = getSupabaseAdmin();
+  const { error } = await admin
+    .from(TABLE)
+    .update({
+      account_id: account.accountId,
+      account_name: account.accountName,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId)
+    .eq("business_id", businessId)
+    .eq("provider", provider);
+  if (error) throw new Error(`Error actualizando cuenta ${provider}: ${error.message}`);
+}
+
+/**
  * Marca como revocadas las conexiones de un usuario de la plataforma
  * (webhook de deauthorize). Llega el id en la plataforma, sin negocio.
  */

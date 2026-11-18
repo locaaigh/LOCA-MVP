@@ -24,6 +24,7 @@ export const SERVER_EVENTS = [
   "instagram_deauthorized",
   "linkedin_connected",
   "linkedin_disconnected",
+  "linkedin_page_changed",
   "content_published",
   "content_publish_failed",
   "website_extracted",
