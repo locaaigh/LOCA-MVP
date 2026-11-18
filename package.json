@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:onboarding": "tsx scripts/onboarding/model-tests.ts",
+    "test:onboarding:update": "tsx scripts/onboarding/model-tests.ts --update"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.109.0",

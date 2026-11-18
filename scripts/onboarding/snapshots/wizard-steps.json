@@ -1,0 +1,315 @@
+{
+  "byStep": {
+    "1": [
+      {
+        "critical": true,
+        "id": "name",
+        "label": "Nombre de la empresa"
+      },
+      {
+        "critical": true,
+        "id": "industry",
+        "label": "Industria"
+      },
+      {
+        "critical": true,
+        "id": "subcategory",
+        "label": "Subcategoría"
+      },
+      {
+        "critical": true,
+        "id": "businessType",
+        "label": "Tipo de negocio"
+      },
+      {
+        "critical": false,
+        "id": "businessStage",
+        "label": "Tipo de organización"
+      },
+      {
+        "critical": false,
+        "id": "yearFounded",
+        "label": "Año de fundación"
+      },
+      {
+        "critical": false,
+        "id": "employees",
+        "label": "Cantidad de empleados"
+      },
+      {
+        "critical": true,
+        "id": "country",
+        "label": "País"
+      },
+      {
+        "critical": false,
+        "id": "state",
+        "label": "Provincia / Estado"
+      },
+      {
+        "critical": false,
+        "id": "city",
+        "label": "Ciudad"
+      }
+    ],
+    "2": [
+      {
+        "critical": true,
+        "id": "shortDescription",
+        "label": "Descripción corta"
+      },
+      {
+        "critical": false,
+        "id": "fullDescription",
+        "label": "Descripción completa"
+      },
+      {
+        "critical": false,
+        "id": "values",
+        "label": "Valores de marca"
+      },
+      {
+        "critical": true,
+        "id": "competitiveAdvantages",
+        "label": "Ventaja competitiva"
+      },
+      {
+        "critical": true,
+        "id": "marketingChannels",
+        "label": "Canales actuales"
+      }
+    ],
+    "3": [
+      {
+        "critical": false,
+        "id": "bk_color",
+        "label": "Un color de marca"
+      },
+      {
+        "critical": false,
+        "id": "bk_font",
+        "label": "Una tipografía (títulos o texto)"
+      },
+      {
+        "critical": true,
+        "id": "bk_tone",
+        "label": "Tono o estilo de marca"
+      },
+      {
+        "critical": false,
+        "id": "personPhotos",
+        "label": "Al menos una foto tuya"
+      }
+    ],
+    "4": [
+      {
+        "critical": true,
+        "id": "products",
+        "label": "Al menos un producto o servicio guardado"
+      }
+    ],
+    "5": [
+      {
+        "critical": true,
+        "id": "ageRanges",
+        "label": "Rango de edad"
+      },
+      {
+        "critical": false,
+        "id": "locations",
+        "label": "Ubicaciones objetivo"
+      },
+      {
+        "critical": false,
+        "id": "painPoints",
+        "label": "Qué problema le resolvés"
+      },
+      {
+        "critical": false,
+        "id": "behavior",
+        "label": "Comportamiento del cliente"
+      },
+      {
+        "critical": false,
+        "id": "segments",
+        "label": "Segmentos de audiencia"
+      }
+    ],
+    "6": [
+      {
+        "critical": true,
+        "id": "primaryContentGoal",
+        "label": "Objetivo principal"
+      },
+      {
+        "critical": false,
+        "id": "businessObjectives",
+        "label": "Objetivos de negocio"
+      },
+      {
+        "critical": false,
+        "id": "successMetrics",
+        "label": "Métricas de éxito"
+      },
+      {
+        "critical": false,
+        "id": "marketingObjectives",
+        "label": "Objetivos de marketing"
+      },
+      {
+        "critical": false,
+        "id": "timeline",
+        "label": "Plazo (timeline)"
+      }
+    ],
+    "7": [
+      {
+        "critical": false,
+        "id": "publishChannels",
+        "label": "Al menos una cuenta donde publicar"
+      }
+    ]
+  },
+  "missingByFlow": {
+    "empty": {
+      "1": [
+        "name",
+        "industry",
+        "subcategory",
+        "businessType",
+        "businessStage",
+        "yearFounded",
+        "employees",
+        "country",
+        "state",
+        "city"
+      ],
+      "2": [
+        "shortDescription",
+        "fullDescription",
+        "values",
+        "competitiveAdvantages",
+        "marketingChannels"
+      ],
+      "3": [
+        "bk_color",
+        "bk_font",
+        "bk_tone"
+      ],
+      "4": [
+        "products"
+      ],
+      "5": [
+        "ageRanges",
+        "locations",
+        "painPoints",
+        "behavior",
+        "segments"
+      ],
+      "6": [
+        "businessObjectives",
+        "successMetrics",
+        "marketingObjectives",
+        "timeline"
+      ],
+      "7": [
+        "publishChannels"
+      ]
+    },
+    "manual": {
+      "1": [
+        "businessStage",
+        "yearFounded",
+        "employees",
+        "state",
+        "city"
+      ],
+      "2": [
+        "fullDescription",
+        "values"
+      ],
+      "3": [
+        "bk_color",
+        "bk_font",
+        "bk_tone"
+      ],
+      "4": [
+        "products"
+      ],
+      "5": [
+        "locations",
+        "painPoints",
+        "behavior",
+        "segments"
+      ],
+      "6": [
+        "businessObjectives",
+        "successMetrics",
+        "marketingObjectives",
+        "timeline"
+      ],
+      "7": [
+        "publishChannels"
+      ]
+    },
+    "md": {
+      "1": [
+        "businessStage",
+        "yearFounded",
+        "employees",
+        "state"
+      ],
+      "2": [
+        "fullDescription"
+      ],
+      "3": [
+        "bk_color",
+        "bk_font"
+      ],
+      "4": [],
+      "5": [
+        "locations",
+        "behavior"
+      ],
+      "6": [
+        "primaryContentGoal",
+        "businessObjectives",
+        "successMetrics",
+        "marketingObjectives",
+        "timeline"
+      ],
+      "7": [
+        "publishChannels"
+      ]
+    },
+    "web": {
+      "1": [
+        "businessStage",
+        "yearFounded",
+        "employees"
+      ],
+      "2": [],
+      "3": [],
+      "4": [
+        "products",
+        "products",
+        "products",
+        "products",
+        "products",
+        "products"
+      ],
+      "5": [
+        "locations"
+      ],
+      "6": [
+        "businessObjectives",
+        "successMetrics",
+        "marketingObjectives",
+        "timeline"
+      ],
+      "7": [
+        "publishChannels"
+      ]
+    }
+  }
+}

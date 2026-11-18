@@ -1,0 +1,497 @@
+{
+  "audience": {
+    "ageRanges": [
+      "18-24",
+      "25-34",
+      "35-44"
+    ],
+    "behavior": "Toman mate a diario y en ronda, compran yerba seguido y valoran comprar por pack online con envío a domicilio. Siguen marcas en Instagram y TikTok y responden a combos y promociones.",
+    "gender": "Mixto",
+    "locationLogic": "ciudad",
+    "locations": [],
+    "painPoints": [
+      "Yerbas con mucho polvo y palo que tapan la bombilla",
+      "Mate que se lava enseguida y no dura la ronda",
+      "Sabor demasiado fuerte o amargo",
+      "Envases poco sustentables"
+    ],
+    "segments": [
+      "Materos de todos los días que prefieren yerba tradicional sin agregados",
+      "Jóvenes que eligen marcas con diseño e identidad propia",
+      "Personas que quieren armar o renovar su equipo matero completo",
+      "Gente que busca un regalo matero con marca"
+    ],
+    "socioeconomicLevel": "Medio a medio-alto"
+  },
+  "brandColors": [
+    "#ec4899",
+    "#84cc16",
+    "#ffffff"
+  ],
+  "brandKit": {
+    "avoidList": [],
+    "brandKeywords": [
+      "yerba mate",
+      "completá la ronda",
+      "ruido de mate",
+      "sabor suave y duradero",
+      "estacionamiento natural",
+      "envasada en origen",
+      "Misiones",
+      "menos polvo y menos palo",
+      "sustentable"
+    ],
+    "colors": {
+      "accent": "#71b5dc",
+      "background": "#ffffff",
+      "distribution": "Predomina: negro #000000 ~51%, blanco #ffffff ~23% · acentos puntuales: verde #008c44 ~3%, rojo #e2231d ~2%, azul #71b5dc ~2%",
+      "palette": [
+        {
+          "confidence": "high",
+          "hex": "#008c44",
+          "name": "Color principal",
+          "role": "primary",
+          "source": "detected"
+        },
+        {
+          "confidence": "low",
+          "hex": "#e2231d",
+          "name": "Color secundario",
+          "role": "secondary",
+          "source": "detected"
+        },
+        {
+          "confidence": "low",
+          "hex": "#71b5dc",
+          "name": "Color de acento",
+          "role": "accent",
+          "source": "detected"
+        },
+        {
+          "confidence": "medium",
+          "hex": "#ffffff",
+          "name": "Fondo",
+          "role": "background",
+          "source": "detected"
+        },
+        {
+          "confidence": "medium",
+          "hex": "#000000",
+          "name": "Texto",
+          "role": "text",
+          "source": "detected"
+        }
+      ],
+      "primary": "#008c44",
+      "secondary": "#e2231d",
+      "text": "#000000"
+    },
+    "logos": [
+      {
+        "id": "logo_det_0",
+        "selected": true,
+        "source": "detected",
+        "type": "primary",
+        "url": "https://acdn-us.mitiendanube.com/stores/023/777/themes/common/logo-521425245-1755714973-9b0ebecc9b3a7ce292c1e9b1692784c41755714973-320-0.webp"
+      },
+      {
+        "id": "logo_det_1",
+        "selected": false,
+        "source": "detected",
+        "type": "primary",
+        "url": "https://acdn-us.mitiendanube.com/stores/023/777/themes/morelia/img-1099751952-1725033502-54e17cb3a176a97b0b1e4f678f28c23f1725033502.png?4827654856957783733"
+      },
+      {
+        "id": "logo_det_2",
+        "selected": false,
+        "source": "detected",
+        "type": "primary",
+        "url": "https://acdn-us.mitiendanube.com/assets/themes/morelia/static/images/empty-placeholder.png"
+      }
+    ],
+    "typography": {
+      "body": {
+        "confidence": "low",
+        "family": "Interstate",
+        "source": "detected"
+      },
+      "heading": {
+        "confidence": "medium",
+        "family": "Graphik",
+        "source": "detected"
+      }
+    },
+    "visualStyle": {
+      "designNotes": "La marca le da mucho peso al diseño del envase (\"diseño de impacto\") y tiene una línea de accesorios con identidad propia: conviene que el paquete y el set matero aparezcan juntos para reforzar la idea de \"completar la ronda\".",
+      "imageStyle": "Fotos de producto del paquete y los accesorios de la marca en escenas reales de ronda de mate: amigos compartiendo, momentos al aire libre y escenas de día a día, con luz natural y energía.",
+      "mood": [
+        "moderno",
+        "vibrante",
+        "urbano",
+        "cálido"
+      ]
+    },
+    "voiceTone": {
+      "formality": "informal",
+      "toneTags": [
+        "cercana",
+        "enérgica",
+        "argentina",
+        "descontracturada",
+        "compañera"
+      ]
+    }
+  },
+  "businessInfoImportSource": "manual",
+  "businessIntelligence": {
+    "analysisConfidence": 0.95,
+    "contactInfo": {
+      "email": "nuvempago@2x.png"
+    },
+    "conversionPaths": {
+      "hasContactForm": true,
+      "hasEcommerce": true,
+      "hasPhysicalStore": true,
+      "hasReservations": false,
+      "hasWhatsappSales": true
+    },
+    "primaryConversion": {
+      "confidence": "medium",
+      "source": "suggested",
+      "type": "Compra ecommerce"
+    },
+    "recommendedGoal": {
+      "confidence": "medium",
+      "goal": "Dar a conocer la yerba Mateando y conseguir primeras compras online",
+      "reason": "La web presenta a Mateando como una marca nueva que \"llega para conquistar\" a los materos tradicionales. El primer paso es que la gente la pruebe: el combo de yerba es la puerta de entrada más accesible, y los accesorios aparecen como venta complementaria una vez que la marca gana confianza.",
+      "source": "suggested"
+    },
+    "socialLinks": [
+      {
+        "confidence": "high",
+        "platform": "Instagram",
+        "source": "detected",
+        "url": "https://www.instagram.com/mateandoyerba?igsh=MmI2N29ubGx3azF3"
+      },
+      {
+        "confidence": "high",
+        "platform": "TikTok",
+        "source": "detected",
+        "url": "https://www.tiktok.com/@yerbamatecbse"
+      },
+      {
+        "confidence": "high",
+        "platform": "Facebook",
+        "source": "detected",
+        "url": "http://www.facebook.com/2008/fbml"
+      },
+      {
+        "confidence": "high",
+        "platform": "X",
+        "source": "detected",
+        "url": "https://www.twitter.com/yerbamatecbse"
+      },
+      {
+        "confidence": "high",
+        "platform": "YouTube",
+        "source": "detected",
+        "url": "https://www.youtube.com/@YerbaMateCBSe"
+      }
+    ],
+    "valuePropositions": [
+      {
+        "confidence": "medium",
+        "source": "suggested",
+        "text": "Sabor suave que dura toda la ronda, gracias al estacionamiento natural"
+      },
+      {
+        "confidence": "medium",
+        "source": "suggested",
+        "text": "Menos polvo y menos palo, para un mate más limpio"
+      },
+      {
+        "confidence": "medium",
+        "source": "suggested",
+        "text": "Yerba envasada en origen en Misiones, con el respaldo de CBSé"
+      },
+      {
+        "confidence": "medium",
+        "source": "suggested",
+        "text": "Envase 100% sustentable"
+      },
+      {
+        "confidence": "medium",
+        "source": "suggested",
+        "text": "Todo el set matero de la misma marca, con envío a todo el país"
+      }
+    ]
+  },
+  "businessModel": "B2C",
+  "businessType": "Online",
+  "city": "Buenos Aires",
+  "competitiveAdvantages": [
+    "Producida y envasada en origen, en Santa Ana, Misiones",
+    "Estacionamiento natural que da un sabor suave y duradero",
+    "Molienda gruesa con menos polvo y menos palo",
+    "Envase 100% sustentable con un diseño que llama la atención",
+    "Respaldo de CBSé, una yerbatera con trayectoria",
+    "Línea propia de accesorios (mate, bombilla, termo, bolso) para completar el set",
+    "Envíos a todo el país y retiro gratis en Palermo"
+  ],
+  "country": "Argentina",
+  "employees": "",
+  "fieldStatuses": {
+    "audience": {
+      "confidence": "low",
+      "source": "eva",
+      "status": "suggested"
+    },
+    "businessModel": {
+      "confidence": "high",
+      "source": "eva",
+      "status": "suggested"
+    },
+    "businessType": {
+      "confidence": "medium",
+      "source": "eva",
+      "status": "suggested"
+    },
+    "city": {
+      "confidence": "medium",
+      "source": "eva",
+      "status": "suggested"
+    },
+    "competitiveAdvantages": {
+      "confidence": "medium",
+      "source": "eva",
+      "status": "suggested"
+    },
+    "country": {
+      "confidence": "medium",
+      "source": "eva",
+      "status": "suggested"
+    },
+    "fullDescription": {
+      "confidence": "medium",
+      "source": "eva",
+      "status": "suggested"
+    },
+    "goals": {
+      "status": "missing"
+    },
+    "industry": {
+      "confidence": "high",
+      "options": [
+        "Food & Beverage",
+        "Agriculture & Natural Products",
+        "E-commerce / Online Stores",
+        "Retail & Local Stores"
+      ],
+      "source": "eva",
+      "status": "suggested"
+    },
+    "marketingActivities": {
+      "confidence": "medium",
+      "source": "eva",
+      "status": "suggested"
+    },
+    "marketingChannels": {
+      "confidence": "high",
+      "source": "website",
+      "status": "found"
+    },
+    "name": {
+      "confidence": "high",
+      "source": "website",
+      "status": "found"
+    },
+    "productsServices": {
+      "confidence": "medium",
+      "source": "eva",
+      "status": "suggested"
+    },
+    "seasonalityTags": {
+      "status": "missing"
+    },
+    "shortDescription": {
+      "confidence": "high",
+      "source": "eva",
+      "status": "suggested"
+    },
+    "specialDates": {
+      "status": "missing"
+    },
+    "state": {
+      "confidence": "medium",
+      "source": "eva",
+      "status": "suggested"
+    },
+    "subcategory": {
+      "confidence": "high",
+      "source": "eva",
+      "status": "suggested"
+    },
+    "values": {
+      "confidence": "medium",
+      "source": "eva",
+      "status": "suggested"
+    },
+    "websiteUrl": {
+      "confidence": "high",
+      "source": "website",
+      "status": "found"
+    }
+  },
+  "fullDescription": "Mateando es la primera yerba mate de CBSé envasada en origen, producida en Santa Ana, Misiones, con estacionamiento natural y molienda gruesa con poco polvo y palo, para un sabor suave y que dura. Se vende a través de una tienda online con envíos a todo el país y retiro gratis en Palermo (CABA). La línea se completa con accesorios materos de la marca para armar la ronda completa.",
+  "goals": {
+    "businessObjectives": "",
+    "marketingObjectives": "",
+    "primaryContentGoal": "visibilidad",
+    "successMetrics": [],
+    "timeline": ""
+  },
+  "industry": "Food & Beverage",
+  "marketingActivities": [
+    "Instagram (@mateandoyerba)",
+    "TikTok",
+    "Facebook",
+    "X",
+    "YouTube",
+    "Newsletter con promociones y novedades exclusivas",
+    "Combos de yerba con límite por usuario",
+    "Campaña de marca \"Completá la ronda\" / \"Hagamos ruido de mate\""
+  ],
+  "marketingChannels": [
+    "Instagram",
+    "TikTok",
+    "Facebook",
+    "X",
+    "YouTube"
+  ],
+  "marketingStrategy": "",
+  "name": "Mateando",
+  "onboardingComplete": false,
+  "productsServices": [
+    {
+      "category": "Yerbas",
+      "confidence": "medium",
+      "currency": "ARS",
+      "features": [],
+      "imageCaption": "",
+      "importSource": "suggested",
+      "isTopSeller": true,
+      "keywords": [],
+      "longDescription": "",
+      "name": "Yerba Mateando 500 g (combo)",
+      "negativeKeywords": [],
+      "priceMin": 11400,
+      "pricingType": "fijo",
+      "saved": true,
+      "shortDescription": "Yerba mate 100% de molienda gruesa y estacionamiento natural, en paquetes de 500 g. Se vende en combo, con un máximo de 4 por usuario. La web muestra datos que no coinciden sobre la cantidad del combo (x6 y x2 unidades): conviene confirmarlo.",
+      "shouldReview": true,
+      "subcategory": "",
+      "type": "producto",
+      "variants": []
+    },
+    {
+      "category": "Accesorios - Mates",
+      "confidence": "medium",
+      "currency": "ARS",
+      "features": [],
+      "imageCaption": "",
+      "importSource": "suggested",
+      "isTopSeller": false,
+      "keywords": [],
+      "longDescription": "",
+      "name": "Mate Mateando",
+      "negativeKeywords": [],
+      "priceMin": 24500,
+      "pricingType": "fijo",
+      "saved": true,
+      "shortDescription": "Mate con la identidad de la marca, pensado para acompañar la yerba Mateando.",
+      "shouldReview": true,
+      "subcategory": "",
+      "type": "producto",
+      "variants": []
+    },
+    {
+      "category": "Accesorios - Bombillas",
+      "confidence": "medium",
+      "currency": "ARS",
+      "features": [],
+      "imageCaption": "",
+      "importSource": "suggested",
+      "isTopSeller": false,
+      "keywords": [],
+      "longDescription": "",
+      "name": "Bombilla Mateando",
+      "negativeKeywords": [],
+      "priceMin": 10000,
+      "pricingType": "fijo",
+      "saved": true,
+      "shortDescription": "Bombilla de la marca para completar el set matero.",
+      "shouldReview": true,
+      "subcategory": "",
+      "type": "producto",
+      "variants": []
+    },
+    {
+      "category": "Accesorios - Termos",
+      "confidence": "medium",
+      "currency": "ARS",
+      "features": [],
+      "imageCaption": "",
+      "importSource": "suggested",
+      "isTopSeller": false,
+      "keywords": [],
+      "longDescription": "",
+      "name": "Termo Acero Mateando",
+      "negativeKeywords": [],
+      "priceMin": 85000,
+      "pricingType": "fijo",
+      "saved": true,
+      "shortDescription": "Termo de acero con la marca Mateando.",
+      "shouldReview": true,
+      "subcategory": "",
+      "type": "producto",
+      "variants": []
+    },
+    {
+      "category": "Accesorios - Bolsos",
+      "confidence": "medium",
+      "currency": "ARS",
+      "features": [],
+      "imageCaption": "",
+      "importSource": "suggested",
+      "isTopSeller": false,
+      "keywords": [],
+      "longDescription": "",
+      "name": "Bolso Matero Mateando",
+      "negativeKeywords": [],
+      "priceMin": 80000,
+      "pricingType": "fijo",
+      "saved": true,
+      "shortDescription": "Bolso matero de la marca para llevar todo el equipo encima.",
+      "shouldReview": true,
+      "subcategory": "",
+      "type": "producto",
+      "variants": []
+    }
+  ],
+  "seasonality": "",
+  "seasonalityTags": [],
+  "shortDescription": "Mateando es una yerba mate 100% de CBSé, envasada en origen en Misiones, que se vende online junto con mates, bombillas, termos y bolsos de la marca.",
+  "specialDates": [],
+  "state": "Ciudad Autónoma de Buenos Aires",
+  "subcategory": "Marca de yerba mate y accesorios materos con tienda online",
+  "values": [
+    "Calidad cuidada desde el origen",
+    "Respeto por el mate tradicional",
+    "Sustentabilidad en el envase",
+    "El mate como algo para compartir"
+  ],
+  "websiteExtractionConsent": true,
+  "websiteExtractionStatus": "done",
+  "websiteUrl": "https://mateando.com.ar",
+  "yearFounded": ""
+}

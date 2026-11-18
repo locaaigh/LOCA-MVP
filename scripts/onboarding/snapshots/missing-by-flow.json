@@ -1,0 +1,581 @@
+{
+  "empty": {
+    "completion": 6,
+    "critical": [
+      "name",
+      "industry",
+      "subcategory",
+      "businessType",
+      "country",
+      "shortDescription",
+      "products",
+      "audience",
+      "competitiveAdvantages",
+      "marketingChannels",
+      "toneTags"
+    ],
+    "isMissing": {
+      "audience": true,
+      "avoidList": true,
+      "behavior": true,
+      "bk_color": true,
+      "bk_font": true,
+      "businessObjectives": true,
+      "businessStage": true,
+      "businessType": true,
+      "city": true,
+      "communicationNeeds": true,
+      "competitiveAdvantages": true,
+      "country": true,
+      "employees": true,
+      "fullDescription": true,
+      "industry": true,
+      "locations": true,
+      "marketingActivities": true,
+      "marketingChannels": true,
+      "marketingObjectives": true,
+      "name": true,
+      "painPoints": true,
+      "personPhotos": false,
+      "primaryContentGoal": false,
+      "products": true,
+      "publishChannels": true,
+      "seasonalityTags": true,
+      "segments": true,
+      "shortDescription": true,
+      "specialDates": true,
+      "state": true,
+      "subcategory": true,
+      "successMetrics": true,
+      "timeline": true,
+      "toneTags": true,
+      "values": true,
+      "yearFounded": true
+    },
+    "required": [
+      "name",
+      "industry",
+      "subcategory",
+      "businessType",
+      "country",
+      "shortDescription",
+      "products",
+      "audience",
+      "competitiveAdvantages",
+      "marketingChannels",
+      "toneTags",
+      "fullDescription",
+      "values",
+      "businessStage",
+      "yearFounded",
+      "employees",
+      "state",
+      "city",
+      "locations",
+      "painPoints",
+      "behavior",
+      "segments",
+      "businessObjectives",
+      "successMetrics",
+      "marketingObjectives",
+      "timeline",
+      "publishChannels",
+      "bk_color",
+      "bk_font"
+    ],
+    "sections": [
+      {
+        "key": "basicos",
+        "label": "Datos básicos",
+        "missing": 12,
+        "missingCritical": 6,
+        "total": 12
+      },
+      {
+        "key": "productos",
+        "label": "Productos y servicios",
+        "missing": 1,
+        "missingCritical": 1,
+        "total": 1
+      },
+      {
+        "key": "audiencia",
+        "label": "Audiencia",
+        "missing": 5,
+        "missingCritical": 1,
+        "total": 5
+      },
+      {
+        "key": "propuesta",
+        "label": "Propuesta de valor",
+        "missing": 2,
+        "missingCritical": 1,
+        "total": 2
+      },
+      {
+        "key": "canales",
+        "label": "Canales y objetivos",
+        "missing": 3,
+        "missingCritical": 1,
+        "total": 3
+      },
+      {
+        "key": "objetivos",
+        "label": "Objetivos",
+        "missing": 4,
+        "missingCritical": 0,
+        "total": 5
+      },
+      {
+        "key": "brandkit",
+        "label": "Brand Kit",
+        "missing": 3,
+        "missingCritical": 1,
+        "total": 4
+      },
+      {
+        "key": "agenda",
+        "label": "Agenda comercial",
+        "missing": 1,
+        "missingCritical": 0,
+        "total": 1
+      },
+      {
+        "key": "fechas",
+        "label": "Fechas importantes",
+        "missing": 1,
+        "missingCritical": 0,
+        "total": 1
+      },
+      {
+        "key": "restricciones",
+        "label": "Restricciones y a evitar",
+        "missing": 1,
+        "missingCritical": 0,
+        "total": 1
+      },
+      {
+        "key": "necesidades",
+        "label": "Necesidades a comunicar",
+        "missing": 1,
+        "missingCritical": 0,
+        "total": 1
+      }
+    ]
+  },
+  "manual": {
+    "completion": 31,
+    "critical": [
+      "products",
+      "toneTags"
+    ],
+    "isMissing": {
+      "audience": false,
+      "avoidList": true,
+      "behavior": true,
+      "bk_color": true,
+      "bk_font": true,
+      "businessObjectives": true,
+      "businessStage": true,
+      "businessType": false,
+      "city": true,
+      "communicationNeeds": true,
+      "competitiveAdvantages": false,
+      "country": false,
+      "employees": true,
+      "fullDescription": true,
+      "industry": false,
+      "locations": true,
+      "marketingActivities": true,
+      "marketingChannels": false,
+      "marketingObjectives": true,
+      "name": false,
+      "painPoints": true,
+      "personPhotos": false,
+      "primaryContentGoal": false,
+      "products": true,
+      "publishChannels": true,
+      "seasonalityTags": true,
+      "segments": true,
+      "shortDescription": false,
+      "specialDates": true,
+      "state": true,
+      "subcategory": false,
+      "successMetrics": true,
+      "timeline": true,
+      "toneTags": true,
+      "values": true,
+      "yearFounded": true
+    },
+    "required": [
+      "products",
+      "toneTags",
+      "fullDescription",
+      "values",
+      "businessStage",
+      "yearFounded",
+      "employees",
+      "state",
+      "city",
+      "locations",
+      "painPoints",
+      "behavior",
+      "segments",
+      "businessObjectives",
+      "successMetrics",
+      "marketingObjectives",
+      "timeline",
+      "publishChannels",
+      "bk_color",
+      "bk_font"
+    ],
+    "sections": [
+      {
+        "key": "basicos",
+        "label": "Datos básicos",
+        "missing": 6,
+        "missingCritical": 0,
+        "total": 12
+      },
+      {
+        "key": "productos",
+        "label": "Productos y servicios",
+        "missing": 1,
+        "missingCritical": 1,
+        "total": 1
+      },
+      {
+        "key": "audiencia",
+        "label": "Audiencia",
+        "missing": 4,
+        "missingCritical": 0,
+        "total": 5
+      },
+      {
+        "key": "propuesta",
+        "label": "Propuesta de valor",
+        "missing": 1,
+        "missingCritical": 0,
+        "total": 2
+      },
+      {
+        "key": "canales",
+        "label": "Canales y objetivos",
+        "missing": 2,
+        "missingCritical": 0,
+        "total": 3
+      },
+      {
+        "key": "objetivos",
+        "label": "Objetivos",
+        "missing": 4,
+        "missingCritical": 0,
+        "total": 5
+      },
+      {
+        "key": "brandkit",
+        "label": "Brand Kit",
+        "missing": 3,
+        "missingCritical": 1,
+        "total": 4
+      },
+      {
+        "key": "agenda",
+        "label": "Agenda comercial",
+        "missing": 1,
+        "missingCritical": 0,
+        "total": 1
+      },
+      {
+        "key": "fechas",
+        "label": "Fechas importantes",
+        "missing": 1,
+        "missingCritical": 0,
+        "total": 1
+      },
+      {
+        "key": "restricciones",
+        "label": "Restricciones y a evitar",
+        "missing": 1,
+        "missingCritical": 0,
+        "total": 1
+      },
+      {
+        "key": "necesidades",
+        "label": "Necesidades a comunicar",
+        "missing": 1,
+        "missingCritical": 0,
+        "total": 1
+      }
+    ]
+  },
+  "md": {
+    "completion": 56,
+    "critical": [],
+    "isMissing": {
+      "audience": false,
+      "avoidList": false,
+      "behavior": true,
+      "bk_color": true,
+      "bk_font": true,
+      "businessObjectives": true,
+      "businessStage": true,
+      "businessType": false,
+      "city": false,
+      "communicationNeeds": true,
+      "competitiveAdvantages": false,
+      "country": false,
+      "employees": true,
+      "fullDescription": true,
+      "industry": false,
+      "locations": true,
+      "marketingActivities": false,
+      "marketingChannels": false,
+      "marketingObjectives": true,
+      "name": false,
+      "painPoints": false,
+      "personPhotos": false,
+      "primaryContentGoal": false,
+      "products": false,
+      "publishChannels": true,
+      "seasonalityTags": false,
+      "segments": false,
+      "shortDescription": false,
+      "specialDates": true,
+      "state": true,
+      "subcategory": false,
+      "successMetrics": true,
+      "timeline": true,
+      "toneTags": false,
+      "values": false,
+      "yearFounded": true
+    },
+    "required": [
+      "fullDescription",
+      "businessStage",
+      "yearFounded",
+      "employees",
+      "state",
+      "locations",
+      "behavior",
+      "businessObjectives",
+      "successMetrics",
+      "marketingObjectives",
+      "timeline",
+      "publishChannels",
+      "bk_color",
+      "bk_font"
+    ],
+    "sections": [
+      {
+        "key": "basicos",
+        "label": "Datos básicos",
+        "missing": 5,
+        "missingCritical": 0,
+        "total": 12
+      },
+      {
+        "key": "productos",
+        "label": "Productos y servicios",
+        "missing": 0,
+        "missingCritical": 0,
+        "total": 1
+      },
+      {
+        "key": "audiencia",
+        "label": "Audiencia",
+        "missing": 2,
+        "missingCritical": 0,
+        "total": 5
+      },
+      {
+        "key": "propuesta",
+        "label": "Propuesta de valor",
+        "missing": 0,
+        "missingCritical": 0,
+        "total": 2
+      },
+      {
+        "key": "canales",
+        "label": "Canales y objetivos",
+        "missing": 1,
+        "missingCritical": 0,
+        "total": 3
+      },
+      {
+        "key": "objetivos",
+        "label": "Objetivos",
+        "missing": 4,
+        "missingCritical": 0,
+        "total": 5
+      },
+      {
+        "key": "brandkit",
+        "label": "Brand Kit",
+        "missing": 2,
+        "missingCritical": 0,
+        "total": 4
+      },
+      {
+        "key": "agenda",
+        "label": "Agenda comercial",
+        "missing": 0,
+        "missingCritical": 0,
+        "total": 1
+      },
+      {
+        "key": "fechas",
+        "label": "Fechas importantes",
+        "missing": 1,
+        "missingCritical": 0,
+        "total": 1
+      },
+      {
+        "key": "restricciones",
+        "label": "Restricciones y a evitar",
+        "missing": 0,
+        "missingCritical": 0,
+        "total": 1
+      },
+      {
+        "key": "necesidades",
+        "label": "Necesidades a comunicar",
+        "missing": 1,
+        "missingCritical": 0,
+        "total": 1
+      }
+    ]
+  },
+  "web": {
+    "completion": 64,
+    "critical": [],
+    "isMissing": {
+      "audience": false,
+      "avoidList": true,
+      "behavior": false,
+      "bk_color": false,
+      "bk_font": false,
+      "businessObjectives": true,
+      "businessStage": true,
+      "businessType": false,
+      "city": false,
+      "communicationNeeds": true,
+      "competitiveAdvantages": false,
+      "country": false,
+      "employees": true,
+      "fullDescription": false,
+      "industry": false,
+      "locations": true,
+      "marketingActivities": false,
+      "marketingChannels": false,
+      "marketingObjectives": true,
+      "name": false,
+      "painPoints": false,
+      "personPhotos": false,
+      "primaryContentGoal": false,
+      "products": false,
+      "publishChannels": true,
+      "seasonalityTags": true,
+      "segments": false,
+      "shortDescription": false,
+      "specialDates": true,
+      "state": false,
+      "subcategory": false,
+      "successMetrics": true,
+      "timeline": true,
+      "toneTags": false,
+      "values": false,
+      "yearFounded": true
+    },
+    "required": [
+      "businessStage",
+      "yearFounded",
+      "employees",
+      "locations",
+      "businessObjectives",
+      "successMetrics",
+      "marketingObjectives",
+      "timeline",
+      "publishChannels"
+    ],
+    "sections": [
+      {
+        "key": "basicos",
+        "label": "Datos básicos",
+        "missing": 3,
+        "missingCritical": 0,
+        "total": 12
+      },
+      {
+        "key": "productos",
+        "label": "Productos y servicios",
+        "missing": 0,
+        "missingCritical": 0,
+        "total": 1
+      },
+      {
+        "key": "audiencia",
+        "label": "Audiencia",
+        "missing": 1,
+        "missingCritical": 0,
+        "total": 5
+      },
+      {
+        "key": "propuesta",
+        "label": "Propuesta de valor",
+        "missing": 0,
+        "missingCritical": 0,
+        "total": 2
+      },
+      {
+        "key": "canales",
+        "label": "Canales y objetivos",
+        "missing": 1,
+        "missingCritical": 0,
+        "total": 3
+      },
+      {
+        "key": "objetivos",
+        "label": "Objetivos",
+        "missing": 4,
+        "missingCritical": 0,
+        "total": 5
+      },
+      {
+        "key": "brandkit",
+        "label": "Brand Kit",
+        "missing": 0,
+        "missingCritical": 0,
+        "total": 4
+      },
+      {
+        "key": "agenda",
+        "label": "Agenda comercial",
+        "missing": 1,
+        "missingCritical": 0,
+        "total": 1
+      },
+      {
+        "key": "fechas",
+        "label": "Fechas importantes",
+        "missing": 1,
+        "missingCritical": 0,
+        "total": 1
+      },
+      {
+        "key": "restricciones",
+        "label": "Restricciones y a evitar",
+        "missing": 1,
+        "missingCritical": 0,
+        "total": 1
+      },
+      {
+        "key": "necesidades",
+        "label": "Necesidades a comunicar",
+        "missing": 1,
+        "missingCritical": 0,
+        "total": 1
+      }
+    ]
+  }
+}
