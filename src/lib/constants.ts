@@ -433,3 +433,46 @@ export const CURRENCIES = ["ARS", "USD", "EUR", "MXN", "CLP", "COP", "BRL"];
 export const EMPLOYEE_OPTIONS = ["Solo yo", "1-10", "11-50", "51-200", "200+"];
 export const TIMELINE_OPTIONS = ["Próximo mes", "Próximos 3 meses", "Próximos 6 meses", "Este año"];
 export const SUCCESS_METRIC_OPTIONS = ["Ventas", "Alcance", "Seguidores", "Visitas al local", "Mensajes", "Conversión"];
+
+// ── Objetivo principal de contenido (wizard + "Completá lo que falta") ──
+export const CONTENT_GOALS: { value: string; label: string; desc: string }[] = [
+  { value: "visibilidad", label: "Visibilidad", desc: "Que me conozcan más" },
+  { value: "ventas", label: "Ventas", desc: "Vender más" },
+  { value: "confianza", label: "Confianza", desc: "Que confíen en mí" },
+];
+export const CONTENT_GOAL_LABELS = CONTENT_GOALS.map((g) => g.label);
+
+// ── Tono de marca ──
+// OJO: hoy conviven DOS listas de tono con vocabulario distinto, y se
+// mantienen tal cual para no cambiar opciones visibles. Unificarlas es una
+// decisión de producto pendiente (ver PR de la Fase 2 del refactor).
+// Chips rápidos del flujo de pendientes / 1-de-N:
+export const TONE_OPTIONS_QUICK = [
+  "Cercano",
+  "Profesional",
+  "Divertido",
+  "Premium",
+  "Inspirador",
+  "Directo",
+  "Amigable",
+  "Confiable",
+  "Moderno",
+  "Elegante",
+];
+// Editor completo del brand kit:
+export const TONE_OPTIONS_BRAND_KIT = [
+  "cercana", "premium", "técnica", "divertida", "institucional", "aspiracional",
+  "directa", "emocional", "joven", "elegante", "simple", "canchera", "profesional", "artesanal",
+];
+export const AVOID_OPTIONS = [
+  "No prometer resultados garantizados",
+  "No usar lenguaje demasiado vendedor",
+  "No usar emojis",
+  "No decir “barato”",
+  "No hablar de descuentos",
+  "No usar tono informal",
+  "No usar lenguaje técnico",
+  "No sonar demasiado corporativo",
+  "No usar humor",
+  "No mencionar precios",
+];

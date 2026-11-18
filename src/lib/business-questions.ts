@@ -20,6 +20,8 @@ import {
   EMPLOYEE_OPTIONS,
   TIMELINE_OPTIONS,
   SUCCESS_METRIC_OPTIONS,
+  TONE_OPTIONS_QUICK,
+  CONTENT_GOAL_LABELS,
   seasonalityOptionsFor,
   specialDatesOptionsFor,
 } from "./constants";
@@ -82,20 +84,7 @@ export interface BusinessQuestion {
   wizard?: { domId?: string; label?: string; isMissing?: (b: Business) => boolean };
 }
 
-const TONE_OPTIONS = [
-  "Cercano",
-  "Profesional",
-  "Divertido",
-  "Premium",
-  "Inspirador",
-  "Directo",
-  "Amigable",
-  "Confiable",
-  "Moderno",
-  "Elegante",
-];
 
-const GOAL_LABELS = ["Visibilidad", "Ventas", "Confianza"];
 
 // Un string de solo espacios cuenta como vacío (misma regla que tenía el wizard).
 const empty = (v: any) =>
@@ -254,7 +243,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     label: "Objetivo principal",
     why: "Orienta toda la estrategia (vender, dar a conocer o generar confianza).",
     input: "select",
-    options: GOAL_LABELS,
+    options: CONTENT_GOAL_LABELS,
     critical: true,
     get: (b) => cap(b.goals?.primaryContentGoal || ""),
     apply: (b, v) => ({
@@ -287,7 +276,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     label: "Tono de marca",
     why: "Define cómo suena tu marca en cada texto.",
     input: "chips",
-    options: TONE_OPTIONS,
+    options: TONE_OPTIONS_QUICK,
     allowCustom: true,
     critical: true,
     canSuggest: true,

@@ -1,14 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Button, Card, ChipSelect, Input, Select, Textarea } from "@/components/ui";
-import { ChannelSelector } from "@/components/channel-selector";
-import { SearchableCountrySelect, SearchableRegionSelect } from "@/components/inputs";
-import type { BusinessQuestion, QSection } from "@/lib/business-questions";
+import { Button, Card } from "@/components/ui";
+import { QuestionField } from "@/components/question-field";
+import type { BusinessQuestion } from "@/lib/business-questions";
 import type { Business } from "@/lib/types";
 import { SUMMARY_KEY_OF_SECTION, type SummarySectionKey } from "@/lib/onboarding/sections";
-import { Check, Package, Sparkles, ArrowRight, Wand2, PencilLine } from "lucide-react";
-
+import { Check, Sparkles, ArrowRight, Wand2, PencilLine } from "lucide-react";
 
 // Asistente enfocado: una pregunta/campo por vez ("1 de N").
 export function PendingFlow({
@@ -33,12 +31,6 @@ export function PendingFlow({
   const total = questions.length;
   const current = questions[Math.min(index, Math.max(0, total - 1))];
   const [value, setValue] = React.useState<any>(() => (current ? current.get(business) : ""));
-  const currentOptions = current
-    ? typeof current.options === "function"
-      ? current.options(business)
-      : current.options || []
-    : [];
-
   const isEmpty = (v: any) =>
     v == null || (typeof v === "string" && v.trim() === "") || (Array.isArray(v) && v.length === 0);
 
@@ -110,56 +102,18 @@ export function PendingFlow({
         <p className="mt-1 text-sm text-muted-foreground">{current.why}</p>
       </div>
 
-      {/* Input según tipo */}
+      {/* Input según tipo: mismo render que "Completá lo que falta" */}
       <div className="min-h-[3rem]">
-        {isProducts ? (
-          <div className="rounded-2xl border border-dashed border-border bg-surface-subtle/60 p-5 text-center">
-            <Package className="mx-auto h-7 w-7 text-loca-500" />
-            <p className="mt-2 text-sm text-muted-foreground-2">
-              Los productos y servicios se cargan en su propio editor (con detección desde tu web, sin inventar precios).
-            </p>
-            {onEditSection && (
-              <Button className="mt-3" onClick={() => onEditSection("productos")}>
-                <Package className="h-4 w-4" /> Abrir editor de productos
-              </Button>
-            )}
-          </div>
-        ) : current.input === "section" ? (
-          <div className="rounded-2xl border border-dashed border-border bg-surface-subtle/60 p-5 text-center">
-            <p className="text-sm text-muted-foreground-2">
-              Este dato se completa en la sección <strong>{current.label}</strong> del formulario.
-            </p>
-            {onEditSection && (
-              <Button className="mt-3" onClick={() => onEditSection(SUMMARY_KEY_OF_SECTION[current.section])}>
-                <PencilLine className="h-4 w-4" /> Completar sección
-              </Button>
-            )}
-          </div>
-        ) : current.input === "country" ? (
-          <SearchableCountrySelect value={value || ""} onChange={setValue} error={error} />
-        ) : current.input === "region" ? (
-          <SearchableRegionSelect country={business.country || ""} value={value || ""} onChange={setValue} error={error} />
-        ) : current.input === "text" ? (
-          <Input value={value || ""} onChange={(e) => setValue(e.target.value)} placeholder={current.placeholder} autoFocus />
-        ) : current.input === "textarea" ? (
-          <Textarea value={value || ""} onChange={(e) => setValue(e.target.value)} placeholder={current.placeholder} className="min-h-[110px]" autoFocus />
-        ) : current.input === "select" ? (
-          <Select value={value || ""} onChange={(e) => setValue(e.target.value)}>
-            <option value="">Elegí una opción</option>
-            {currentOptions.map((o) => (
-              <option key={o} value={o}>{o}</option>
-            ))}
-          </Select>
-        ) : current.input === "channels" ? (
-          <ChannelSelector value={Array.isArray(value) ? value : []} onChange={setValue} />
-        ) : (
-          <ChipSelect
-            options={currentOptions}
-            value={Array.isArray(value) ? value : []}
-            onChange={setValue}
-            allowCustom={current.allowCustom}
-          />
-        )}
+        <QuestionField
+          question={current}
+          business={business}
+          value={value}
+          onChange={setValue}
+          error={error}
+          autoFocus
+          onEditProducts={onEditSection ? () => onEditSection("productos") : undefined}
+          onEditSection={onEditSection ? (section) => onEditSection(SUMMARY_KEY_OF_SECTION[section]) : undefined}
+        />
       </div>
 
       {/* Estado / error para campos críticos */}

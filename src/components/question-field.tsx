@@ -8,9 +8,9 @@ import type { Business } from "@/lib/types";
 import { ArrowRight, Package } from "lucide-react";
 
 /**
- * Renderiza el input de UNA pregunta del onboarding según su tipo (text, textarea,
- * select, chips, channels, country, products). Fuente única del render de campos,
- * reutilizada por el flujo 1-a-1 (PendingFlow) y por la página "Completá lo que falta".
+ * Renderiza el input de UNA pregunta del onboarding según su tipo. ÚNICO render
+ * de campos del registro: lo usan "Completá lo que falta" (onboarding) y el
+ * asistente 1-de-N (PendingFlow, en configuración y estrategia).
  */
 export function QuestionField({
   question,

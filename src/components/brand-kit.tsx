@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { TONE_OPTIONS_BRAND_KIT, AVOID_OPTIONS } from "@/lib/constants";
 import { Badge, Button, Card, ChipSelect, Field, Input, Select, Textarea } from "@/components/ui";
 import { OptionCards } from "@/components/inputs";
 import { uid } from "@/lib/utils";
@@ -11,22 +12,6 @@ import { Star, Trash2, Plus, Upload, Palette, Type, ImageIcon, Sparkles, Wand2 }
 const MOOD_OPTIONS = [
   "moderno", "minimalista", "premium", "cálido", "cercano", "divertido",
   "elegante", "artesanal", "tecnológico", "institucional", "aspiracional", "joven",
-];
-const TONE_OPTIONS = [
-  "cercana", "premium", "técnica", "divertida", "institucional", "aspiracional",
-  "directa", "emocional", "joven", "elegante", "simple", "canchera", "profesional", "artesanal",
-];
-const AVOID_OPTIONS = [
-  "No prometer resultados garantizados",
-  "No usar lenguaje demasiado vendedor",
-  "No usar emojis",
-  "No decir “barato”",
-  "No hablar de descuentos",
-  "No usar tono informal",
-  "No usar lenguaje técnico",
-  "No sonar demasiado corporativo",
-  "No usar humor",
-  "No mencionar precios",
 ];
 const FONT_SUGGESTIONS = ["Inter", "Poppins", "Montserrat", "Open Sans", "Roboto", "Lora", "Playfair Display"];
 
@@ -325,7 +310,7 @@ export function BrandKitEditor({
           <ChipSelect options={MOOD_OPTIONS} value={bk.visualStyle.mood} onChange={(v) => onChange({ visualStyle: { ...bk.visualStyle, mood: v } })} allowCustom />
         </Field>
         <Field label="Tono de voz">
-          <ChipSelect options={TONE_OPTIONS} value={bk.voiceTone.toneTags} onChange={(v) => onChange({ voiceTone: { ...bk.voiceTone, toneTags: v } })} allowCustom />
+          <ChipSelect options={TONE_OPTIONS_BRAND_KIT} value={bk.voiceTone.toneTags} onChange={(v) => onChange({ voiceTone: { ...bk.voiceTone, toneTags: v } })} allowCustom />
         </Field>
         <Field label="Palabras clave de marca">
           <ChipSelect options={[]} value={bk.brandKeywords || []} onChange={(v) => onChange({ brandKeywords: v })} allowCustom />

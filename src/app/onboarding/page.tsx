@@ -25,6 +25,7 @@ import {
   EMPLOYEE_OPTIONS,
   TIMELINE_OPTIONS,
   SUCCESS_METRIC_OPTIONS,
+  CONTENT_GOALS,
 } from "@/lib/constants";
 import { PlatformLogo } from "@/components/platform-logo";
 import type { Business, Channel, ProductService, ProductServiceType, WebsiteAnalysis } from "@/lib/types";
@@ -66,6 +67,7 @@ import { getFieldExample } from "@/lib/examples";
 import { getMissingRequiredFields } from "@/lib/onboarding-validation";
 import { isFieldRequired } from "@/lib/onboarding/wizard-layout";
 import { PENDING_STEP_OF_SECTION, SUMMARY_KEY_OF_SECTION } from "@/lib/onboarding/sections";
+import { withCurrent } from "@/components/select-utils";
 import { applyAnalysisToBusiness, emptyProductService } from "@/lib/onboarding/apply-analysis";
 import { emptyBrandKit } from "@/lib/store";
 import { api } from "@/lib/api";
@@ -102,12 +104,6 @@ const STEPS = [
 ];
 const CURRENT_YEAR = 2026;
 
-// Un <Select> de opciones fijas no puede mostrar un valor que no esté en la
-// lista: se ve "Elegí" aunque el dato EXISTA (lo cargó Eva como texto libre o
-// el usuario en "Completá lo que falta"). Se suma el valor actual como opción.
-function withCurrent(options: string[], current?: string): string[] {
-  return current && !options.includes(current) ? [current, ...options] : options;
-}
 const SUMMARY_STEP = STEPS.length - 1; // 7
 const WIZARD_TOTAL = STEPS.length - 1; // 7 pasos reales del formulario (1..7)
 
@@ -2052,11 +2048,7 @@ function StepGoals({
       <HelpField label="¿Qué buscás principalmente?" required={isFieldRequired("primaryContentGoal")} error={missing.has("primaryContentGoal")} id="primaryContentGoal">
         <OptionCards
           columns={3}
-          options={[
-            { value: "visibilidad", label: "Visibilidad", desc: "Que me conozcan más" },
-            { value: "ventas", label: "Ventas", desc: "Vender más" },
-            { value: "confianza", label: "Confianza", desc: "Que confíen en mí" },
-          ]}
+          options={CONTENT_GOALS}
           value={g.primaryContentGoal}
           onChange={(v) => setG({ primaryContentGoal: v })}
         />
