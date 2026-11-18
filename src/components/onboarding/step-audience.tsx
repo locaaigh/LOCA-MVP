@@ -4,7 +4,7 @@ import { HelpField, OptionCards } from "@/components/inputs";
 import { Card, ChipSelect, Select, Textarea } from "@/components/ui";
 import { AGE_RANGES, GENDER_OPTIONS } from "@/lib/constants";
 import { getFieldExample } from "@/lib/examples";
-import { isFieldRequired } from "@/lib/onboarding/wizard-layout";
+import { isFieldRequired, wizardTexts } from "@/lib/onboarding/wizard-layout";
 import type { Business } from "@/lib/types";
 
 // ── Paso 4: Audiencia ────────────────────────────────────────
@@ -21,7 +21,7 @@ export function StepAudience({
   const setA = (patch: Partial<Business["audience"]>) => set({ audience: { ...a, ...patch } });
   return (
     <Card className="space-y-5">
-      <HelpField label="Rango de edad" required={isFieldRequired("ageRanges")} error={missing.has("ageRanges")} id="ageRanges">
+      <HelpField label={wizardTexts("ageRanges").label} required={isFieldRequired("ageRanges")} error={missing.has("ageRanges")} id="ageRanges" help={wizardTexts("ageRanges").help}>
         <ChipSelect options={AGE_RANGES} value={a.ageRanges} onChange={(v) => setA({ ageRanges: v })} />
       </HelpField>
 
@@ -53,16 +53,16 @@ export function StepAudience({
             <option value="global">En todo el mundo</option>
           </Select>
         </HelpField>
-        <HelpField label="Ubicaciones objetivo" required={isFieldRequired("locations")} error={missing.has("locations")} id="locations">
+        <HelpField label={wizardTexts("locations").label} required={isFieldRequired("locations")} error={missing.has("locations")} id="locations" help={wizardTexts("locations").help}>
           <ChipSelect options={[]} value={a.locations} onChange={(v) => setA({ locations: v })} allowCustom />
         </HelpField>
       </div>
 
-      <HelpField label="¿Qué problema le resolvés?" required={isFieldRequired("painPoints")} error={missing.has("painPoints")} id="painPoints" help={getFieldExample("painPoint", b.industry)}>
+      <HelpField label={wizardTexts("painPoints").label} required={isFieldRequired("painPoints")} error={missing.has("painPoints")} id="painPoints" help={wizardTexts("painPoints").help ?? getFieldExample("painPoint", b.industry)}>
         <ChipSelect options={[]} value={a.painPoints} onChange={(v) => setA({ painPoints: v })} allowCustom />
       </HelpField>
 
-      <HelpField label="¿Cómo se comporta tu cliente?" required={isFieldRequired("behavior")} error={missing.has("behavior")} id="behavior">
+      <HelpField label={wizardTexts("behavior").label} required={isFieldRequired("behavior")} error={missing.has("behavior")} id="behavior" help={wizardTexts("behavior").help}>
         <Textarea
           value={a.behavior}
           onChange={(e) => setA({ behavior: e.target.value })}
@@ -70,7 +70,7 @@ export function StepAudience({
         />
       </HelpField>
 
-      <HelpField label="Segmentos de audiencia" required={isFieldRequired("segments")} error={missing.has("segments")} id="segments">
+      <HelpField label={wizardTexts("segments").label} required={isFieldRequired("segments")} error={missing.has("segments")} id="segments" help={wizardTexts("segments").help}>
         <ChipSelect options={[]} value={a.segments} onChange={(v) => setA({ segments: v })} allowCustom />
       </HelpField>
     </Card>

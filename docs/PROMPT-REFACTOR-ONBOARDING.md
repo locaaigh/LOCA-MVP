@@ -1,5 +1,7 @@
 # Prompt: refactor del onboarding de LOCA-MVP
 
+> **Estado: EJECUTADO (18-nov-2026)** en los PRs #44 (Fase 0), #45 (1), #46 (2), #47 (3) y #48 (4). Se conserva como referencia de cómo se encaró y como guía de arquitectura para cambios futuros en el onboarding.
+
 > Copiar desde "## Contexto" hasta el final y dárselo a la IA. Está pensado para
 > ejecutarse en varias sesiones/PRs, no de una sola vez.
 

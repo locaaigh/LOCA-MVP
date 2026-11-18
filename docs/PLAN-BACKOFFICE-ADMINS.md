@@ -1,8 +1,8 @@
 # Plan: Backoffice de Admins — LOCA
 
 > Estado: **Fases 0–3 implementadas** (13-nov-2026). Fases 0+1 en prod (PRs #21/#22, migración 0009 corrida). Fase 2 (gate server-side) PR #23. Fase 3 (orden + textos editables) requiere migración `0010`.
-> Pendiente: Fase 3b (unificación con el wizard manual) y Fase 4 (backoffice general: flags, usuarios, métricas).
-> Nota Fase 3: los textos editados aplican al flujo "Completá lo que falta", al 1-de-N y a los avisos de faltantes; el wizard manual mantiene sus textos hardcodeados hasta la unificación.
+> **Fase 3b hecha (18-nov)** vía el refactor del onboarding (PRs #44–#48): registro único, un solo render de inputs, y los textos editados en /admin aplican también al formulario manual.
+> Pendiente: Fase 4 (backoffice general: flags, usuarios, métricas).
 
 ## Hallazgos del código que condicionan el diseño
 
