@@ -11,10 +11,14 @@ export const LINKEDIN_API_URL = "https://api.linkedin.com";
 
 /**
  * Versión de la API REST de LinkedIn (header LinkedIn-Version, formato YYYYMM).
- * LinkedIn deja de aceptar versiones viejas (~1 año), así que es overridable por
- * env para poder subirla sin deploy si empieza a rechazar.
+ * LinkedIn publica una versión por mes y la mantiene ~1 año; después responde
+ * HTTP 426 NONEXISTENT_VERSION ("Requested version ... is not active") en TODOS
+ * los endpoints /rest/*, y la conexión y la publicación dejan de funcionar.
+ * Eso fue lo que pasó con 202506 (vencida en 2026-06). Overridable por env para
+ * subirla sin deploy. Subir este default al menos una vez por año: ver
+ * https://learn.microsoft.com/en-us/linkedin/marketing/versioning
  */
-export const LINKEDIN_VERSION = process.env.LINKEDIN_VERSION || "202506";
+export const LINKEDIN_VERSION = process.env.LINKEDIN_VERSION || "202611";
 
 /**
  * Scopes de la Community Management API. SOLO publicación por ahora:

@@ -146,7 +146,7 @@ export const api = {
   // Publicación real en redes (crosspost). Sin `platform`, publica en TODAS las
   // plataformas destino de la pieza y devuelve el resultado por plataforma.
   // Ver PLAN-v2 item 11 / A.
-  publishMeta: (businessId: string, contentId: string, platform?: "instagram" | "facebook") =>
+  publishMeta: (businessId: string, contentId: string, platform?: "instagram" | "facebook" | "linkedin") =>
     post<{
       ok: boolean;
       results: import("./types").ContentPublishRecord[];

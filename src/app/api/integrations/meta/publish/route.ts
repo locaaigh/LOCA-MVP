@@ -18,7 +18,7 @@ type PublishBody = {
   contentId: string;
   /** Si se pasa, publica SOLO en esa plataforma (reintento puntual). Si no, se
    *  publica en todas las plataformas destino de la pieza (crosspost). */
-  platform?: "instagram" | "facebook";
+  platform?: "instagram" | "facebook" | "linkedin";
 };
 
 /**
@@ -141,8 +141,13 @@ export async function POST(req: NextRequest) {
 
     // Plataformas a publicar: la explícita del body (reintento puntual) o todas
     // las de la pieza (crosspost).
+    const PLATFORM_BY_KEY: Record<NonNullable<PublishBody["platform"]>, Channel> = {
+      instagram: "Instagram",
+      facebook: "Facebook",
+      linkedin: "LinkedIn",
+    };
     const targets: Channel[] = body.platform
-      ? [body.platform === "facebook" ? "Facebook" : "Instagram"]
+      ? [PLATFORM_BY_KEY[body.platform] ?? "Instagram"]
       : targetPlatforms(content, business);
 
     // Publicar en cada plataforma, sin que un fallo corte a las demás.

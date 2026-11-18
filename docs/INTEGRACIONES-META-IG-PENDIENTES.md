@@ -165,18 +165,48 @@ CMA) + `GET https://api.linkedin.com/v2/me`.
       ("LOCA (heyloca.ai) is a product of INFINIDAD").
 - [x] Products: "Community Management API" solicitada (2026-08-11). NO agregar
       "Sign In with LinkedIn" — incompatible con CMA (ver ⚠️ arriba).
-- 🔄 Auth: la redirect URL quedó configurada como
-      `https://heyloca.ai/api/integrations/linkedin/callback` — **hay que cambiarla a
-      `https://app.heyloca.ai/api/integrations/linkedin/callback`**.
+- [x] Auth: redirect URL registrada como
+      `https://app.heyloca.ai/api/integrations/linkedin/callback` (verificado
+      2026-11-18: LinkedIn acepta esa URL y rechaza la del apex).
       Client ID: `86y4sv6gesow5e`.
 - [x] Alan agregado como team member de la app de LinkedIn.
-- [ ] Alan: obtener el Client Secret (pedirlo a Sebastián o Auth tab) y cargar
-      las 3 env vars de LinkedIn en Vercel.
+- [x] Env vars de LinkedIn cargadas en Vercel (`/status` las reporta como
+      configuradas).
+- [x] Community Management API aprobada: LinkedIn acepta los scopes
+      `r_basicprofile rw_organization_admin w_organization_social` en el
+      diálogo de autorización (verificado 2026-11-18).
+
+### Por qué "no funcionaba" (diagnóstico 2026-11-18)
+El OAuth arrancaba bien pero el callback fallaba después de obtener el token:
+1. **Versión de API vencida.** El código mandaba `LinkedIn-Version: 202506`;
+   LinkedIn mantiene cada versión ~1 año y 202506 venció en junio 2026. Todo
+   `/rest/*` (listar páginas, subir imagen, crear post) devolvía HTTP 426
+   `NONEXISTENT_VERSION`. Fix: default `202611` + env `LINKEDIN_VERSION`
+   para subirla sin deploy. **Hay que subirla al menos una vez por año.**
+2. **Campo equivocado al leer las páginas.** Se leía `organizationalTarget`
+   (API vieja); `/rest/organizationAcls` devuelve `organization` (o
+   `organizationTarget`). Aun con versión válida, la lista de páginas daba
+   vacía → "no encontramos una página de empresa".
+3. **El error se descartaba.** La card borraba el `reason` del redirect y
+   mostraba "No pudimos conectar. Probá de nuevo", así que no había forma de
+   ver la causa. Ahora la card muestra el motivo (traducido cuando es uno
+   conocido: scope no autorizado, redirect URI, versión de API, token vencido).
+
+Además: si el usuario administra varias páginas ahora puede elegir cuál
+(`GET /api/integrations/linkedin/organizations` + `PATCH …/connection`), el
+`/v2/me` dejó de ser bloqueante (si falla se usa el person URN del ACL), y el
+retry puntual del publish acepta `platform: "linkedin"`.
+
+⚠️ La app está en tier **Development** de CMA: 500 llamadas/día por app y 100
+por usuario, sin BATCH_GET. Por eso el listado de páginas es a demanda (botón
+"Cambiar página"), no en cada carga de Settings. Para producción real pedir
+el tier Standard.
 
 ### Lado dev — módulo `src/lib/linkedin/` + rutas
 - OAuth 2.0 (3-legged):
   - Authorize: `https://www.linkedin.com/oauth/v2/authorization` con
-    `response_type=code` y `scope=r_basicprofile r_organization_admin w_organization_social r_organization_social`.
+    `response_type=code` y `scope=r_basicprofile rw_organization_admin w_organization_social`
+    (los de lectura/métricas se suman cuando se hagan las métricas de LinkedIn).
   - Token: `POST https://www.linkedin.com/oauth/v2/accessToken`
     (access token ~60 días + `refresh_token` ~365 días para apps aprobadas;
     refresh con `grant_type=refresh_token` — extender el cron de refresh).
@@ -185,7 +215,7 @@ CMA) + `GET https://api.linkedin.com/v2/me`.
 - Listar páginas que administra el usuario:
   `GET https://api.linkedin.com/rest/organizationAcls?q=roleAssignee&role=ADMINISTRATOR`
   → el usuario elige la página (guardar el `urn:li:organization:{id}`).
-- Publicar post con imagen (API versionada: headers `LinkedIn-Version: 2026XX`
+- Publicar post con imagen (API versionada: headers `LinkedIn-Version: {LINKEDIN_VERSION}`
   y `X-Restli-Protocol-Version: 2.0.0`):
   1. `POST /rest/images?action=initializeUpload` (owner = URN de la org)
   2. PUT del binario a la `uploadUrl` devuelta
@@ -204,6 +234,7 @@ CMA) + `GET https://api.linkedin.com/v2/me`.
 | `LINKEDIN_CLIENT_ID` | `86y4sv6gesow5e` |
 | `LINKEDIN_CLIENT_SECRET` | ⚠️ Alan: pedírselo a Sebastián (o sacarlo de la Auth tab, ya está como team member) y cargarlo directo en Vercel |
 | `LINKEDIN_OAUTH_REDIRECT_URI` | `https://app.heyloca.ai/api/integrations/linkedin/callback` |
+| `LINKEDIN_VERSION` | opcional; default `202611`. Subirla cuando LinkedIn devuelva HTTP 426 |
 
 ⚠️ El dev solo puede probar publicación cuando LinkedIn apruebe la Community
 Management API (los scopes `*_organization_*` no aparecen antes). El flujo de
