@@ -508,6 +508,15 @@ function OnboardingPageInner() {
   }
 
   const onSummary = phase === "wizard" && step === SUMMARY_STEP;
+  // Flujos 1 y 2 (web / .md): el Resumen es una pantalla FINAL cerrada. Nada
+  // de stepper ni "Editar todo": tocarlos metía al usuario en los pasos 1-7
+  // del wizard manual, que encima lo bloquea si le falta algún dato. La
+  // edición queda en el lápiz por sección (modal). En modo edición y en el
+  // flujo manual se mantiene la navegación completa.
+  const assistedSummary =
+    onSummary &&
+    !editMode &&
+    (b.businessInfoImportSource === "website" || b.businessInfoImportSource === "external_ai_md");
 
   return (
     <main className="min-h-screen">
@@ -557,20 +566,29 @@ function OnboardingPageInner() {
                   <Logo className="text-xl" />
                 </Link>
                 <span className="text-sm font-semibold text-faint">
-                  Paso {step} de {WIZARD_TOTAL} · <span className="text-foreground-muted">{STEPS[step]}</span>
+                  {assistedSummary ? (
+                    <span className="text-foreground-muted">Resumen</span>
+                  ) : (
+                    <>
+                      Paso {step} de {WIZARD_TOTAL} · <span className="text-foreground-muted">{STEPS[step]}</span>
+                    </>
+                  )}
                 </span>
               </div>
-              <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-surface-muted">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-loca-500 to-loca-400 transition-all duration-500"
-                  style={{ width: `${(step / WIZARD_TOTAL) * 100}%` }}
-                />
-              </div>
+              {!assistedSummary && (
+                <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-surface-muted">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-loca-500 to-loca-400 transition-all duration-500"
+                    style={{ width: `${(step / WIZARD_TOTAL) * 100}%` }}
+                  />
+                </div>
+              )}
             </div>
           </header>
 
           <div className="mx-auto max-w-3xl px-4 py-8 pb-28 sm:px-6">
-            {/* Stepper navegable (pasos 1..7) */}
+            {/* Stepper navegable (pasos 1..7) — oculto en el resumen de los flujos con Eva */}
+            {!assistedSummary && (
             <div className="mb-7 flex items-center">
               {Array.from({ length: WIZARD_TOTAL }, (_, k) => k + 1).map((i, idx) => (
                 <div key={i} className="flex flex-1 items-center">
@@ -592,6 +610,7 @@ function OnboardingPageInner() {
                 </div>
               ))}
             </div>
+            )}
 
             {!onSummary && (
               <>
@@ -612,7 +631,7 @@ function OnboardingPageInner() {
                 <OnboardingSummary
                   business={b}
                   onConfirm={finish}
-                  onEdit={() => setStep(1)}
+                  onEdit={assistedSummary ? undefined : () => setStep(1)}
                   onEditSection={openSection}
                   onCompleteWithEva={completeWithEva}
                   onFixCritical={() => setCriticalOpen(true)}
