@@ -72,6 +72,14 @@ export interface BusinessQuestion {
   get: (b: Business) => any;
   apply: (b: Business, v: any) => Partial<Business>;
   isMissing: (b: Business) => boolean;
+  /**
+   * Particularidades del FORMULARIO MANUAL para este campo, solo cuando
+   * difieren de lo lógico: `domId` (id del input para scroll/foco), `label`
+   * (texto del aviso "Te falta completar…") e `isMissing` (validación propia
+   * del paso: ej. temporadas acepta "respondí que no"). Ausente = se usan los
+   * valores lógicos de la pregunta.
+   */
+  wizard?: { domId?: string; label?: string; isMissing?: (b: Business) => boolean };
 }
 
 const TONE_OPTIONS = [
@@ -89,7 +97,9 @@ const TONE_OPTIONS = [
 
 const GOAL_LABELS = ["Visibilidad", "Ventas", "Confianza"];
 
-const empty = (v: any) => v == null || v === "" || (Array.isArray(v) && v.length === 0);
+// Un string de solo espacios cuenta como vacío (misma regla que tenía el wizard).
+const empty = (v: any) =>
+  v == null || (typeof v === "string" ? v.trim() === "" : Array.isArray(v) && v.length === 0);
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 // Etiquetas legibles de cada sección (para la UI).
@@ -120,6 +130,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.name,
     apply: (_b, v) => ({ name: v }),
     isMissing: (b) => empty(b.name),
+    wizard: { label: "Nombre de la empresa" },
   },
   {
     id: "industry",
@@ -145,6 +156,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.subcategory,
     apply: (_b, v) => ({ subcategory: v }),
     isMissing: (b) => empty(b.subcategory),
+    wizard: { label: "Subcategoría" },
   },
   {
     id: "businessType",
@@ -169,6 +181,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.country,
     apply: (_b, v) => ({ country: v }),
     isMissing: (b) => empty(b.country),
+    wizard: { label: "País" },
   },
   {
     id: "shortDescription",
@@ -193,6 +206,14 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.productsServices,
     apply: (_b) => ({}),
     isMissing: (b) => !b.productsServices?.some((p) => p.name?.trim()),
+    wizard: {
+      label: "Al menos un producto o servicio guardado",
+      // Obligatorio tener uno GUARDADO; y los sugeridos por Eva deben
+      // confirmarse (shouldReview) — si no, "Revisar" sería invisible.
+      isMissing: (b) =>
+        b.productsServices.filter((p) => p.saved && p.name.trim()).length === 0 ||
+        b.productsServices.some((p) => p.saved && p.shouldReview),
+    },
   },
   {
     id: "audience",
@@ -206,6 +227,11 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.audience?.ageRanges || [],
     apply: (b, v) => ({ audience: { ...b.audience, ageRanges: v } }),
     isMissing: (b) => empty(b.audience?.ageRanges) && empty(b.audience?.segments),
+    wizard: {
+      domId: "ageRanges",
+      label: "Rango de edad",
+      isMissing: (b) => empty(b.audience?.ageRanges),
+    },
   },
   {
     id: "competitiveAdvantages",
@@ -220,6 +246,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.competitiveAdvantages,
     apply: (_b, v) => ({ competitiveAdvantages: v }),
     isMissing: (b) => empty(b.competitiveAdvantages),
+    wizard: { label: "Ventaja competitiva" },
   },
   {
     id: "primaryContentGoal",
@@ -234,6 +261,12 @@ export const QUESTIONS: BusinessQuestion[] = [
       goals: { ...b.goals, primaryContentGoal: String(v).toLowerCase() as Business["goals"]["primaryContentGoal"] },
     }),
     isMissing: (b) => empty(b.goals?.primaryContentGoal),
+    wizard: {
+      // Debe estar elegido; y si es "ventas", definir el tipo de venta.
+      isMissing: (b) =>
+        empty(b.goals?.primaryContentGoal) ||
+        (b.goals?.primaryContentGoal === "ventas" && empty(b.goals?.salesGoalType)),
+    },
   },
   {
     id: "marketingChannels",
@@ -246,6 +279,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.marketingChannels,
     apply: (_b, v) => ({ marketingChannels: v }),
     isMissing: (b) => empty(b.marketingChannels),
+    wizard: { label: "Canales actuales" },
   },
   {
     id: "toneTags",
@@ -263,6 +297,11 @@ export const QUESTIONS: BusinessQuestion[] = [
       return { brandKit: { ...bk, voiceTone: { ...bk.voiceTone, toneTags: v } } };
     },
     isMissing: (b) => empty(b.brandKit?.voiceTone?.toneTags),
+    wizard: {
+      domId: "bk_tone",
+      label: "Tono o estilo de marca",
+      isMissing: (b) => empty(b.brandKit?.voiceTone?.toneTags) && empty(b.brandKit?.visualStyle?.mood),
+    },
   },
 
   // ── Ampliados (recomendados, no bloquean) ──
@@ -321,6 +360,12 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.seasonalityTags,
     apply: (_b, v) => ({ hasSeasonality: (v as string[]).length > 0, seasonalityTags: v }),
     isMissing: (b) => empty(b.seasonalityTags),
+    wizard: {
+      domId: "hasSeasonality",
+      label: "¿Tenés temporadas fuertes?",
+      // Debe estar respondido; y si dijo que sí, elegir al menos una.
+      isMissing: (b) => b.hasSeasonality === undefined || (!!b.hasSeasonality && empty(b.seasonalityTags)),
+    },
   },
   {
     id: "specialDates",
@@ -335,6 +380,11 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.specialDates,
     apply: (_b, v) => ({ hasSpecialDates: (v as string[]).length > 0, specialDates: v }),
     isMissing: (b) => empty(b.specialDates),
+    wizard: {
+      domId: "hasSpecialDates",
+      label: "¿Hay fechas especiales?",
+      isMissing: (b) => b.hasSpecialDates === undefined || (!!b.hasSpecialDates && empty(b.specialDates)),
+    },
   },
   {
     id: "avoidList",
@@ -367,10 +417,8 @@ export const QUESTIONS: BusinessQuestion[] = [
     isMissing: (b) => empty(b.communicationNeeds),
   },
 
-  // ── Campos que antes vivían solo en field-requirements (wizard) ──
-  // Se suman acá para que el admin los liste, el flujo con IA los pida y el
-  // gate/completitud los contemplen. Mismos ids que field-requirements (así
-  // la derivación de `critical` por id sigue coincidiendo). Todos critical:false.
+  // ── Campos del formulario manual (pasos Negocio/Audiencia/Objetivos/etc.) ──
+  // Todos critical:false. Qué paso los muestra lo define wizard-layout.ts.
   {
     id: "businessStage",
     section: "basicos",
@@ -530,6 +578,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.goals?.timeline || "",
     apply: (b, v) => ({ goals: { ...b.goals, timeline: v } }),
     isMissing: (b) => empty(b.goals?.timeline),
+    wizard: { label: "Plazo (timeline)" },
   },
   {
     id: "publishChannels",
@@ -541,6 +590,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.publishChannels || [],
     apply: (_b, v) => ({ publishChannels: v as Channel[] }),
     isMissing: (b) => empty(b.publishChannels),
+    wizard: { label: "Al menos una cuenta donde publicar" },
   },
   {
     id: "bk_color",
@@ -565,6 +615,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     apply: (_b) => ({}),
     isMissing: (b) =>
       !(!!b.brandKit?.typography?.heading?.family || !!b.brandKit?.typography?.body?.family),
+    wizard: { label: "Una tipografía (títulos o texto)" },
   },
   {
     id: "personPhotos",

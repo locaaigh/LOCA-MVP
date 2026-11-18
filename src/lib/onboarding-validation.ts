@@ -3,12 +3,12 @@
 // Devuelve los campos faltantes (con label + id para scrollear/marcar),
 // nunca errores técnicos.
 //
-// Los campos obligatorios se declaran una sola vez en field-requirements.ts
-// (fuente única de verdad). Acá solo derivamos la vista "por paso" y sumamos
-// el detalle dinámico (nombre de cada producto cargado), que no es estático.
+// Los campos son las preguntas del registro (business-questions.ts) y su
+// posición por paso vive en wizard-layout.ts. Acá solo se arma la vista "por
+// paso" y se suma el detalle dinámico (nombre de cada producto cargado).
 // ─────────────────────────────────────────────────────────────
 import type { Business } from "./types";
-import { requirementsForStep } from "./onboarding/field-requirements";
+import { requirementsForStep } from "./onboarding/wizard-layout";
 
 export interface MissingField {
   id: string; // id del campo para hacer scroll/foco

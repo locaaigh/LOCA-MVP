@@ -24,7 +24,7 @@ import {
   completionPercent,
   sectionsStatus,
 } from "../../src/lib/business-questions";
-import { requirementsForStep, isFieldRequired } from "../../src/lib/onboarding/field-requirements";
+import { requirementsForStep, isFieldRequired } from "../../src/lib/onboarding/wizard-layout";
 import { getMissingRequiredFields } from "../../src/lib/onboarding-validation";
 import { parseExternalMarkdown, sampleImportMarkdown } from "../../src/lib/md-import";
 import type { Business, WebsiteAnalysis } from "../../src/lib/types";
@@ -108,8 +108,8 @@ const MANUAL: Business = {
 };
 const FLOWS: Record<string, Business> = { empty: EMPTY, web: WEB, md: MD, manual: MANUAL };
 
-// Ids de los campos del wizard manual (los 34 de field-requirements, hardcodeados
-// a propósito: el test tiene que sobrevivir a que ese archivo desaparezca).
+// Ids de DOM de los 34 campos del wizard manual (hardcodeados a propósito:
+// el test no depende de ningún módulo de layout).
 const WIZARD_FIELD_IDS = [
   "name", "industry", "subcategory", "businessType", "businessStage", "yearFounded", "employees",
   "country", "state", "city", "shortDescription", "fullDescription", "values", "competitiveAdvantages",

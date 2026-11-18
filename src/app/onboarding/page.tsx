@@ -48,7 +48,7 @@ import { BrandKitEditor } from "@/components/brand-kit";
 import { VisualStylePicker } from "@/components/visual-style-picker";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { OnboardingSummary, missingCritical, type SummarySectionKey } from "@/components/onboarding-summary";
-import { PendingFlow, SECTION_MAP } from "@/components/pending-flow";
+import { PendingFlow } from "@/components/pending-flow";
 import { QuestionField } from "@/components/question-field";
 import {
   QUESTIONS,
@@ -64,7 +64,8 @@ import { Logo } from "@/components/brand";
 import { EvaChatBubble } from "@/components/eva-chat";
 import { getFieldExample } from "@/lib/examples";
 import { getMissingRequiredFields } from "@/lib/onboarding-validation";
-import { isFieldRequired } from "@/lib/onboarding/field-requirements";
+import { isFieldRequired } from "@/lib/onboarding/wizard-layout";
+import { PENDING_STEP_OF_SECTION, SUMMARY_KEY_OF_SECTION } from "@/lib/onboarding/sections";
 import { applyAnalysisToBusiness, emptyProductService } from "@/lib/onboarding/apply-analysis";
 import { emptyBrandKit } from "@/lib/store";
 import { api } from "@/lib/api";
@@ -1295,22 +1296,6 @@ function StepDot({ n }: { n: number }) {
 // ─────────────────────────────────────────────────────────────
 // PANTALLA DE PENDIENTES: asistente enfocado 1-de-N (web/.md)
 // ─────────────────────────────────────────────────────────────
-// Paso del wizard al que pertenece cada sección de preguntas: los pendientes
-// se presentan con los MISMOS pasos del formulario (Negocio, Marca, Identidad
-// visual...), uno por pantalla, mostrando solo lo obligatorio incompleto.
-const PENDING_STEP_OF_SECTION: Record<QSection, number> = {
-  basicos: 1,
-  propuesta: 2,
-  canales: 2,
-  agenda: 2,
-  fechas: 2,
-  brandkit: 3,
-  restricciones: 3,
-  productos: 4,
-  audiencia: 5,
-  objetivos: 6,
-  necesidades: 6,
-};
 
 function PendingScreen({
   business,
@@ -1493,7 +1478,7 @@ function PendingScreen({
                           clearError(q.id);
                         }}
                         onEditProducts={() => onEditSection("productos")}
-                        onEditSection={(section) => onEditSection(SECTION_MAP[section])}
+                        onEditSection={(section) => onEditSection(SUMMARY_KEY_OF_SECTION[section])}
                       />
                       {errors.has(q.id) && (
                         <p className="text-xs font-semibold text-red-600 dark:text-red-300">Completá este dato para continuar.</p>
