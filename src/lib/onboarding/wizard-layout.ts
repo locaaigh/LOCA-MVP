@@ -6,7 +6,7 @@
 // difiere del id lógico), que es lo que se usa para scroll/foco.
 // ─────────────────────────────────────────────────────────────
 import type { Business } from "@/lib/types";
-import { QUESTIONS, isQuestionRequired, type BusinessQuestion } from "@/lib/business-questions";
+import { QUESTIONS, isQuestionRequired, defaultTextsOf, type BusinessQuestion } from "@/lib/business-questions";
 
 /** Campos por paso (1 Negocio · 2 Marca · 3 Identidad visual · 4 Productos · 5 Audiencia · 6 Objetivos · 7 Dónde publicar). */
 export const WIZARD_STEP_FIELDS: Record<number, string[]> = {
@@ -63,4 +63,26 @@ export function requirementsForStep(step: number): WizardField[] {
     .map(questionByDomId)
     .filter((q): q is BusinessQuestion => !!q && isQuestionRequired(q))
     .map(toWizardField);
+}
+
+/**
+ * Textos que muestra el FORMULARIO para un campo. Por defecto son los del
+ * propio formulario (`wizard.heading` / `wizard.help`, que pueden diferir del
+ * label lógico: el wizard pregunta, el registro nombra). Si el admin editó el
+ * texto en /admin (difiere del default de código), el editado gana en todos
+ * lados — ese es el objetivo: una sola edición aplica al flujo con IA y al
+ * formulario manual.
+ */
+export function wizardTexts(domId: string): { label: string; help?: string; placeholder?: string } {
+  const q = questionByDomId(domId);
+  if (!q) return { label: domId };
+  const d = defaultTextsOf(q.id);
+  const labelEdited = !!d && q.label !== d.label;
+  const whyEdited = !!d && q.why !== d.why;
+  const placeholderEdited = !!d && q.placeholder !== d.placeholder;
+  return {
+    label: labelEdited ? q.label : (q.wizard?.heading ?? q.wizard?.label ?? q.label),
+    help: whyEdited ? q.why : q.wizard?.help,
+    placeholder: placeholderEdited ? q.placeholder : undefined,
+  };
 }

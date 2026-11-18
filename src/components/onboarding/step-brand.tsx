@@ -6,7 +6,7 @@ import { Card, ChipSelect, Input, Textarea } from "@/components/ui";
 import { api } from "@/lib/api";
 import { ADVANTAGE_SUGGESTIONS, MARKETING_ACTIVITIES, VALUE_SUGGESTIONS, seasonalityOptionsFor, specialDatesOptionsFor } from "@/lib/constants";
 import { getFieldExample } from "@/lib/examples";
-import { isFieldRequired } from "@/lib/onboarding/wizard-layout";
+import { isFieldRequired, wizardTexts } from "@/lib/onboarding/wizard-layout";
 import type { Business, FieldStatusKind } from "@/lib/types";
 import { useEffect, useState } from "react";
 
@@ -55,10 +55,10 @@ export function StepBrand({
   return (
     <Card className="space-y-5">
       <HelpField
-        label="Descripción corta"
+        label={wizardTexts("shortDescription").label}
         required={isFieldRequired("shortDescription")}
         error={missing.has("shortDescription")}
-        id="shortDescription"
+        id="shortDescription" help={wizardTexts("shortDescription").help}
         status={statusOf("shortDescription")}
         hint={`${b.shortDescription.length}/280`}
       >
@@ -73,7 +73,7 @@ export function StepBrand({
         </div>
       </HelpField>
 
-      <HelpField label="Descripción completa" required={isFieldRequired("fullDescription")} error={missing.has("fullDescription")} id="fullDescription" help="Mientras más claro seas, mejores contenidos va a generar Eva." status={statusOf("fullDescription")}>
+      <HelpField label={wizardTexts("fullDescription").label} required={isFieldRequired("fullDescription")} error={missing.has("fullDescription")} id="fullDescription" help={wizardTexts("fullDescription").help} status={statusOf("fullDescription")}>
         <div className="space-y-2">
           <Textarea
             value={b.fullDescription}
@@ -84,17 +84,17 @@ export function StepBrand({
         </div>
       </HelpField>
 
-      <HelpField label="Valores de marca (hasta 5)" required={isFieldRequired("values")} error={missing.has("values")} id="values">
+      <HelpField label={wizardTexts("values").label} required={isFieldRequired("values")} error={missing.has("values")} id="values" help={wizardTexts("values").help}>
         <ChipSelect options={VALUE_SUGGESTIONS} value={b.values} onChange={(v) => set({ values: v.slice(0, 5) })} allowCustom />
       </HelpField>
 
       <HelpField
-        label="Ventaja competitiva"
+        label={wizardTexts("competitiveAdvantages").label}
         required={isFieldRequired("competitiveAdvantages")}
         error={missing.has("competitiveAdvantages")}
         id="competitiveAdvantages"
         status={statusOf("competitiveAdvantages")}
-        help={getFieldExample("competitiveAdvantage", b.industry)}
+        help={wizardTexts("competitiveAdvantages").help ?? getFieldExample("competitiveAdvantage", b.industry)}
       >
         <ChipSelect
           options={ADVANTAGE_SUGGESTIONS}
@@ -105,22 +105,22 @@ export function StepBrand({
       </HelpField>
 
       <HelpField
-        label="Canales actuales"
+        label={wizardTexts("marketingChannels").label}
         required={isFieldRequired("marketingChannels")}
         error={missing.has("marketingChannels")}
         id="marketingChannels"
         status={statusOf("marketingChannels")}
-        help="¿Dónde está hoy tu negocio? Elegí los que uses (o “Ninguno”)."
+        help={wizardTexts("marketingChannels").help}
       >
         <ChannelSelector value={b.marketingChannels} onChange={(v) => set({ marketingChannels: v })} />
       </HelpField>
 
       <HelpField
-        label="¿Qué venís haciendo de marketing?"
+        label={wizardTexts("marketingActivities").label}
         required={isFieldRequired("marketingActivities")}
         error={missing.has("marketingActivities")}
         id="marketingActivities"
-        help="Elegí todo lo que apliquen. Si no hacés nada todavía, está perfecto."
+        help={wizardTexts("marketingActivities").help}
       >
         <OptionCards
           multi
@@ -134,12 +134,12 @@ export function StepBrand({
             className="mt-2"
             value={b.marketingStrategy}
             onChange={(e) => set({ marketingStrategy: e.target.value })}
-            placeholder="Contanos qué otra cosa hacés…"
+            placeholder={wizardTexts("marketingActivities").placeholder ?? "Contanos qué otra cosa hacés…"}
           />
         )}
       </HelpField>
 
-      <HelpField label="¿Tu negocio tiene temporadas fuertes?" required={isFieldRequired("hasSeasonality")} error={missing.has("hasSeasonality")} id="hasSeasonality">
+      <HelpField label={wizardTexts("hasSeasonality").label} required={isFieldRequired("hasSeasonality")} error={missing.has("hasSeasonality")} id="hasSeasonality" help={wizardTexts("hasSeasonality").help}>
         <YesNoChoice value={b.hasSeasonality} onChange={(v) => set({ hasSeasonality: v })} />
         {b.hasSeasonality && (
           <div className="mt-3">
@@ -155,14 +155,14 @@ export function StepBrand({
                 className="mt-2"
                 value={b.seasonality}
                 onChange={(e) => set({ seasonality: e.target.value })}
-                placeholder="¿Qué otra temporada?"
+                placeholder={wizardTexts("hasSeasonality").placeholder ?? "¿Qué otra temporada?"}
               />
             )}
           </div>
         )}
       </HelpField>
 
-      <HelpField label="¿Hay fechas especiales importantes para tu negocio?" required={isFieldRequired("hasSpecialDates")} error={missing.has("hasSpecialDates")} id="hasSpecialDates">
+      <HelpField label={wizardTexts("hasSpecialDates").label} required={isFieldRequired("hasSpecialDates")} error={missing.has("hasSpecialDates")} id="hasSpecialDates" help={wizardTexts("hasSpecialDates").help}>
         <YesNoChoice value={b.hasSpecialDates} onChange={(v) => set({ hasSpecialDates: v })} />
         {b.hasSpecialDates && (
           <div className="mt-3">
@@ -178,7 +178,7 @@ export function StepBrand({
                 className="mt-2"
                 value={b.seasonality}
                 onChange={(e) => set({ seasonality: e.target.value })}
-                placeholder="¿Qué otra fecha?"
+                placeholder={wizardTexts("hasSpecialDates").placeholder ?? "¿Qué otra fecha?"}
               />
             )}
           </div>

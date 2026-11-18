@@ -81,7 +81,16 @@ export interface BusinessQuestion {
    * del paso: ej. temporadas acepta "respondí que no"). Ausente = se usan los
    * valores lógicos de la pregunta.
    */
-  wizard?: { domId?: string; label?: string; isMissing?: (b: Business) => boolean };
+  wizard?: {
+    domId?: string;
+    /** Texto del aviso "Te falta completar…" (cuando difiere del label lógico). */
+    label?: string;
+    /** Título del campo en el formulario (cuando difiere del label lógico). */
+    heading?: string;
+    /** Texto de ayuda bajo el título del formulario. */
+    help?: string;
+    isMissing?: (b: Business) => boolean;
+  };
 }
 
 
@@ -145,7 +154,8 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.subcategory,
     apply: (_b, v) => ({ subcategory: v }),
     isMissing: (b) => empty(b.subcategory),
-    wizard: { label: "Subcategoría" },
+    wizard: {
+      help: "Elegí la opción más parecida. No tiene que ser perfecta.", label: "Subcategoría" },
   },
   {
     id: "businessType",
@@ -251,6 +261,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     }),
     isMissing: (b) => empty(b.goals?.primaryContentGoal),
     wizard: {
+      heading: "¿Qué buscás principalmente?",
       // Debe estar elegido; y si es "ventas", definir el tipo de venta.
       isMissing: (b) =>
         empty(b.goals?.primaryContentGoal) ||
@@ -268,7 +279,8 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.marketingChannels,
     apply: (_b, v) => ({ marketingChannels: v }),
     isMissing: (b) => empty(b.marketingChannels),
-    wizard: { label: "Canales actuales" },
+    wizard: {
+      help: "¿Dónde está hoy tu negocio? Elegí los que uses (o “Ninguno”).", label: "Canales actuales" },
   },
   {
     id: "toneTags",
@@ -306,6 +318,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.fullDescription,
     apply: (_b, v) => ({ fullDescription: v }),
     isMissing: (b) => empty(b.fullDescription),
+    wizard: { help: "Mientras más claro seas, mejores contenidos va a generar Eva." },
   },
   {
     id: "values",
@@ -320,6 +333,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.values,
     apply: (_b, v) => ({ values: (v as string[]).slice(0, 5) }),
     isMissing: (b) => empty(b.values),
+    wizard: { heading: "Valores de marca (hasta 5)" },
   },
   {
     id: "marketingActivities",
@@ -333,6 +347,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.marketingActivities,
     apply: (_b, v) => ({ marketingActivities: v }),
     isMissing: (b) => empty(b.marketingActivities),
+    wizard: { heading: "¿Qué venís haciendo de marketing?", help: "Elegí todo lo que apliquen. Si no hacés nada todavía, está perfecto." },
   },
   {
     id: "seasonalityTags",
@@ -350,6 +365,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     apply: (_b, v) => ({ hasSeasonality: (v as string[]).length > 0, seasonalityTags: v }),
     isMissing: (b) => empty(b.seasonalityTags),
     wizard: {
+      heading: "¿Tu negocio tiene temporadas fuertes?",
       domId: "hasSeasonality",
       label: "¿Tenés temporadas fuertes?",
       // Debe estar respondido; y si dijo que sí, elegir al menos una.
@@ -370,6 +386,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     apply: (_b, v) => ({ hasSpecialDates: (v as string[]).length > 0, specialDates: v }),
     isMissing: (b) => empty(b.specialDates),
     wizard: {
+      heading: "¿Hay fechas especiales importantes para tu negocio?",
       domId: "hasSpecialDates",
       label: "¿Hay fechas especiales?",
       isMissing: (b) => b.hasSpecialDates === undefined || (!!b.hasSpecialDates && empty(b.specialDates)),
@@ -419,6 +436,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => BUSINESS_STAGES.find((s) => s.value === b.businessStage)?.label || "",
     apply: (_b, v) => ({ businessStage: BUSINESS_STAGES.find((s) => s.label === v)?.value }),
     isMissing: (b) => empty(b.businessStage),
+    wizard: { help: "Nos ayuda a pedirte la info y generar el contenido adecuado para tu caso." },
   },
   {
     id: "yearFounded",
@@ -492,6 +510,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.audience?.painPoints || [],
     apply: (b, v) => ({ audience: { ...b.audience, painPoints: v } }),
     isMissing: (b) => empty(b.audience?.painPoints),
+    wizard: { heading: "¿Qué problema le resolvés?" },
   },
   {
     id: "behavior",
@@ -505,6 +524,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.audience?.behavior || "",
     apply: (b, v) => ({ audience: { ...b.audience, behavior: v } }),
     isMissing: (b) => empty(b.audience?.behavior),
+    wizard: { heading: "¿Cómo se comporta tu cliente?" },
   },
   {
     id: "segments",
@@ -530,6 +550,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.goals?.businessObjectives || "",
     apply: (b, v) => ({ goals: { ...b.goals, businessObjectives: v } }),
     isMissing: (b) => empty(b.goals?.businessObjectives),
+    wizard: { heading: "¿Qué querés lograr con tu negocio?" },
   },
   {
     id: "successMetrics",
@@ -543,6 +564,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.goals?.successMetrics || [],
     apply: (b, v) => ({ goals: { ...b.goals, successMetrics: v } }),
     isMissing: (b) => empty(b.goals?.successMetrics),
+    wizard: { heading: "¿Cómo vas a medir el éxito?" },
   },
   {
     id: "marketingObjectives",
@@ -555,6 +577,7 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.goals?.marketingObjectives || "",
     apply: (b, v) => ({ goals: { ...b.goals, marketingObjectives: v } }),
     isMissing: (b) => empty(b.goals?.marketingObjectives),
+    wizard: { heading: "¿Qué querés lograr con tu marketing?" },
   },
   {
     id: "timeline",
@@ -567,7 +590,8 @@ export const QUESTIONS: BusinessQuestion[] = [
     get: (b) => b.goals?.timeline || "",
     apply: (b, v) => ({ goals: { ...b.goals, timeline: v } }),
     isMissing: (b) => empty(b.goals?.timeline),
-    wizard: { label: "Plazo (timeline)" },
+    wizard: {
+      heading: "¿En cuánto tiempo?", label: "Plazo (timeline)" },
   },
   {
     id: "publishChannels",
