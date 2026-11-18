@@ -425,3 +425,11 @@ export const IMAGE_FORMAT_LABELS: Record<string, string> = {
 };
 
 export const CURRENCIES = ["ARS", "USD", "EUR", "MXN", "CLP", "COP", "BRL"];
+
+// ── Opciones compartidas: formulario ↔ "Completá lo que falta" ────
+// FUENTE ÚNICA. Si el wizard y el flujo de pendientes usan listas distintas,
+// el valor cargado en uno no se puede mostrar en el otro (caso real: empleados
+// "5" tipeado en pendientes → el select del formulario lo mostraba vacío).
+export const EMPLOYEE_OPTIONS = ["Solo yo", "1-10", "11-50", "51-200", "200+"];
+export const TIMELINE_OPTIONS = ["Próximo mes", "Próximos 3 meses", "Próximos 6 meses", "Este año"];
+export const SUCCESS_METRIC_OPTIONS = ["Ventas", "Alcance", "Seguidores", "Visitas al local", "Mensajes", "Conversión"];

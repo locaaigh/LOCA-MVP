@@ -134,7 +134,7 @@ export function OnboardingSummary({
             const bits = [
               stage,
               b.yearFounded && `desde ${b.yearFounded}`,
-              b.employees && `${b.employees} empleado${/^(1|solo)/i.test(b.employees) ? "" : "s"}`,
+              b.employees && (/solo/i.test(b.employees) ? "Solo yo" : `${b.employees} empleados`),
               [b.city, b.state, b.country].filter(Boolean).join(", "),
             ].filter(Boolean);
             return bits.length ? (

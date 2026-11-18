@@ -22,6 +22,9 @@ import {
   specialDatesOptionsFor,
   GENDER_OPTIONS,
   foundingYearOptions,
+  EMPLOYEE_OPTIONS,
+  TIMELINE_OPTIONS,
+  SUCCESS_METRIC_OPTIONS,
 } from "@/lib/constants";
 import { PlatformLogo } from "@/components/platform-logo";
 import type { Business, Channel, ProductService, ProductServiceType, WebsiteAnalysis } from "@/lib/types";
@@ -97,6 +100,13 @@ const STEPS = [
   "Resumen",
 ];
 const CURRENT_YEAR = 2026;
+
+// Un <Select> de opciones fijas no puede mostrar un valor que no esté en la
+// lista: se ve "Elegí" aunque el dato EXISTA (lo cargó Eva como texto libre o
+// el usuario en "Completá lo que falta"). Se suma el valor actual como opción.
+function withCurrent(options: string[], current?: string): string[] {
+  return current && !options.includes(current) ? [current, ...options] : options;
+}
 const SUMMARY_STEP = STEPS.length - 1; // 7
 const WIZARD_TOTAL = STEPS.length - 1; // 7 pasos reales del formulario (1..7)
 
@@ -1532,7 +1542,7 @@ function StepBasic({
           {subcats.length ? (
             <Select value={b.subcategory} onChange={(e) => set({ subcategory: e.target.value })}>
               <option value="">Elegí una subcategoría</option>
-              {subcats.map((s) => (
+              {withCurrent(subcats, b.subcategory).map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </Select>
@@ -1606,7 +1616,7 @@ function StepBasic({
         <HelpField label="Cantidad de empleados" required={isFieldRequired("employees")} error={missing.has("employees")} id="employees">
           <Select value={b.employees} onChange={(e) => set({ employees: e.target.value })}>
             <option value="">Elegí</option>
-            {["Solo yo", "1-10", "11-50", "51-200", "200+"].map((e) => (
+            {withCurrent(EMPLOYEE_OPTIONS, b.employees).map((e) => (
               <option key={e} value={e}>{e}</option>
             ))}
           </Select>
@@ -2074,7 +2084,7 @@ function StepGoals({
 
       <HelpField label="¿Cómo vas a medir el éxito?" required={isFieldRequired("successMetrics")} error={missing.has("successMetrics")} id="successMetrics">
         <ChipSelect
-          options={["Ventas", "Alcance", "Seguidores", "Visitas al local", "Mensajes", "Conversión"]}
+          options={SUCCESS_METRIC_OPTIONS}
           value={g.successMetrics}
           onChange={(v) => setG({ successMetrics: v })}
           allowCustom
@@ -2092,10 +2102,9 @@ function StepGoals({
       <HelpField label="¿En cuánto tiempo?" required={isFieldRequired("timeline")} error={missing.has("timeline")} id="timeline">
         <Select value={g.timeline} onChange={(e) => setG({ timeline: e.target.value })}>
           <option value="">Elegí</option>
-          <option value="Próximo mes">Próximo mes</option>
-          <option value="Próximos 3 meses">Próximos 3 meses</option>
-          <option value="Próximos 6 meses">Próximos 6 meses</option>
-          <option value="Este año">Este año</option>
+          {withCurrent(TIMELINE_OPTIONS, g.timeline).map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
         </Select>
       </HelpField>
     </Card>
