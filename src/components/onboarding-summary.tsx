@@ -53,7 +53,8 @@ export function OnboardingSummary({
 }: {
   business: Business;
   onConfirm: () => void;
-  onEdit: () => void;
+  /** Ir al formulario completo. Ausente en los flujos con Eva (sin wizard manual). */
+  onEdit?: () => void;
   onEditSection: (key: SummarySectionKey) => void;
   onCompleteWithEva: () => void;
   onFixCritical?: () => void;
@@ -318,9 +319,11 @@ export function OnboardingSummary({
         <Button variant="success" size="xl" className="flex-1" disabled={missing.length > 0} onClick={onConfirm}>
           <Sparkles className="h-5 w-5" /> {confirmLabel}
         </Button>
-        <Button variant="outline" size="xl" onClick={onEdit}>
-          <Pencil className="h-4 w-4" /> Editar todo
-        </Button>
+        {onEdit && (
+          <Button variant="outline" size="xl" onClick={onEdit}>
+            <Pencil className="h-4 w-4" /> Editar todo
+          </Button>
+        )}
       </div>
     </div>
   );
