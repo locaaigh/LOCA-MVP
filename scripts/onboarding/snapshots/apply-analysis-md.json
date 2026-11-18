@@ -1,0 +1,271 @@
+{
+  "audience": {
+    "ageRanges": [
+      "25-34",
+      "35-44"
+    ],
+    "behavior": "",
+    "gender": "todos",
+    "locationLogic": "ciudad",
+    "locations": [],
+    "painPoints": [
+      "querer buen café cerca del trabajo"
+    ],
+    "segments": [
+      "Profesionales jóvenes",
+      "amantes del café"
+    ],
+    "socioeconomicLevel": "medio"
+  },
+  "brandColors": [
+    "#ec4899",
+    "#84cc16",
+    "#ffffff"
+  ],
+  "brandKit": {
+    "avoidList": [
+      "lenguaje demasiado informal"
+    ],
+    "voiceTone": {
+      "toneTags": [
+        "Cercano",
+        "Cálido",
+        "Profesional"
+      ]
+    }
+  },
+  "businessInfoImportSource": "manual",
+  "businessIntelligence": {
+    "contactInfo": {},
+    "conversionPaths": {},
+    "socialLinks": [],
+    "valuePropositions": []
+  },
+  "businessModel": "B2C",
+  "businessType": "Local físico",
+  "city": "CABA",
+  "competitiveAdvantages": [
+    "Granos de origen",
+    "tueste propio",
+    "atención cercana"
+  ],
+  "country": "Argentina",
+  "employees": "",
+  "fieldStatuses": {
+    "audience": {
+      "confidence": "high",
+      "source": "external_ai",
+      "status": "found"
+    },
+    "brandKit": {
+      "confidence": "high",
+      "source": "external_ai",
+      "status": "found"
+    },
+    "businessModel": {
+      "confidence": "high",
+      "source": "external_ai",
+      "status": "found"
+    },
+    "businessType": {
+      "confidence": "high",
+      "source": "external_ai",
+      "status": "found"
+    },
+    "city": {
+      "confidence": "medium",
+      "source": "external_ai",
+      "status": "suggested"
+    },
+    "competitiveAdvantages": {
+      "confidence": "high",
+      "source": "external_ai",
+      "status": "found"
+    },
+    "country": {
+      "confidence": "high",
+      "source": "external_ai",
+      "status": "found"
+    },
+    "fullDescription": {
+      "confidence": "low",
+      "source": "external_ai",
+      "status": "missing"
+    },
+    "goals": {
+      "confidence": "high",
+      "source": "external_ai",
+      "status": "found"
+    },
+    "industry": {
+      "confidence": "high",
+      "source": "external_ai",
+      "status": "found"
+    },
+    "marketingActivities": {
+      "confidence": "high",
+      "source": "external_ai",
+      "status": "found"
+    },
+    "marketingChannels": {
+      "confidence": "high",
+      "source": "external_ai",
+      "status": "found"
+    },
+    "name": {
+      "confidence": "high",
+      "source": "external_ai",
+      "status": "found"
+    },
+    "productsServices": {
+      "confidence": "high",
+      "source": "external_ai",
+      "status": "found"
+    },
+    "seasonalityTags": {
+      "confidence": "high",
+      "source": "external_ai",
+      "status": "found"
+    },
+    "shortDescription": {
+      "confidence": "high",
+      "source": "external_ai",
+      "status": "found"
+    },
+    "specialDates": {
+      "confidence": "low",
+      "source": "external_ai",
+      "status": "missing"
+    },
+    "subcategory": {
+      "confidence": "high",
+      "source": "external_ai",
+      "status": "found"
+    },
+    "values": {
+      "confidence": "high",
+      "source": "external_ai",
+      "status": "found"
+    }
+  },
+  "fullDescription": "",
+  "goals": {
+    "businessObjectives": "",
+    "marketingObjectives": "",
+    "primaryContentGoal": "ventas",
+    "successMetrics": [],
+    "timeline": ""
+  },
+  "hasSeasonality": true,
+  "industry": "Food & Beverage",
+  "marketingActivities": [
+    "Redes orgánicas"
+  ],
+  "marketingChannels": [
+    "Instagram",
+    "Facebook",
+    "TikTok"
+  ],
+  "marketingStrategy": "",
+  "name": "Café Bruma",
+  "onboardingComplete": false,
+  "productsServices": [
+    {
+      "category": "",
+      "confidence": "high",
+      "currency": "ARS",
+      "features": [],
+      "imageCaption": "",
+      "importSource": "md",
+      "isTopSeller": true,
+      "keywords": [],
+      "longDescription": "",
+      "name": "Blend de la casa",
+      "negativeKeywords": [],
+      "priceMin": 4500,
+      "pricingType": "fijo",
+      "saved": true,
+      "shortDescription": "",
+      "shouldReview": false,
+      "subcategory": "",
+      "type": "producto",
+      "variants": []
+    },
+    {
+      "category": "",
+      "confidence": "high",
+      "currency": "ARS",
+      "features": [],
+      "imageCaption": "",
+      "importSource": "md",
+      "isTopSeller": false,
+      "keywords": [],
+      "longDescription": "",
+      "name": "Café de filtro",
+      "negativeKeywords": [],
+      "pricingType": "fijo",
+      "saved": true,
+      "shortDescription": "",
+      "shouldReview": false,
+      "subcategory": "",
+      "type": "producto",
+      "variants": []
+    },
+    {
+      "category": "",
+      "confidence": "high",
+      "currency": "ARS",
+      "features": [],
+      "imageCaption": "",
+      "importSource": "md",
+      "isTopSeller": false,
+      "keywords": [],
+      "longDescription": "",
+      "name": "Medialunas",
+      "negativeKeywords": [],
+      "pricingType": "fijo",
+      "saved": true,
+      "shortDescription": "",
+      "shouldReview": false,
+      "subcategory": "",
+      "type": "producto",
+      "variants": []
+    },
+    {
+      "category": "",
+      "confidence": "high",
+      "currency": "ARS",
+      "features": [],
+      "imageCaption": "",
+      "importSource": "md",
+      "isTopSeller": false,
+      "keywords": [],
+      "longDescription": "",
+      "name": "Catering para eventos",
+      "negativeKeywords": [],
+      "pricingType": "fijo",
+      "saved": true,
+      "shortDescription": "",
+      "shouldReview": false,
+      "subcategory": "",
+      "type": "servicio",
+      "variants": []
+    }
+  ],
+  "seasonality": "",
+  "seasonalityTags": [
+    "Invierno"
+  ],
+  "shortDescription": "Cafetería de especialidad con tueste propio y pastelería artesanal.",
+  "specialDates": [],
+  "state": "",
+  "subcategory": "Cafetería de especialidad",
+  "values": [
+    "Calidad",
+    "Comunidad"
+  ],
+  "websiteExtractionConsent": true,
+  "websiteExtractionStatus": "done",
+  "websiteUrl": "",
+  "yearFounded": ""
+}
