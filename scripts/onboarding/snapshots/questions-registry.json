@@ -54,6 +54,19 @@
   {
     "allowCustom": false,
     "canSuggest": false,
+    "critical": false,
+    "floor": false,
+    "id": "businessModel",
+    "input": "select",
+    "label": "A quién le vendés",
+    "placeholder": null,
+    "required": true,
+    "section": "basicos",
+    "why": "B2B o B2C cambia el tono, los argumentos y a quién le habla cada pieza."
+  },
+  {
+    "allowCustom": false,
+    "canSuggest": false,
     "critical": true,
     "floor": false,
     "id": "country",

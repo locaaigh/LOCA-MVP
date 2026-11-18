@@ -24,7 +24,7 @@ export const businessSchema = z
     industry: z.string(),
     subcategory: z.string(),
     businessType: z.string(),
-    businessModel: z.enum(["B2B", "B2C", "Ambos"]),
+    businessModel: z.enum(["B2B", "B2C", "Ambos"]).optional(),
     country: z.string(),
     state: z.string(),
     city: z.string(),

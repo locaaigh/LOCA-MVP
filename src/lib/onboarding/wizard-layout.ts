@@ -10,7 +10,7 @@ import { QUESTIONS, isQuestionRequired, defaultTextsOf, type BusinessQuestion } 
 
 /** Campos por paso (1 Negocio · 2 Marca · 3 Identidad visual · 4 Productos · 5 Audiencia · 6 Objetivos · 7 Dónde publicar). */
 export const WIZARD_STEP_FIELDS: Record<number, string[]> = {
-  1: ["name", "industry", "subcategory", "businessType", "businessStage", "yearFounded", "employees", "country", "state", "city"],
+  1: ["name", "industry", "subcategory", "businessType", "businessModel", "businessStage", "yearFounded", "employees", "country", "state", "city"],
   2: ["shortDescription", "fullDescription", "values", "competitiveAdvantages", "marketingChannels", "marketingActivities", "hasSeasonality", "hasSpecialDates"],
   3: ["bk_color", "bk_font", "bk_tone", "personPhotos"],
   4: ["products"],

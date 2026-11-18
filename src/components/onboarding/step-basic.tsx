@@ -3,7 +3,7 @@
 import { EvaOptionsChooser, HelpField, SearchableCountrySelect, SearchableRegionSelect } from "@/components/inputs";
 import { withCurrent } from "@/components/select-utils";
 import { Card, Input, Select } from "@/components/ui";
-import { BUSINESS_STAGES, BUSINESS_TYPES, EMPLOYEE_OPTIONS, INDUSTRIES, foundingYearOptions } from "@/lib/constants";
+import { BUSINESS_STAGES, BUSINESS_TYPES, EMPLOYEE_OPTIONS, INDUSTRIES, foundingYearOptions, BUSINESS_MODELS } from "@/lib/constants";
 import { CURRENT_YEAR } from "@/lib/onboarding/steps";
 import { isFieldRequired, wizardTexts } from "@/lib/onboarding/wizard-layout";
 import type { Business, FieldStatusKind } from "@/lib/types";
@@ -71,14 +71,18 @@ export function StepBasic({
           </Select>
         </HelpField>
         <HelpField
-          label="A quién le vendés (modelo de negocio)"
+          label={wizardTexts("businessModel").label}
+          required={isFieldRequired("businessModel")}
+          error={missing.has("businessModel")}
           id="businessModel"
+          help={wizardTexts("businessModel").help}
           status={statusOf("businessModel")}
         >
-          <Select value={b.businessModel} onChange={(e) => set({ businessModel: e.target.value as Business["businessModel"] })}>
-            <option value="B2C">Le vendo a personas (B2C)</option>
-            <option value="B2B">Le vendo a empresas (B2B)</option>
-            <option value="Ambos">A ambos</option>
+          <Select value={b.businessModel ?? ""} onChange={(e) => set({ businessModel: (e.target.value || undefined) as Business["businessModel"] })}>
+            <option value="">Elegí</option>
+            {BUSINESS_MODELS.map((m) => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
           </Select>
           <EvaOptionsChooser
             options={b.fieldStatuses?.businessModel?.options}

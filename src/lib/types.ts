@@ -186,7 +186,8 @@ export interface Business {
   businessType: string;
   // Etapa/tipo de organización (emprendimiento/pyme/startup/profesional). Ver PLAN-v2 item 3.
   businessStage?: BusinessStage;
-  businessModel: BusinessModel;
+  /** A quién le vende. Sin valor = todavía no definido (se le pide al usuario). */
+  businessModel?: BusinessModel;
   yearFounded?: string;
   employees?: string;
   country: string;
