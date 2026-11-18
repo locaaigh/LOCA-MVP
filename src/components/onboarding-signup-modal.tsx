@@ -121,7 +121,10 @@ export function OnboardingSignupModal({ open, business, onClose, router }: Props
       {/* El borrador ya quedó guardado antes de abrir este modal: al volver del
           OAuth, el login lo retoma y sigue directo a generar la estrategia. */}
       <div className="mt-4">
-        <GoogleButton label="Continuar con Google" />
+        {/* Vuelve a /onboarding?resume=1, que retoma el borrador guardado y
+            genera la estrategia. Sin esto, Google aterrizaba en /dashboard y el
+            borrador quedaba huérfano en localStorage. */}
+        <GoogleButton label="Continuar con Google" next="/onboarding?resume=1" />
         <p className="mt-2 text-center text-[11px] text-faint">
           Al continuar con Google aceptás los Términos y la Política de privacidad.
         </p>
