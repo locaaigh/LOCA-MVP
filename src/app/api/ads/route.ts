@@ -5,7 +5,8 @@ import { logAiUsage } from "@/lib/ai-usage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// Margen sobre los 60 s por si el modelo tarda; el plan Hobby permite 300 (ver #55).
+export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
   try {

@@ -9,7 +9,10 @@ import type { Strategy } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+/**
+ * Estrategia con Opus (effort high): misma situación que /api/extract (#55).
+ */
+export const maxDuration = 300;
 
 function nowIso() {
   return new Date().toISOString();

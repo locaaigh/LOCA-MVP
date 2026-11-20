@@ -12,7 +12,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 // Pipeline completo (generación + QA + overlay) puede tardar 20 a 60 s; con
 // OpenAI hasta 2 minutos. En Vercel Hobby el tope es 60 s; al pasar a Pro, subir a 120+.
-export const maxDuration = 60;
+// Margen sobre los 60 s por si el modelo tarda; el plan Hobby permite 300 (ver #55).
+export const maxDuration = 120;
 
 /**
  * POST /api/image { businessId, contentId, concept? }
