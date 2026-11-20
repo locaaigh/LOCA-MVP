@@ -56,7 +56,7 @@ El motor de contenido de Sebi (100% su entrega) + los 4 fixes está **en prod** 
 - [x] ~~Correr la migración `0010_field_config_texts.sql`~~ **Hecho (13-nov)**.
 - [x] ~~Correr la migración `0011_website_analysis_log.sql`~~ **Hecho (13-nov)**.
 - [x] ~~Correr la migración `0012_analysis_log_onboarding_view.sql`~~ **Hecho (15-nov)**.
-- [ ] **Correr la migración `0013_analysis_log_user_completed.sql`** en Supabase: el log registra qué campos completó el usuario a mano al terminar el onboarding (columna ✍️ + "Completada a mano" en el detalle). Con fallbacks: sin correrla nada se rompe.
+- [x] ~~Correr la migración `0013_analysis_log_user_completed.sql`~~ **Hecho (19-nov)**: el log registra qué campos completó el usuario a mano al terminar el onboarding (columna ✍️ + "Completada a mano" en el detalle).
 - [ ] **OpenAI**: cargar `OPENAI_API_KEY` en Vercel, correr `scripts/ai-v2/verify-image-models.mjs`, y pasar `AI_IMAGE_ROUTING=matrix` (hasta entonces, gemini-only).
 - [ ] **Verificar prueba clave** en prod: pieza educativa/promo con texto SOBRE la imagen; `/api/status` → `hasSharp: true`.
 - Fuera de alcance de Sebi (para más adelante): UI del brand kit, carrusel, V1/V2, auto-publicación.
