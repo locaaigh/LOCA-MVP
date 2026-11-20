@@ -6,7 +6,12 @@ import { logEvent } from "@/lib/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+/**
+ * Análisis de web con Opus (effort high): ~55 s medido en prod. Con Fluid
+ * Compute el plan Hobby permite hasta 300 s; antes el tope de 60 s lo ponía
+ * esta línea y el análisis quedaba al borde del timeout (issue #55).
+ */
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   try {

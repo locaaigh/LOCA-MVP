@@ -90,6 +90,20 @@ Plan completo de medición: `docs/ANALYTICS-PLAN.md`. Migración requerida: `000
   tampoco. No hay ventana en la que ambas versiones funcionen.
 - Storage: bucket de imágenes con **URLs públicas** (necesario para publicar en Instagram, que rechaza data URLs).
 
+## 3b. Duración de funciones (timeouts)
+
+- El plan **Hobby con Fluid Compute** permite hasta **300 s** por función (default y
+  máximo). `vercel.json` fija `"fluid": true` para no depender del toggle del
+  dashboard.
+- Las rutas con Opus a esfuerzo alto (`/api/extract`, `/api/strategy`,
+  `/api/strategy/start`) exportan `maxDuration = 300`; el resto de las rutas de IA,
+  `120`. Antes todas tenían `60` y el análisis de web (~55 s) quedaba al borde
+  del timeout (issue #55).
+- Si Vercel rechaza el build con "maxDuration must be between 1 and 60", Fluid
+  Compute está apagado en el proyecto: Settings → Functions → Fluid Compute → on.
+- Duración real de cada análisis: `/admin/ai-analysis` (columna duración, tabla
+  `website_analysis_log`).
+
 ## 4. Crons (Vercel)
 - `vercel.json` define el cron `/api/cron/meta/refresh-tokens` (6 AM diario). Requiere `CRON_SECRET`.
 - ⚠️ **Pendiente para auto-publicación programada**: hoy NO hay cron que publique según fecha. Cuando se implemente, requiere **Vercel Pro** (cron por minuto/hora) o un scheduler externo. Sin eso, la publicación es manual (botón "Publicar ahora" o export pack).
