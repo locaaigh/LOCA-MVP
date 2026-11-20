@@ -17,23 +17,24 @@
 >    viajar el `code` de OAuth por dos redirects antes de llegar al handler, y otros
 >    dos para volver a `/settings`. Apuntando al subdominio son cero saltos.
 >
-> **Sebastián: hay que actualizar las URLs ya cargadas en los dashboards** — ver
-> §4 y §5, marcadas con 🔄.
+> **Pendientes vivos: en GitHub Issues** (label `config` para lo que se hace en
+> dashboards). Este doc queda como especificación técnica de las integraciones;
+> los checkboxes son el estado al 2026-11-20 y no se mantienen al día.
 
 ---
 
 ## 1. Flujo Facebook Login (existente) — cambios de código
 
-- [ ] **`config_id` en el diálogo OAuth.** La app de Meta es tipo *Business* →
+- [x] **`config_id` en el diálogo OAuth.** (hecho: `META_LOGIN_CONFIG_ID`) La app de Meta es tipo *Business* →
       debe usar Facebook Login for Business. En `src/lib/meta/oauth.ts`
       (`buildAuthUrl`) enviar `config_id` en lugar de `scope`.
       La *configuration* se crea en el dashboard: **Inicio de sesión con Facebook →
       Configuraciones → Crear** (token de usuario, con los 9 permisos aprobables).
       Nueva env var: `META_LOGIN_CONFIG_ID`.
-- [ ] **Agregar `read_insights` a `DEFAULT_SCOPES`** en `src/lib/meta/config.ts`
+- [x] **Agregar `read_insights` a `DEFAULT_SCOPES`** (hecho) en `src/lib/meta/config.ts`
       (el código ya lee insights de página en `src/lib/meta/insights.ts:51` pero el
       scope no se pedía). Incluirlo también en la configuration del dashboard.
-- [ ] **Subir `META_GRAPH_VERSION`** de `v21.0` a `v23.0`+ (v21 deprecia ~oct 2026).
+- [x] **Subir `META_GRAPH_VERSION`** de `v21.0` a `v23.0`+ (hecho: default `v23.0`) (v21 deprecia ~oct 2026).
       ⚠️ Al subir, verificar que las métricas de `src/lib/meta/insights.ts` sigan
       existiendo — Meta deprecó varias de Page Insights entre v21 y v23. Si alguna
       desapareció, el endpoint devuelve error y la UI de métricas queda vacía.
@@ -42,7 +43,7 @@
 
 App de Instagram dentro de la app de Meta: **LOCA-IG**, App ID `1011168477969085`.
 
-- [ ] `src/lib/instagram/` espejando la estructura de `src/lib/meta/`:
+- [x] `src/lib/instagram/` espejando la estructura de `src/lib/meta/`:
   - OAuth: authorize en `https://www.instagram.com/oauth/authorize` con
     `response_type=code` y **solo** estos scopes:
     `instagram_business_basic,instagram_business_content_publish,instagram_business_manage_insights`.
@@ -59,14 +60,14 @@ App de Instagram dentro de la app de Meta: **LOCA-IG**, App ID `1011168477969085
     (`POST /{ig-user-id}/media` → `POST /{ig-user-id}/media_publish`).
   - Insights: `GET /{ig-user-id}/insights` y `GET /{media-id}/insights` en
     `graph.instagram.com`.
-- [ ] Rutas API:
+- [x] Rutas API:
   - `GET  /api/integrations/instagram/connect` — redirige al authorize.
   - `GET  /api/integrations/instagram/callback` — intercambia code, guarda conexión.
   - `POST /api/integrations/instagram/deauthorize` — signed_request, revoca tokens.
   - `GET/POST /api/integrations/instagram/webhook` — GET: handshake de verificación
     (responder `hub.challenge` si `hub.verify_token` == `INSTAGRAM_WEBHOOK_VERIFY_TOKEN`);
     POST: recibir eventos (por ahora solo loguear/200).
-- [ ] Campo `provider` (`facebook` | `instagram` | `linkedin`) en las conexiones
+- [x] Campo `provider` (`facebook` | `instagram` | `linkedin`) en las conexiones
     (`src/lib/meta/repository.ts`) + migración SQL. **Ojo:** la tabla
     `meta_connections` tiene hoy PK `(user_id, business_id)`, o sea un negocio solo
     puede tener UNA conexión. Hay que redefinir la PK a
@@ -74,7 +75,7 @@ App de Instagram dentro de la app de Meta: **LOCA-IG**, App ID `1011168477969085
     (`page_id`/`ig_user_id` no aplican a LinkedIn), y actualizar el `onConflict` del
     upsert, los filtros de `getConnection`/`deleteConnection` y la query del cron en
     `refresh.ts`, que hoy barre todas las filas activas sin distinguir proveedor.
-- [ ] Settings: segundo botón "Conectar con Instagram" (para cuentas IG
+- [x] Settings: segundo botón "Conectar con Instagram" (para cuentas IG
     profesionales sin Facebook). El publish/insights elige el cliente según
     `provider` de la conexión. El componente `src/components/meta-connection-card.tsx`
     hoy tiene hardcodeado el query param de retorno `?meta=`; hay que parametrizarlo
@@ -124,7 +125,7 @@ App de Instagram dentro de la app de Meta: **LOCA-IG**, App ID `1011168477969085
 ### Pendiente (bloqueado por deploy del dev)
 - [ ] **Webhook IG (paso 3 del wizard)** — recién después del deploy del módulo IG:
   - URL de devolución de llamada: `https://app.heyloca.ai/api/integrations/instagram/webhook`
-  - Token de verificación: `844f9e7b5925fb7ff971dd3b762580fb987d70f0a4635add48a5a8baa27714a2`
+  - Token de verificación: el valor de `INSTAGRAM_WEBHOOK_VERIFY_TOKEN` en Vercel (no se escribe acá).
   - Tocar "Verificar y guardar" (Meta hace un GET en vivo; antes del deploy falla).
 - [x] Crear la **configuration** de Facebook Login for Business → `config_id`:
   `814070598398388` (ya cargado en la tabla de env vars, §3).

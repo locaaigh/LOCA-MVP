@@ -159,6 +159,14 @@ Sin publicación automática en redes, sin Meta/Google Ads API, sin pagos, sin e
 7. Analytics y optimización automática.
 8. Multi-usuario / multi-negocio por organización.
 
+## 📁 Dónde vive la documentación
+
+- **En el repo, solo lo técnico** (cambia cuando cambia el código): este README, `CLAUDE.md`, `AGENTS.md`, `FUNCTIONALITY.md`, `ONBOARDING.md`, `.env.example`, `docs/` (deploy, analytics, integraciones, planes de arquitectura), `supabase/migrations/` y `scripts/`.
+- **Pendientes y bugs:** [GitHub Issues](https://github.com/locaaigh/LOCA-MVP/issues). Label `config` = se hace en un dashboard externo o en Vercel, sin código; `uat` = prueba manual en producción.
+- **Planes, resúmenes, feedback, pitch, brief, research:** carpeta "LOCA-Docs" en Google Drive (se movieron del repo el 2026-11-20; la historia sigue en git).
+
+No agregar notas de proyecto ni listas de pendientes como `.md` en el repo.
+
 ---
 
 LOCA — _Humanless marketing._ Tu marketing listo en minutos.
